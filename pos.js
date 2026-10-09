@@ -6,7 +6,7 @@
      • credit (Mkopo) sales are added to the customer's account in Debtors
      • has its own users, sales, reports and settings
    ===================================================================== */
-const APP_VERSION = "MM POS v1";
+const APP_VERSION = "MM POS v5";
 /* Firebase config + admin email live in ../duka.js (shared with the main app). */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -245,9 +245,7 @@ function view() {
   if (!D.loaded) return `<div class="loading"><div class="spin"></div>Inaunganisha na database...</div>`;
   if (D.needDeviceLogin) return deviceLoginView();
   if (D.blocked) return dukaBlockedView();
-  if (D.adminHome) return `<div class="login"><div class="login-card" style="text-align:center"><h2>Chagua duka kwanza</h2>
-    <p style="color:var(--mute);font-size:14px">Wewe ni msimamizi. Fungua orodha ya maduka, bonyeza <b>Fungua</b> kwenye duka, kisha urudi hapa kwenye POS.</p>
-    <a class="btn btn-p" href="./">Orodha ya maduka</a></div></div>`;
+  if (D.adminHome) return dukaAdminRedirect();
   if (!ed().pos) return `<div class="login"><div class="login-card" style="text-align:center"><div style="font-size:40px">🧾</div><h2>POS haipo kwenye ${esc(ed().name)}</h2>
     <p style="color:var(--mute);font-size:14px">Mfumo wa ${esc(bizName())} ni ${esc(ed().name)} — madeni, stock na ripoti za msingi. Kupata POS ya mauzo, risiti za WhatsApp na kufunga siku, pandisha kwenda DukaSmart. Wasiliana na E.E.Msango.</p></div></div>`;
   if (D.err) return errorView();
@@ -348,17 +346,18 @@ function logout() {
 
 /* ---------- app shell ---------- */
 function shellView() {
-  const tabs = [["uza", "🛒 Uza"], ["stock", "📦 Bidhaa"], ["mauzo", "🧾 Mauzo"], ["madeni", "📒 Madeni"], ["matumizi", "💸 Matumizi"], ["funga", "💰 Funga Siku"]];
+  const tabs = [["uza", "🛒 Uza"], ["stock", "📦 Bidhaa"], ["mauzo", "🧾 Mauzo"], ["madeni", "📒 Madeni"], ["matumizi", "💸 Matumizi"], ["funga", "💰 Funga Siku"]]
+    .filter(([k]) => ({ madeni: "posMadeni", matumizi: "matumizi", funga: "funga" })[k] ? has(({ madeni: "posMadeni", matumizi: "matumizi", funga: "funga" })[k]) : true);
   if (isOwner()) { if (ed().profit) tabs.push(["ripoti", "📊 Ripoti"]); tabs.push(["watu", "👥 Watumiaji"], ["mipangilio", "⚙️ Mipangilio"]); }
   const s = D.sync;
   const sync = !s ? "⚪" : s.fromCache ? "🔴 Offline" : s.pending ? "🟡 Inahifadhi" : "🟢 Live";
   const pages = { uza: pagePOS, stock: pageStock, mauzo: pageSales, madeni: pageDebts, matumizi: pageExpenses, funga: pageClose, ripoti: pageReport, watu: pageUsers, mipangilio: pageSettings };
-  if (!pages[U.page] || (!isOwner() && ["ripoti", "watu", "mipangilio"].includes(U.page)) || (U.page === "ripoti" && !ed().profit)) U.page = "uza";
-  return `${dukaAdminBanner()}<div class="top"><div class="logo"><span class="mk">${logoHtml()}</span><span class="t">${esc(SHOP ? SHOP.name : "E.E.MSANGO POS")}</span></div>
+  if (!pages[U.page] || (!isOwner() && ["ripoti", "watu", "mipangilio"].includes(U.page)) || (U.page !== "uza" && !tabs.some(([k]) => k === U.page))) U.page = "uza";
+  return `${dukaAdminBanner()}${dukaExpiryBanner()}<div class="top"><div class="logo"><span class="mk">${logoHtml()}</span><span class="t">${esc(SHOP ? SHOP.name : "E.E.MSANGO POS")}</span></div>
     <div class="who"><span class="sync">${sync}</span>
       <button class="icon-top" title="Dark / Light" onclick="toggleTheme()">${document.documentElement.getAttribute("data-theme") === "dark" ? "☀️" : "🌙"}</button>
       <button class="icon-top" title="Skrini nzima" onclick="toggleFull()">⛶</button><b>${isOwner() ? "👑" : "🧑‍💼"} ${esc(U.user.name)}</b><button onclick="logout()">⏻ Toka</button></div></div>
-  <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${U.page === k ? "on" : ""}" onclick="go('${k}')">${l}</button>`).join("")}<button class="tab" onclick="location.href='./'">📚 Wadai na Stock</button></div>
+  <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${U.page === k ? "on" : ""}" onclick="go('${k}')">${l}</button>`).join("")}<button class="tab" onclick="location.href=dukaHref('./')">📚 Wadai na Stock</button></div>
   <main>${pages[U.page]()}</main>
   ${U.page === "uza" && U.cart.length ? `<button class="cart-fab no-print" onclick="document.getElementById('cart').scrollIntoView({behavior:'smooth'})">🛒 ${U.cart.length} · ${fmt(cartTotal())}</button>` : ""}
   ${U.receipt ? receiptModal(U.receipt) : ""}
@@ -602,7 +601,7 @@ function pageStock() {
   </div>
   <div class="panel">
     <div class="row" style="flex-wrap:wrap;margin-bottom:8px"><h2 style="margin:0">📦 Stock — ${storeLabel(store)}</h2>
-      <div class="filters" style="margin:0">${["dukani", "godown"].map((s) => `<button class="chip ${store === s ? "on" : ""}" onclick="U.stockStore='${s}';U.stockCat='Zote';render()">${s === "godown" ? "🏭 Godown" : "🏪 Dukani"}</button>`).join("")}
+      <div class="filters" style="margin:0">${(ed().stores ? ["dukani", "godown"] : ["dukani"]).map((s) => `<button class="chip ${store === s ? "on" : ""}" onclick="U.stockStore='${s}';U.stockCat='Zote';render()">${s === "godown" ? "🏭 Godown" : "🏪 Dukani"}</button>`).join("")}
       <button class="btn btn-g sm" onclick="printStock('${store}')">🖨️ Print</button></div></div>
     ${noPrice && isOwner() ? `<div class="note">💡 Spea ${noPrice} hazina bei ya kuuza. Bonyeza ✏️ kuweka bei, ili ziweze kuuzwa.</div>` : ""}
     ${!isOwner() ? `<div class="note">🔒 Kama muuzaji, huoni bei ya kununua.</div>` : ""}
@@ -940,7 +939,7 @@ function pageSettings() {
   <div>
     <div class="panel"><h2>🏪 Mauzo</h2>
       <label class="l">Store ya kuuzia (kwa wauzaji)</label>
-      <div class="mode">${["dukani", "godown"].map((s) => `<button class="${cfg.defaultStore === s ? "on" : ""}" onclick="savePos({defaultStore:'${s}'});logActivity('Amebadilisha store ya kuuzia','${storeLabel(s)}')">${s === "godown" ? "🏭 Godown" : "🏪 Dukani"}</button>`).join("")}</div>
+      <div class="mode">${(ed().stores ? ["dukani", "godown"] : ["dukani"]).map((s) => `<button class="${cfg.defaultStore === s ? "on" : ""}" onclick="savePos({defaultStore:'${s}'});logActivity('Amebadilisha store ya kuuzia','${storeLabel(s)}')">${s === "godown" ? "🏭 Godown" : "🏪 Dukani"}</button>`).join("")}</div>
       <label class="switch" style="margin-top:10px"><input type="checkbox" ${cfg.allowPriceEdit ? "checked" : ""} onchange="savePos({allowPriceEdit:this.checked});logActivity('Ruhusa ya wauzaji kubadilisha bei', this.checked?'imewashwa':'imezimwa')"> Wauzaji wanaruhusiwa kubadilisha bei kwenye kikapu</label>
       <p class="hint">Kila bei inayobadilishwa inaandikwa kwenye risiti na kwenye 📜 Kumbukumbu, pamoja na jina la muuzaji.</p>
     </div>
@@ -995,7 +994,7 @@ function receiptModal(r) {
     <div class="dl"></div><div class="c">${esc(sh.footer)}</div>
   </div>
   <div class="ov-actions no-print"><button class="btn btn-g" onclick="U.receipt=null;render()">Funga</button>
-    <button class="btn btn-a" onclick="sendWhatsApp(U.receipt.phone, saleText(U.receipt))">📲 WhatsApp</button>
+    ${has("whatsapp") ? `<button class="btn btn-a" onclick="sendWhatsApp(U.receipt.phone, saleText(U.receipt))">📲 WhatsApp</button>` : ""}
     <button class="btn btn-p" onclick="window.print()">🖨️ Print</button></div></div></div>`;
 }
 function printListModal() {
@@ -1018,6 +1017,8 @@ function printListModal() {
    ===================================================================== */
 let _started = false;
 DUKA_HOOK.rerender = () => render();
+DUKA_HOOK.titleSuffix = " — POS";
+loadPreBrand();
 DUKA_HOOK.pri = "btn btn-p"; DUKA_HOOK.ghost = "btn btn-g";
 auth.onAuthStateChanged(async (u) => {
   if (!u) {
@@ -1031,7 +1032,7 @@ auth.onAuthStateChanged(async (u) => {
   if (shopBlocked()) { D.loaded = true; D.blocked = true; render(); return; }
   if (adminHome()) { D.loaded = true; D.adminHome = true; render(); return; }
   colRef = dataCollection();
-  if (SHOP) POS_DEFAULTS.shop = { name: SHOP.name, line: "", tin: "", phone: SHOP.phone || "", address: "", footer: "Asante kwa kununua! Karibu tena 🙏" };
+  if (SHOP) POS_DEFAULTS.shop = { name: SHOP.name, line: (SHOP.brand && SHOP.brand.tagline) || "", tin: "", phone: SHOP.phone || "", address: SHOP.location || "", footer: "Asante kwa kununua! Karibu tena 🙏" };
   startListening();
 });
 // keep the session across a page refresh on this device (still needs PIN after closing the app)
@@ -1207,7 +1208,7 @@ function payReceiptModal(r) {
     <div class="dl"></div><div class="c">${esc(sh.footer)}</div>
   </div>
   <div class="ov-actions no-print"><button class="btn btn-g" onclick="U.payReceipt=null;render()">Funga</button>
-    <button class="btn btn-a" onclick="sendWhatsApp(U.payReceipt.phone, payText(U.payReceipt))">📲 WhatsApp</button>
+    ${has("whatsapp") ? `<button class="btn btn-a" onclick="sendWhatsApp(U.payReceipt.phone, payText(U.payReceipt))">📲 WhatsApp</button>` : ""}
     <button class="btn btn-p" onclick="window.print()">🖨️ Print</button></div></div></div>`;
 }
 function payText(r) {
@@ -1366,7 +1367,7 @@ function printClosing(id) {
 function deviceLoginView() {
   const f = U.devLogin || (U.devLogin = { email: "", pw: "", msg: "" });
   return `<div class="login"><div class="login-card">
-    <div class="logo"><span class="mk">🔐</span>Msango Maduka POS</div>
+    <div style="text-align:center;margin-bottom:8px">${dukaLoginHeader()}<div style="font-size:12px;opacity:.6">POS ya mauzo</div></div>
     <p style="font-size:13px;color:var(--mute)">Ingia kwa email na password ulizopewa na E.E.Msango. Kifaa hiki kitakumbukwa.</p>
     <input id="dv-email" class="field" type="email" autocomplete="username" placeholder="Email ya biashara" value="${esc(f.email)}" oninput="U.devLogin.email=this.value">
     <input id="dv-pw" class="field" type="password" autocomplete="current-password" placeholder="Password" style="margin-top:8px" oninput="U.devLogin.pw=this.value" onkeydown="if(event.key==='Enter')activateDevice()">

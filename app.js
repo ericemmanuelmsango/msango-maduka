@@ -16,7 +16,7 @@ if (CONFIG_IS_SET) {
   docRef = db.collection("wadai_na_wadaiwa").doc("data");
 }
 
-const APP_VERSION = "MM v1";
+const APP_VERSION = "MM v5";
 let STATE = { posSales: [], entries: [], products: [], stockItems: [], stockMovements: [], sales: [], deliveries: [], settings: { appPassword: null, reportsPassword: "eric1234" } };
 let STATE_LOADED = false;
 let AUTH_READY = false;
@@ -217,10 +217,10 @@ let STORAGE_INFO = { parts: 0, biggestKB: 0 };
 
 let _dataStarted = false;
 DUKA_HOOK.rerender = () => rerender();
-DUKA_HOOK.wadaiUrl = location.origin + location.pathname.replace(/index\.html$/, "");
-DUKA_HOOK.posUrl = DUKA_HOOK.wadaiUrl + "pos.html";
+DUKA_HOOK.titleSuffix = "";
 function loadState() {
   if (!CONFIG_IS_SET) return;
+  loadPreBrand();                       // jina/rangi ya mteja kwenye skrini ya kuingia (duka.js)
   // Sign in anonymously in the background — invisible to the user — purely so
   // Firestore's security rules can require "someone went through our app" and
   // block raw outside access. The real gate the user sees is the app password below.
@@ -242,6 +242,7 @@ function loadState() {
     await resolveShop(u);                 // 🏪 which shop is this device for? (duka.js)
     AUTH_READY = true;
     if (shopBlocked() || adminHome()) { STATE_LOADED = true; rerender(); return; }
+    if (!has(UI.page) && !["dashboard", "settings"].includes(UI.page)) UI.page = "dashboard";
     colRef = dataCollection();
     docRef = colRef.doc("data");
     docRef._unsub = startSplitListener();
@@ -319,7 +320,7 @@ function renderDeviceLogin() {
   const f = UI.devLogin || (UI.devLogin = { email: "", pw: "", msg: "" });
   return `<div class="login-wrap"><div class="login-card">
     <div style="font-size:34px">🔐</div>
-    <h2 style="margin:0">Msango Maduka</h2>
+    ${dukaLoginHeader()}
     <p style="font-size:12.5px;color:#6b7280;margin:0">Ingia kwa email na password ulizopewa na E.E.Msango. Kifaa hiki kitakumbukwa.</p>
     <input id="dl-email" class="field" type="email" autocomplete="username" placeholder="Email ya biashara" value="${esc(f.email)}" oninput="UI.devLogin.email=this.value">
     <input id="dl-pw" class="field" type="password" autocomplete="current-password" placeholder="Password" onkeydown="if(event.key==='Enter')activateDevice()" oninput="UI.devLogin.pw=this.value">
@@ -529,7 +530,7 @@ function render() {
     return;
   }
   if (AUTH_READY && adminHome()) {
-    root.innerHTML = dukaConsoleView();
+    root.innerHTML = dukaAdminRedirect();
     return;
   }
   if (!AUTH_READY || !STATE_LOADED) {
@@ -544,7 +545,7 @@ function render() {
     root.innerHTML = renderLogin("login");
     return;
   }
-  root.innerHTML = dukaAdminBanner() + renderShell();
+  root.innerHTML = dukaAdminBanner() + dukaExpiryBanner() + renderShell();
   syncDatalists();
   if (UI.page === "dashboard") renderCharts();
 }
@@ -690,12 +691,12 @@ function renderShell() {
         <div><h2>${esc(SHOP ? SHOP.name : "E.E.MSANGO CO. LTD")}</h2><small>${SHOP ? esc(ed().name) : "Manage • Track • Grow"}</small></div>
       </div>
       <ul class="menu">
-        ${menuItems.map(([id, icon, label]) => `
+        ${menuItems.filter(([id]) => ["dashboard", "settings"].includes(id) || has(id)).map(([id, icon, label]) => `
           <li class="${UI.page === id ? "active" : ""}" onclick="setPage('${id}')">
             ${icon} <span>${label}</span>
             ${id === "alerts" && dueCount > 0 ? `<span class="menu-badge">${dueCount}</span>` : ""}
           </li>`).join("")}
-        ${SHOP && ed().pos ? `<li onclick="location.href='pos.html'" style="background:#14a37f;color:#fff;border-radius:8px;margin-top:6px">🛒 <span>POS — Uza</span></li>` : ""}
+        ${SHOP && has("pos") ? `<li onclick="location.href=dukaHref('pos.html')" style="background:#14a37f;color:#fff;border-radius:8px;margin-top:6px">🛒 <span>POS — Uza</span></li>` : ""}
       </ul>
       <div class="sidebar-bottom">Better Financial Control<br>for a Stronger Business</div>
     </aside>
@@ -736,7 +737,7 @@ function renderShell() {
 /* Update a number on screen without redrawing the whole page (keeps typing fast). */
 function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
 
-function setPage(p) { if (UI.page !== p) UI.search = ""; UI.page = p; UI.receiptEntryId = null; rerender(); }
+function setPage(p) { if (!["dashboard", "settings"].includes(p) && !has(p)) p = "dashboard"; if (UI.page !== p) UI.search = ""; UI.page = p; UI.receiptEntryId = null; rerender(); }
 function clearSearch() { UI.search = ""; rerender(); }
 
 function safeRenderPage(page) {

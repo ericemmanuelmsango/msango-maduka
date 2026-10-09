@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="sw">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kiwanda — Msango Maduka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Kiwanda: zana ya msimamizi — orodha ya mifumo juu, kila mfumo unafunguka kwa paneli yake ya kubadilisha. */
+:root{
+  --bg:#F2F3EF; --surface:#FFFFFF; --sunk:#E9EBE6; --ink:#17201E; --muted:#5B6863; --line:#D7DCD6;
+  --accent:#0D6A5B; --accent-ink:#FFFFFF; --accent-soft:#DDEEE9;
+  --good:#1D7A3B; --warn:#A86400; --bad:#B3261E; --info:#2556A3;
+  --good-soft:#E1F1E5; --warn-soft:#FBEFD9; --bad-soft:#F8E1DF; --info-soft:#E1EAF7;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E1412; --surface:#161F1C; --sunk:#1D2825; --ink:#E4EBE8; --muted:#95A49E; --line:#2B3733;
+  --accent:#43B9A2; --accent-ink:#06201B; --accent-soft:#163A33;
+  --good:#5DC985; --warn:#E3A43C; --bad:#F2786D; --info:#80A9F1;
+  --good-soft:#173322; --warn-soft:#3A2B10; --bad-soft:#3D1A17; --info-soft:#18284A; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom,0px)}
+h1,h2,h3,h4{font-family:var(--f-display);font-stretch:85%;margin:0;text-wrap:balance}
+h2{font-size:22px;font-weight:800} h3{font-size:17px;font-weight:700} h4{font-size:14px;font-weight:700;letter-spacing:.02em}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:16px 60px;display:grid;gap:16px}
+nav.top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+nav.top .in{max-width:1000px;margin:0 auto;padding:10px 16px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-stretch:80%;font-weight:800;font-size:18px;text-transform:uppercase;margin-right:8px}
+nav.top a{color:var(--muted);text-decoration:none;font-weight:600;padding:6px 10px;border-radius:8px;font-size:14px}
+nav.top a.on{background:var(--ink);color:var(--bg)}
+nav.top .sp{flex:1}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)} .note{font-size:12.5px;color:var(--muted)}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,.btn{font:inherit;font-weight:600;font-size:14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button:hover,.btn:hover{border-color:var(--muted)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.sm{font-size:13px;padding:5px 10px}
+.danger{color:var(--bad)}
+input,select,textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+input[type=color]{padding:2px;height:40px;width:64px}
+textarea{min-height:70px;resize:vertical}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.form{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stat:last-child{grid-column:span 2}
+@media (min-width:720px){.stats{grid-template-columns:repeat(5,minmax(0,1fr))}.stat:last-child{grid-column:auto}}
+.stat{background:var(--surface);padding:12px 14px;display:grid;gap:2px}
+.stat b{font-family:var(--f-mono);font-size:22px;font-weight:500}
+.stat span{font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.p-trial{background:var(--info-soft);color:var(--info)} .p-paid{background:var(--good-soft);color:var(--good)}
+.p-soon{background:var(--warn-soft);color:var(--warn)} .p-exp,.p-off{background:var(--bad-soft);color:var(--bad)}
+.list{display:grid;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.sys{border-top:1px solid var(--line);padding:12px 14px;display:grid;gap:8px}
+.sys:first-child{border-top:0}
+.sys .top{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.sw{width:14px;height:36px;border-radius:4px;background:var(--sunk)}
+.sys .n{font-weight:600;overflow-wrap:anywhere}
+.sys .m{font-size:13px;color:var(--muted)}
+.editor{border-top:1px dashed var(--line);padding-top:12px;display:grid;gap:14px}
+.feats{display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+.ck{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:14px;background:var(--surface)}
+.ck input{width:18px;height:18px;margin:2px 0 0;flex:none;accent-color:var(--accent)}
+.ck.on{background:var(--accent-soft);border-color:transparent}
+.grp{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:4px}
+.box{background:var(--sunk);border-radius:8px;padding:12px;display:grid;gap:6px;font-size:14px}
+.kv{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kv span:first-child{min-width:170px;color:var(--muted);font-size:13px}
+.msg{font-size:14px;padding:10px 12px;border-radius:8px}
+.ok{background:var(--good-soft);color:var(--good)} .err{background:var(--bad-soft);color:var(--bad)} .wn{background:var(--warn-soft);color:var(--warn)}
+pre,.mono{font-family:var(--f-mono);font-size:12px}
+details summary{cursor:pointer;font-weight:700}
+.center{min-height:70vh;display:grid;place-items:center}
+.card{max-width:380px;width:100%;display:grid;gap:10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+<nav class="top"><div class="in">
+  <span class="brand">Msango Maduka</span>
+  <a href="ofisi.html">📋 Ofisi</a>
+  <a href="kiwanda.html" class="on">🏭 Kiwanda</a>
+  <span class="sp"></span>
+  <span id="who" class="note"></span>
+</div></nav>
+<main class="wrap" id="app"><div class="center"><p class="muted">Inapakia…</p></div></main>
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="duka.js?v=5"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const $ = (s) => document.querySelector(s);
+const esc = dukaEsc;
+const tzs = (n) => "TZS " + Math.round(+n || 0).toLocaleString("en-US");
+function toast(m) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2800); }
+
+const K = { user: null, shops: [], loaded: false, open: location.hash.slice(1) || null, tab: {}, edit: {}, creds: {}, created: null, msg: "", ok: true, busy: false,
+  showNew: false, form: null, pub: {}, login: { email: "", pw: "", msg: "" } };
+function blankForm() {
+  return { name: "", code: "", _codeTouched: false, email: "", pw: genPw(), phone: "", location: "", owner: "", edition: "duka",
+    features: presetFeatures("duka"), users: EDITIONS.duka.users, monthly: EDITIONS.duka.price, color: "#0d6a5b", tagline: "",
+    trialDays: (K.pub && K.pub.trialDays) || 14, notes: "", clientId: "" };
+}
+function genPw() { const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for (let i = 0; i < 8; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
+
+/* ---------- status ya mfumo ---------- */
+function status(s) {
+  if (s.active === false) return ["p-off", "Imesimamishwa"];
+  const dl = daysLeft(s);
+  if (dl == null || dl <= 0) return ["p-exp", "Muda umeisha"];
+  if (s.trialEnds && s.paidUntil <= s.trialEnds) return ["p-trial", "Majaribio · siku " + dl];
+  if (dl <= 5) return ["p-soon", "Inaisha · siku " + dl];
+  return ["p-paid", "Imelipiwa · siku " + dl];
+}
+
+/* ---------- data ---------- */
+let unsub = null;
+function listen() {
+  if (unsub) return;
+  unsub = db.collection("shops").onSnapshot((snap) => {
+    K.shops = snap.docs.map((d) => ({ code: d.id, ...d.data() })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    K.loaded = true; K.denied = false;
+    // mifumo ya zamani isiyo na muda wa malipo → ipe siku 14 za majaribio
+    K.shops.filter((s) => !s.paidUntil).forEach((s) => db.collection("shops").doc(s.code).update({ paidUntil: Date.now() + 14 * DAY, trialEnds: Date.now() + 14 * DAY }).catch(() => {}));
+    render();
+  }, (e) => { K.loaded = true; K.denied = e && e.code === "permission-denied"; render(); });
+  db.collection("settings").doc("public").onSnapshot((d) => { K.pub = (d.exists && d.data()) || {}; render(); }, () => {});
+}
+
+/* ---------- views ---------- */
+function vLogin() {
+  const f = K.login;
+  return `<div class="center"><div class="card panel">
+    <h2>Kiwanda</h2><p class="note">Ingia kwa email ya msimamizi.</p>
+    <input id="lg-email" type="email" placeholder="Email" value="${esc(f.email)}" oninput="K.login.email=this.value">
+    <input id="lg-pw" type="password" placeholder="Password" oninput="K.login.pw=this.value" onkeydown="if(event.key==='Enter')doLogin()">
+    ${f.msg ? `<div class="msg err">${esc(f.msg)}</div>` : ""}
+    <button class="pri" onclick="doLogin()">Ingia</button>
+    <button onclick="dukaForgot(K.login.email)">Umesahau password?</button></div></div>`;
+}
+function doLogin() { auth.signInWithEmailAndPassword(K.login.email.trim(), K.login.pw).catch((e) => { K.login.msg = /wrong|invalid|not-found/.test(e.code || "") ? "Email au password si sahihi." : (e.message || "Imeshindikana"); render(); }); }
+
+function vStats() {
+  const S = K.shops, st = S.map(status);
+  const n = (c) => st.filter(([k]) => k === c).length;
+  const mrr = S.filter((s, i) => st[i][0] === "p-paid" || st[i][0] === "p-soon").reduce((a, s) => a + (s.monthly || 0), 0);
+  return `<div class="stats">
+    <div class="stat"><span>Mifumo yote</span><b>${S.length}</b></div>
+    <div class="stat"><span>Imelipiwa</span><b style="color:var(--good)">${n("p-paid") + n("p-soon")}</b></div>
+    <div class="stat"><span>Majaribio</span><b style="color:var(--info)">${n("p-trial")}</b></div>
+    <div class="stat"><span>Inaisha ≤ siku 5</span><b style="color:var(--warn)">${n("p-soon")}</b></div>
+    <div class="stat"><span>Imeisha / imesimamishwa</span><b style="color:var(--bad)">${n("p-exp") + n("p-off")}</b></div>
+  </div><div class="note">Mapato ya mwezi kutoka mifumo iliyolipiwa: <b class="num">${tzs(mrr)}</b></div>`;
+}
+
+function featBoxes(features, onchange) {
+  let grp = "";
+  return `<div class="feats">${FEATURES.map(([k, label, g]) => {
+    const head = g !== grp ? ((grp = g), `<div class="grp" style="grid-column:1/-1">${g === "POS" ? "🛒 POS (mauzo)" : "📚 Wadai na Stock"}</div>`) : "";
+    return head + `<label class="ck ${features[k] ? "on" : ""}"><input type="checkbox" ${features[k] ? "checked" : ""} onchange="${onchange}('${k}',this.checked)"><span>${label}</span></label>`;
+  }).join("")}</div>`;
+}
+
+function vNew() {
+  const f = K.form || (K.form = blankForm());
+  const editionOpts = Object.entries(EDITIONS).map(([k, e]) => `<option value="${k}" ${f.edition === k ? "selected" : ""}>${e.name} — ${tzs(e.price)}/mwezi</option>`).join("");
+  return `<div class="panel">
+    <div class="row" style="justify-content:space-between"><h3>＋ Mfumo mpya</h3><button class="sm" onclick="K.showNew=false;render()">Funga</button></div>
+    ${f.clientId ? `<div class="msg ok">Kutoka Ofisi: taarifa za mteja zimejazwa. Ukitengeneza, rekodi yake ya Ofisi itaunganishwa yenyewe.</div>` : ""}
+    <h4>1. Mteja</h4>
+    <div class="form">
+      <label class="f">Jina la duka<input id="nf-name" value="${esc(f.name)}" oninput="nf('name',this.value)" placeholder="mf. Kirumba Spare Centre"></label>
+      <label class="f">Code (inakuwa sehemu ya link)<input id="nf-code" value="${esc(f.code)}" oninput="nf('code',this.value)" placeholder="kirumba-spare"></label>
+      <label class="f">Mwenye duka<input id="nf-owner" value="${esc(f.owner)}" oninput="nf('owner',this.value)"></label>
+      <label class="f">Simu<input id="nf-phone" value="${esc(f.phone)}" oninput="nf('phone',this.value)" inputmode="tel"></label>
+      <label class="f">Eneo<input id="nf-location" value="${esc(f.location)}" oninput="nf('location',this.value)"></label>
+    </div>
+    <h4>2. Kuingia</h4>
+    <div class="form">
+      <label class="f">Email ya mteja<input id="nf-email" type="email" value="${esc(f.email)}" oninput="nf('email',this.value)"></label>
+      <label class="f">Password ya kuanzia<div class="row" style="flex-wrap:nowrap"><input id="nf-pw" value="${esc(f.pw)}" oninput="nf('pw',this.value)"><button class="sm" onclick="nf('pw',genPw());render()">🎲</button></div></label>
+    </div>
+    <h4>3. Vipengele — kama mteja anavyotaka</h4>
+    <div class="form">
+      <label class="f">Anza na mpango<select id="nf-edition" onchange="nfEdition(this.value)">${editionOpts}</select></label>
+      <label class="f">Watumiaji wa POS (idadi)<input id="nf-users" type="number" min="1" value="${f.users}" oninput="nf('users',+this.value)"></label>
+      <label class="f">Bei kwa mwezi (TZS)<input id="nf-monthly" type="number" step="1000" value="${f.monthly}" oninput="nf('monthly',+this.value)"></label>
+    </div>
+    ${featBoxes(f.features, "nfFeat")}
+    <h4>4. Chapa yake</h4>
+    <div class="form">
+      <label class="f">Rangi kuu<input id="nf-color" type="color" value="${esc(f.color)}" oninput="nf('color',this.value)"></label>
+      <label class="f">Maneno chini ya jina (risiti, kuingia)<input id="nf-tagline" value="${esc(f.tagline)}" oninput="nf('tagline',this.value)" placeholder="mf. Spea za pikipiki — jumla na rejareja"></label>
+    </div>
+    <h4>5. Muda</h4>
+    <div class="form">
+      <label class="f">Siku za majaribio bure<input id="nf-trial" type="number" min="0" value="${f.trialDays}" oninput="nf('trialDays',+this.value)"></label>
+      <label class="f">Maombi maalum ya mteja<textarea id="nf-notes" oninput="nf('notes',this.value)" placeholder="mf. anataka ripoti ya kila fundi, nembo kwenye risiti…">${esc(f.notes)}</textarea></label>
+    </div>
+    <button class="pri" ${K.busy ? "disabled" : ""} onclick="createShop()">${K.busy ? "Inatengeneza…" : "🏭 Tengeneza mfumo"}</button>
+    ${K.msg && K.showNew ? `<div class="msg ${K.ok ? "ok" : "err"}">${esc(K.msg)}</div>` : ""}
+  </div>`;
+}
+function nf(k, v) {
+  const f = K.form; f[k] = v;
+  if (k === "name" && !f._codeTouched) { f.code = dukaSlug(v); const el = $("#nf-code"); if (el) el.value = f.code; }
+  if (k === "code") f._codeTouched = true;
+}
+function nfEdition(e) { const f = K.form; f.edition = e; f.features = presetFeatures(e); f.users = EDITIONS[e].users; f.monthly = EDITIONS[e].price; render(); }
+function nfFeat(k, on) { K.form.features[k] = on; render(); }
+
+async function createShop() {
+  const f = K.form; K.busy = true; K.msg = "Inatengeneza…"; K.ok = true; render();
+  try {
+    const r = await adminCreateShop({ ...f, brand: { color: f.color, tagline: f.tagline } });
+    K.created = r; K.form = null; K.showNew = false; K.msg = ""; K.open = r.code; location.hash = r.code;
+    toast("✅ Mfumo wa " + r.name + " umetengenezwa");
+  } catch (e) {
+    const c = (e && e.code) || "";
+    K.msg = c === "permission-denied" ? "Firebase imekataa — weka rules mpya (Mipangilio hapa chini) kisha jaribu tena."
+      : c.includes("operation-not-allowed") ? "Washa Email/Password kwenye Firebase → Authentication."
+      : c.includes("weak-password") ? "Password ni dhaifu (herufi 6+)." : (e && e.message) || "Imeshindikana";
+    K.ok = false;
+  }
+  K.busy = false; render();
+}
+
+function welcome(c, s) {
+  const feats = s ? { ...presetFeatures(s.edition), ...(s.features || {}) } : {};
+  const pos = s ? feats.pos : true;
+  const P = K.pub || {};
+  return `Habari! Mfumo wa ${c.name} uko tayari.
+
+Fungua link ${pos ? "hizi" : "hii"} kwenye simu yako kwa Chrome, kisha ⋮ → "Add to Home screen":
+• Madeni na stock: ${shopLink(c.code, "")}${pos ? "\n• POS ya mauzo: " + shopLink(c.code, "pos.html") : ""}
+
+Ingia kwa:
+Email: ${c.email}
+${c.pw ? "Password: " + c.pw : "Password: ile uliyonayo tayari"}
+${s && s.trialEnds ? "\nMajaribio bure hadi " + fmtDate(s.trialEnds) + "." : ""}${P.lipaNumber ? "\nMalipo: " + (P.lipaMethod || "Lipa namba") + " " + P.lipaNumber + ", kumbukumbu: " + c.code : ""}
+— E.E.MSANGO COMPANY LIMITED`;
+}
+
+function vCreated() {
+  const c = K.created; if (!c) return "";
+  const s = K.shops.find((x) => x.code === c.code);
+  return `<div class="panel" style="border-color:var(--good)">
+    <div class="row" style="justify-content:space-between"><h3>✅ ${esc(c.name)} — tayari</h3><button class="sm" onclick="K.created=null;render()">Funga</button></div>
+    ${c.exposed ? `<div class="msg err"><b>Usimpe bado!</b> Email mpya iliweza kuona mifumo mingine — rules hazijawekwa. Weka rules (Mipangilio) kwanza.</div>` : ""}
+    ${c.existed ? `<div class="msg wn">Email hii ilikuwa tayari imesajiliwa — password yake ya zamani inabaki.</div>` : ""}
+    <div class="row">
+      <a class="btn pri" href="${shopLink(c.code, "")}" target="_blank" rel="noopener">↗ Fungua mfumo wake</a>
+      <a class="btn" href="ofisi.html#${esc(c.clientId)}">📋 Rekodi yake Ofisini</a>
+    </div>
+    <label class="f">Ujumbe wa WhatsApp kwa mteja<textarea id="welcome" readonly style="min-height:200px;font-size:13px">${esc(welcome(c, s))}</textarea></label>
+    <button class="sm" onclick="copy('welcome')">📋 Nakili ujumbe</button>
+  </div>`;
+}
+function copy(id) { const el = $("#" + id); (navigator.clipboard ? navigator.clipboard.writeText(el.value || el.textContent) : Promise.reject()).then(() => toast("📋 Imenakiliwa")).catch(() => { el.select && el.select(); toast("Chagua maandishi kisha nakili"); }); }
+
+function vList() {
+  if (!K.loaded) return `<div class="panel"><p class="muted">Inapakia mifumo…</p></div>`;
+  if (K.denied) return `<div class="panel"><div class="msg err">Firebase imekataa kusoma mifumo. Weka rules mpya kwenye Mipangilio hapa chini, kisha refresh.</div></div>`;
+  if (!K.shops.length) return `<div class="panel" style="text-align:center"><p class="muted">Bado hakuna mfumo. Bonyeza <b>＋ Mfumo mpya</b> kumtengenezea mteja wa kwanza.</p></div>`;
+  return `<div class="list">${K.shops.map(vSys).join("")}</div>`;
+}
+function vSys(s) {
+  const [cls, label] = status(s), open = K.open === s.code;
+  const E = EDITIONS[s.edition] || EDITIONS.duka;
+  const color = (s.brand && s.brand.color) || "var(--sunk)";
+  return `<div class="sys" id="sys-${s.code}">
+    <div class="top">
+      <span class="sw" style="background:${esc(color)}"></span>
+      <div style="min-width:0"><div class="n">${esc(s.name)}</div>
+        <div class="m">${esc(s.code)} · ${esc(E.name)}${s.features ? " (imebadilishwa)" : ""} · ${tzs(s.monthly || E.price)}/mwezi · hadi ${fmtDate(s.paidUntil)}</div></div>
+      <span class="pill ${cls}">${label}</span>
+    </div>
+    <div class="row">
+      <a class="btn sm" href="${shopLink(s.code, "")}" target="_blank" rel="noopener">↗ Fungua</a>
+      ${({ ...presetFeatures(s.edition), ...(s.features || {}) }).pos ? `<a class="btn sm" href="${shopLink(s.code, "pos.html")}" target="_blank" rel="noopener">↗ POS</a>` : ""}
+      <button class="sm" onclick="copyLink('${s.code}')">🔗 Link</button>
+      <button class="sm" onclick="extend('${s.code}',30)">＋ Mwezi 1</button>
+      <button class="sm ${open ? "pri" : ""}" onclick="toggle('${s.code}')">⚙️ ${open ? "Funga" : "Badilisha"}</button>
+    </div>
+    ${open ? vEditor(s) : ""}
+  </div>`;
+}
+function toggle(code) { K.open = K.open === code ? null : code; history.replaceState(null, "", K.open ? "#" + K.open : location.pathname); render(); }
+function copyLink(code) {
+  const t = shopLink(code, "");
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("🔗 Link imenakiliwa: " + t)).catch(() => prompt("Nakili link hii:", t));
+}
+async function extend(code, days) {
+  try { const until = await adminExtend(code, days); toast("✅ Imeongezwa hadi " + fmtDate(until)); } catch (e) { toast("Haikuongezwa: " + (e.message || "")); }
+}
+
+/* ---------- editor ya mfumo mmoja ---------- */
+function vEditor(s) {
+  const t = K.tab[s.code] || "vipengele";
+  const E = K.edit[s.code] || (K.edit[s.code] = {
+    edition: s.edition, features: { ...presetFeatures(s.edition), ...(s.features || {}) }, users: s.users || (EDITIONS[s.edition] || EDITIONS.duka).users,
+    monthly: s.monthly || (EDITIONS[s.edition] || EDITIONS.duka).price, name: s.name, color: (s.brand && s.brand.color) || "#0d6a5b",
+    tagline: (s.brand && s.brand.tagline) || "", phone: s.phone || "", location: s.location || "", notes: s.notes || "" });
+  const tabs = [["vipengele", "🧩 Vipengele"], ["chapa", "🎨 Chapa"], ["muda", "⏳ Muda & malipo"], ["kuingia", "🔑 Kuingia"], ["hatari", "⚠️ Hatari"]];
+  let body = "";
+  if (t === "vipengele") body = `
+    <div class="form">
+      <label class="f">Mpango wa msingi<select onchange="edEdition('${s.code}',this.value)">${Object.entries(EDITIONS).map(([k, e]) => `<option value="${k}" ${E.edition === k ? "selected" : ""}>${e.name}</option>`).join("")}</select></label>
+      <label class="f">Watumiaji wa POS<input type="number" min="1" value="${E.users}" oninput="K.edit['${s.code}'].users=+this.value"></label>
+      <label class="f">Bei kwa mwezi (TZS)<input type="number" step="1000" value="${E.monthly}" oninput="K.edit['${s.code}'].monthly=+this.value"></label>
+    </div>
+    ${featBoxes(E.features, "edFeat_" + s.code.replace(/-/g, "_"))}
+    <label class="f">Maombi maalum ya mteja<textarea oninput="K.edit['${s.code}'].notes=this.value">${esc(E.notes)}</textarea></label>
+    <div class="row"><button class="pri" onclick="saveFeatures('${s.code}')">💾 Hifadhi vipengele</button><span class="note">Mteja anaona mabadiliko akifungua mfumo upya.</span></div>`;
+  if (t === "chapa") body = `
+    <div class="form">
+      <label class="f">Jina la duka<input value="${esc(E.name)}" oninput="K.edit['${s.code}'].name=this.value"></label>
+      <label class="f">Rangi kuu<input type="color" value="${esc(E.color)}" oninput="K.edit['${s.code}'].color=this.value"></label>
+      <label class="f">Maneno chini ya jina<input value="${esc(E.tagline)}" oninput="K.edit['${s.code}'].tagline=this.value"></label>
+      <label class="f">Simu (risiti)<input value="${esc(E.phone)}" oninput="K.edit['${s.code}'].phone=this.value"></label>
+      <label class="f">Eneo (risiti)<input value="${esc(E.location)}" oninput="K.edit['${s.code}'].location=this.value"></label>
+    </div>
+    <div class="row"><button class="pri" onclick="saveBrand('${s.code}')">💾 Hifadhi chapa</button><span class="note">Logo, mteja anaweka mwenyewe kwenye Settings ya mfumo wake.</span></div>`;
+  if (t === "muda") {
+    const dl = daysLeft(s);
+    body = `<div class="box">
+      <div class="kv"><span>Hali</span><span class="pill ${status(s)[0]}">${status(s)[1]}</span></div>
+      <div class="kv"><span>Umelipiwa hadi</span><b>${fmtDate(s.paidUntil)}</b>${dl != null ? `<span class="note">(${dl > 0 ? "siku " + dl + " zimebaki" : "siku " + -dl + " zimepita"})</span>` : ""}</div>
+      <div class="kv"><span>Majaribio yaliisha</span><b>${fmtDate(s.trialEnds)}</b></div>
+    </div>
+    <div class="row">
+      <button onclick="extend('${s.code}',7)">＋ Siku 7</button>
+      <button class="pri" onclick="extend('${s.code}',30)">＋ Mwezi 1</button>
+      <button onclick="extend('${s.code}',90)">＋ Miezi 3</button>
+      <button onclick="extend('${s.code}',365)">＋ Mwaka 1</button>
+    </div>
+    <div class="row"><label class="f" style="max-width:220px">Au weka tarehe kamili<input type="date" id="pd-${s.code}"></label><button onclick="setUntil('${s.code}')">Weka</button></div>
+    <div class="row">${s.active === false ? `<button class="pri" onclick="setActive('${s.code}',true)">▶️ Washa mfumo</button>` : `<button class="danger" onclick="setActive('${s.code}',false)">⏸️ Simamisha mfumo</button>`}</div>
+    <p class="note">Ukirekodi malipo kwenye <b>Ofisi</b>, muda unaongezwa hapa wenyewe. Muda ukiisha, mfumo wa mteja unajifunga wenyewe (seva inakagua — hawezi kudanganya kwa saa ya simu). Data yake haifutwi.</p>`;
+  }
+  if (t === "kuingia") body = vCreds(s);
+  if (t === "hatari") body = `<div class="box"><b>Futa mfumo huu</b><span class="note">Inafuta mfumo, data yote ya duka, na link yake. Rekodi ya Ofisi inabaki. Haiwezi kurudishwa.</span>
+    <button class="danger" onclick="delShop('${s.code}', ${esc(JSON.stringify(s.name))})">🗑️ Futa ${esc(s.name)}</button></div>`;
+  window["edFeat_" + s.code.replace(/-/g, "_")] = (k, on) => { K.edit[s.code].features[k] = on; render(); };
+  return `<div class="editor">
+    <div class="row">${tabs.map(([k, l]) => `<button class="sm ${t === k ? "pri" : ""}" onclick="K.tab['${s.code}']='${k}';render()">${l}</button>`).join("")}</div>
+    ${body}</div>`;
+}
+function edEdition(code, e) { const E = K.edit[code]; E.edition = e; E.features = presetFeatures(e); E.users = EDITIONS[e].users; E.monthly = EDITIONS[e].price; render(); }
+async function saveFeatures(code) {
+  const E = K.edit[code];
+  try {
+    await adminUpdateShop(code, { edition: E.edition, features: E.features, users: E.users, monthly: E.monthly, notes: E.notes });
+    const s = K.shops.find((x) => x.code === code);
+    if (s && s.clientId) db.collection("clients").doc(s.clientId).set({ edition: E.edition, monthlyOverride: E.monthly }, { merge: true }).catch(() => {});
+    toast("✅ Vipengele vimehifadhiwa");
+  } catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
+}
+async function saveBrand(code) {
+  const E = K.edit[code];
+  try { await adminUpdateShop(code, { name: E.name, brand: { color: E.color, tagline: E.tagline }, phone: E.phone, location: E.location }); toast("✅ Chapa imehifadhiwa"); }
+  catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
+}
+async function setActive(code, on) {
+  if (!on && !confirm("Simamisha mfumo huu? Mteja hataweza kuufungua hadi uuwashe. Data haifutwi.")) return;
+  try { await adminUpdateShop(code, { active: on }); toast(on ? "▶️ Mfumo umewashwa" : "⏸️ Mfumo umesimamishwa"); } catch (e) { toast(e.message || "Imeshindikana"); }
+}
+async function setUntil(code) {
+  const v = $("#pd-" + code).value; if (!v) return toast("Chagua tarehe");
+  const ms = new Date(v + "T23:59:59").getTime();
+  try { await adminUpdateShop(code, { paidUntil: ms, active: true }); toast("✅ Hadi " + fmtDate(ms)); } catch (e) { toast(e.message || "Imeshindikana"); }
+}
+async function delShop(code, name) {
+  if (!confirm("FUTA mfumo \"" + name + "\" pamoja na data yake YOTE? Haiwezi kurudishwa.")) return;
+  if ((prompt("Andika code ya mfumo (" + code + ") kuthibitisha:") || "").trim() !== code) return toast("Haikufutwa — code haikulingana");
+  try { await adminDeleteShop(code); K.open = null; toast("🗑️ " + name + " imefutwa"); } catch (e) { toast("Haikufutika: " + (e.message || "")); }
+}
+
+/* ---------- 🔑 kuingia ---------- */
+async function loadCreds(code) {
+  K.creds[code] = { loading: true }; render();
+  try {
+    const col = db.collection("shops").doc(code).collection("data");
+    const [m, p] = await Promise.all([col.doc("data").get(), col.doc("pos_settings").get()]);
+    K.creds[code] = { appPw: ((m.exists && m.data().settings) || {}).appPassword || "", users: ((p.exists && p.data().users) || []).filter((u) => u.active !== false) };
+  } catch (e) { K.creds[code] = { err: e.message || "Imeshindikana" }; }
+  render();
+}
+function vCreds(s) {
+  const c = K.creds[s.code];
+  if (!c) { setTimeout(() => loadCreds(s.code), 0); return `<p class="muted">Inapakia…</p>`; }
+  if (c.loading) return `<p class="muted">Inapakia…</p>`;
+  if (c.err) return `<div class="msg err">${esc(c.err)}</div>`;
+  const em = s.ownerEmail || (s.members || [])[0] || "";
+  return `<div class="box">
+    <div class="kv"><span>Email ya kuingia</span><b class="mono">${esc(em)}</b></div>
+    <div class="kv"><span>Password ya kuingia</span><b class="mono">${s.loginPw ? esc(s.loginPw) : "haijulikani"}</b>
+      <button class="sm" onclick="dukaForgotFor('${esc(em)}')">📧 Tuma link ya kubadilisha</button>
+      <button class="sm" onclick="noteLoginPw('${s.code}')">✏️ Andika kumbukumbu</button></div>
+    <div class="kv"><span>Password ya mfumo (Wadai)</span><b class="mono">${c.appPw ? esc(c.appPw) : "bado haijawekwa"}</b>
+      <button class="sm" onclick="setAppPw('${s.code}')">Badilisha</button></div>
+    <div class="kv"><span>PIN za POS</span>${c.users.length ? "" : `<span class="note">bado hakuna mtumiaji wa POS</span>`}</div>
+    ${c.users.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span><b class="mono">••••</b><button class="sm" onclick="setPin('${s.code}','${u.id}',${esc(JSON.stringify(u.name))})">Weka PIN mpya</button></div>`).join("")}
+    <div class="kv"><span>Email nyingine za duka</span><span class="mono">${esc((s.members || []).filter((x) => x !== em).join(", ") || "—")}</span><button class="sm" onclick="addMember('${s.code}')">＋ Ongeza email</button></div>
+  </div>
+  <p class="note">PIN hazionekani kwa usalama — ukisahau, weka mpya. Mteja akibadilisha password ya kuingia kwa link, hutaiona hapa.</p>`;
+}
+function dukaForgotFor(email) { auth.sendPasswordResetEmail(email).then(() => toast("📧 Link imetumwa kwa " + email)).catch((e) => toast("Haikutumwa: " + (e.message || ""))); }
+function noteLoginPw(code) { const pw = (prompt("Password uliyokubaliana na mteja (kumbukumbu yako):") || "").trim(); if (pw) adminUpdateShop(code, { loginPw: pw }).then(() => toast("✅ Imehifadhiwa")); }
+async function setAppPw(code) {
+  const pw = (prompt("Password mpya ya mfumo (Wadai) — herufi 4+:") || "").trim(); if (!pw) return;
+  if (pw.length < 4) return toast("Herufi 4 au zaidi");
+  await db.collection("shops").doc(code).collection("data").doc("data").set({ settings: { appPassword: pw } }, { merge: true });
+  toast("✅ Password ya mfumo sasa ni " + pw); loadCreds(code);
+}
+async function setPin(code, uid, name) {
+  const pin = (prompt("PIN mpya ya " + name + " (namba 4–6):") || "").trim(); if (!pin) return;
+  if (!/^\d{4,6}$/.test(pin)) return toast("PIN iwe namba 4 hadi 6");
+  const ref = db.collection("shops").doc(code).collection("data").doc("pos_settings");
+  const users = (((await ref.get()).data() || {}).users || []).map((u) => ({ ...u }));
+  const u = users.find((x) => x.id === uid); if (!u) return toast("Mtumiaji hakupatikana");
+  u.pinHash = await dukaPinHash(uid, pin);
+  await ref.set({ users }, { merge: true }); toast("✅ PIN ya " + name + " sasa ni " + pin); loadCreds(code);
+}
+function addMember(code) {
+  const em = (prompt("Email ya kuongeza (lazima iwe imesajiliwa Firebase → Authentication):") || "").trim().toLowerCase(); if (!em) return;
+  adminUpdateShop(code, { members: firebase.firestore.FieldValue.arrayUnion(em) }).then(() => toast("✅ " + em + " ameongezwa"));
+}
+
+/* ---------- mipangilio ---------- */
+function vSettings() {
+  const P = K.pub || {};
+  return `<details class="panel"><summary>⚙️ Mipangilio ya Kiwanda</summary>
+    <h4>Malipo (wateja wanaona hii muda ukiisha)</h4>
+    <div class="form">
+      <label class="f">Njia<input id="ps-method" value="${esc(P.lipaMethod || "M-Pesa Lipa namba")}"></label>
+      <label class="f">Namba ya kulipia<input id="ps-number" value="${esc(P.lipaNumber || "")}"></label>
+      <label class="f">Jina la akaunti<input id="ps-name" value="${esc(P.lipaName || "E.E.MSANGO COMPANY LIMITED")}"></label>
+      <label class="f">Simu ya msaada<input id="ps-phone" value="${esc(P.phone || "")}"></label>
+      <label class="f">Siku za majaribio (kawaida)<input id="ps-trial" type="number" min="0" value="${P.trialDays || 14}"></label>
+    </div>
+    <button class="pri" onclick="savePub()">💾 Hifadhi</button>
+    <h4>Rules za Firebase (weka upya baada ya sasisho hili)</h4>
+    <p class="note">Firebase Console → Firestore Database → Rules → futa zote → bandika hizi → Publish.</p>
+    <textarea id="rules" readonly style="min-height:240px" class="mono">${esc(dukaRules())}</textarea>
+    <button class="sm" onclick="copy('rules')">📋 Nakili rules</button>
+  </details>`;
+}
+function savePub() {
+  const d = { lipaMethod: $("#ps-method").value.trim(), lipaNumber: $("#ps-number").value.trim(), lipaName: $("#ps-name").value.trim(), phone: $("#ps-phone").value.trim(), trialDays: +$("#ps-trial").value || 14 };
+  db.collection("settings").doc("public").set(d, { merge: true }).then(() => toast("✅ Imehifadhiwa")).catch((e) => toast("Haikuhifadhika: " + (e.message || "")));
+}
+
+/* ---------- render ---------- */
+function render() {
+  const app = $("#app");
+  if (!K.user) { app.innerHTML = vLogin(); return; }
+  if (!IS_ADMIN) { app.innerHTML = `<div class="center"><div class="card panel"><h3>Ukurasa huu ni wa msimamizi tu</h3><button onclick="auth.signOut()">Toka</button></div></div>`; return; }
+  const a = document.activeElement, fid = a && a.id, sel = a && "selectionStart" in a ? [a.selectionStart, a.selectionEnd] : null;
+  app.innerHTML = `
+    <div class="row" style="justify-content:space-between"><div><div class="note">E.E.MSANGO</div><h2>🏭 Kiwanda cha mifumo</h2></div>
+      ${K.showNew ? "" : `<button class="pri" onclick="openNew()">＋ Mfumo mpya</button>`}</div>
+    ${vStats()}
+    ${K.showNew ? vNew() : ""}
+    ${vCreated()}
+    ${vList()}
+    ${vSettings()}`;
+  if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
+}
+function openNew() { K.showNew = true; K.form = K.form || blankForm(); K.msg = ""; render(); setTimeout(() => { const el = $("#nf-name"); el && el.focus(); }, 0); }
+
+/* Kutoka Ofisi: kiwanda.html?mteja=<id> → jaza fomu kwa taarifa za mteja */
+async function prefillFromClient(id) {
+  try {
+    const d = await db.collection("clients").doc(id).get(); if (!d.exists) return;
+    const c = d.data(), n = c.needs || {}, f = blankForm();
+    const edn = c.edition || "duka";
+    Object.assign(f, { clientId: id, name: c.name || "", code: dukaSlug(c.name || ""), owner: c.owner || "", phone: c.phone || "", location: c.location || "", edition: edn,
+      features: presetFeatures(edn), users: EDITIONS[edn].users, monthly: EDITIONS[edn].price, notes: n.special || c.notes || "" });
+    // mahitaji ya Ofisi → vipengele
+    const map = { credit: "owed", pos: "pos", whatsapp: "whatsapp", expenses: "matumizi", closeDay: "funga", wholesale: "jumla", transfer: "godown", profit: "ripoti" };
+    Object.entries(map).forEach(([nk, fk]) => { if (n[nk]) f.features[fk] = true; });
+    if ((+n.stores || 1) > 1) f.features.godown = true;
+    if (f.features.jumla || f.features.whatsapp || f.features.matumizi || f.features.funga) f.features.pos = true;
+    if (+n.sellers) f.users = Math.max(f.users, +n.sellers);
+    K.form = f; K.showNew = true; render();
+  } catch (e) {}
+}
+
+auth.onAuthStateChanged(async (u) => {
+  K.user = u;
+  if (u) { await resolveShop(u); $("#who").textContent = u.email; if (IS_ADMIN) { listen(); const m = location.search.match(/[?&]mteja=([^&]+)/); if (m) prefillFromClient(decodeURIComponent(m[1])); } }
+  else $("#who").textContent = "";
+  render();
+  if (K.open) setTimeout(() => { const el = document.getElementById("sys-" + K.open); el && el.scrollIntoView({ block: "start" }); }, 400);
+});
+</script>
+</body>
+</html>
