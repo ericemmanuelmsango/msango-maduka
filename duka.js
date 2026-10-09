@@ -1,5 +1,5 @@
 /* =====================================================================
-   MSANGO MADUKA — mfumo wa maduka ya wateja  · duka.js v2
+   MSANGO MADUKA — mfumo wa maduka ya wateja  · duka.js v3
    Mradi huu ni TOFAUTI kabisa na mfumo wa E.E.MSANGO wa Eric:
    Firebase yake mwenyewe, link yake mwenyewe, data yake mwenyewe.
 
@@ -134,7 +134,8 @@ async function dukaCreate() {
     try { await sec.auth().createUserWithEmailAndPassword(email, pw); }
     catch (e) { if (e && e.code === "auth/email-already-in-use") existed = true; else throw e; }
     await ref.set({ name, edition: f.edition, members: [email], ownerEmail: email, phone: f.phone.trim(), active: true,
-      createdAt: Date.now(), createdBy: (auth.currentUser && auth.currentUser.email) || "" });
+      createdAt: Date.now(), createdBy: (auth.currentUser && auth.currentUser.email) || "",
+      loginPw: existed ? "" : pw });   // kumbukumbu ya password ya mwanzo (inaonekana kwako na kwa mwenye duka tu)
     await ref.collection("data").doc("pos_settings").set({ shop: { name, line: "", tin: "", phone: f.phone.trim(), address: "", footer: "Asante kwa kununua! Karibu tena 🙏" } }, { merge: true });
     if (!existed) {
       // Safety check: a brand-new client login must NOT be able to list every shop. If it can, rules are missing.
@@ -179,6 +180,81 @@ async function dukaDelete(code, name) {
     if (DUKA_UI.created && DUKA_UI.created.code === code) DUKA_UI.created = null;
     DUKA_UI.msg = "🗑️ Duka \"" + name + "\" limefutwa."; DUKA_UI.ok = true; dukaLoad();
   } catch (e) { DUKA_UI.msg = "Halikufutika: " + ((e && e.message) || ""); DUKA_UI.ok = false; dukaRerender(); }
+}
+/* ---------- 🔑 Taarifa za kuingia za duka (msimamizi) ---------- */
+DUKA_UI.creds = {};   // code -> { loading, appPw, users:[], err }
+async function dukaCredsToggle(code) {
+  if (DUKA_UI.creds[code]) { delete DUKA_UI.creds[code]; return dukaRerender(); }
+  DUKA_UI.creds[code] = { loading: true }; dukaRerender();
+  try {
+    const col = db.collection("shops").doc(code).collection("data");
+    const [main, pos] = await Promise.all([col.doc("data").get(), col.doc("pos_settings").get()]);
+    const st = (main.exists && main.data().settings) || {};
+    DUKA_UI.creds[code] = { appPw: st.appPassword || "", users: ((pos.exists && pos.data().users) || []).filter((u) => u.active !== false) };
+  } catch (e) { DUKA_UI.creds[code] = { err: "Imeshindikana kusoma: " + ((e && e.message) || "") }; }
+  dukaRerender();
+}
+async function dukaSetAppPw(code) {
+  const pw = (prompt("Password mpya ya mfumo (Wadai) kwa duka hili — angalau herufi 4:") || "").trim();
+  if (!pw) return;
+  if (pw.length < 4) return alert("Password iwe na herufi 4 au zaidi.");
+  try {
+    await db.collection("shops").doc(code).collection("data").doc("data").set({ settings: { appPassword: pw } }, { merge: true });
+    DUKA_UI.msg = "✅ Password ya mfumo imebadilishwa kuwa: " + pw; DUKA_UI.ok = true;
+    delete DUKA_UI.creds[code]; await dukaCredsToggle(code);
+  } catch (e) { DUKA_UI.msg = "Haikubadilika: " + ((e && e.message) || ""); DUKA_UI.ok = false; dukaRerender(); }
+}
+async function dukaPinHash(userId, pin) {
+  const data = new TextEncoder().encode("eepos:" + userId + ":" + pin);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function dukaSetPin(code, userId, name) {
+  const pin = (prompt("PIN mpya ya POS kwa " + name + " (namba 4 hadi 6):") || "").trim();
+  if (!pin) return;
+  if (!/^\d{4,6}$/.test(pin)) return alert("PIN iwe namba 4 hadi 6 tu.");
+  try {
+    const ref = db.collection("shops").doc(code).collection("data").doc("pos_settings");
+    const snap = await ref.get();
+    const users = ((snap.exists && snap.data().users) || []).map((u) => ({ ...u }));
+    const u = users.find((x) => x.id === userId); if (!u) throw new Error("Mtumiaji hakupatikana");
+    u.pinHash = await dukaPinHash(userId, pin);
+    await ref.set({ users }, { merge: true });
+    DUKA_UI.msg = "✅ PIN ya " + name + " sasa ni " + pin; DUKA_UI.ok = true;
+    delete DUKA_UI.creds[code]; await dukaCredsToggle(code);
+  } catch (e) { DUKA_UI.msg = "Haikubadilika: " + ((e && e.message) || ""); DUKA_UI.ok = false; dukaRerender(); }
+}
+function dukaNoteLoginPw(code) {
+  const pw = (prompt("Andika password ya kuingia uliyokubaliana na mteja (kwa kumbukumbu yako tu):") || "").trim();
+  if (!pw) return;
+  dukaUpdate(code, { loginPw: pw }, "✅ Kumbukumbu ya password imehifadhiwa.");
+}
+function dukaCredsView(s) {
+  const c = DUKA_UI.creds[s.code]; if (!c) return "";
+  const box = "margin-top:8px;padding:10px;border-radius:8px;border:1px dashed rgba(127,127,127,.5);font-size:13px;display:grid;gap:6px";
+  if (c.loading) return `<div style="${box}">Inapakia…</div>`;
+  if (c.err) return `<div style="${box};color:#b91c1c">${dukaEsc(c.err)}</div>`;
+  const row = (label, val, btn) => `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="min-width:150px;opacity:.75">${label}</span><b style="font-family:ui-monospace,monospace">${val}</b>${btn || ""}</div>`;
+  const b = (fn, t) => `<button class="${DUKA_HOOK.ghost}" style="padding:3px 8px;font-size:12px" onclick="${fn}">${t}</button>`;
+  const em = s.ownerEmail || (s.members || [])[0] || "";
+  return `<div style="${box}">
+    <b>🔑 Taarifa za kuingia</b>
+    ${row("1. Email ya kuingia", dukaEsc(em))}
+    ${row("2. Password ya kuingia", s.loginPw ? dukaEsc(s.loginPw) : "<i style='opacity:.6'>haijulikani</i>",
+      b("dukaReset('" + dukaEsc(em) + "')", "Tuma link ya kubadilisha") + b("dukaNoteLoginPw('" + s.code + "')", "Andika kumbukumbu"))}
+    ${row("3. Password ya mfumo (Wadai)", c.appPw ? dukaEsc(c.appPw) : "<i style='opacity:.6'>bado haijawekwa</i>", b("dukaSetAppPw('" + s.code + "')", "Badilisha"))}
+    <div style="opacity:.75">4. PIN za POS</div>
+    ${c.users.length ? c.users.map((u) => row("&nbsp;&nbsp;" + (u.role === "owner" ? "👑 " : "🧑‍💼 ") + dukaEsc(u.name), "••••", b("dukaSetPin('" + s.code + "','" + u.id + "'," + dukaEsc(JSON.stringify(u.name)) + ")", "Weka PIN mpya"))).join("")
+      : `<div style="opacity:.6">&nbsp;&nbsp;Bado hakuna mtumiaji wa POS.</div>`}
+    <div style="opacity:.6;font-size:12px">PIN hazionekani (zimefichwa kwa usalama) — ukisahau, weka mpya hapa. Password ya kuingia ikibadilishwa na mteja kwa link, hutaiona tena hapa.</div>
+  </div>`;
+}
+/* "Umesahau password?" on login screens */
+function dukaForgot(email) {
+  email = (email || "").trim();
+  if (!email) return alert("Andika email yako kwanza kwenye kisanduku cha email, kisha bonyeza tena.");
+  auth.sendPasswordResetEmail(email).then(() => alert("📧 Tumekutumia link ya kubadilisha password kwenye " + email + ". Angalia Inbox (na Spam)."))
+    .catch((e) => alert((e && e.code || "").includes("user-not-found") ? "Email hii haijasajiliwa." : "Haikutumwa: " + ((e && e.message) || "")));
 }
 function dukaReset(email) {
   auth.sendPasswordResetEmail(email).then(() => { DUKA_UI.msg = "📧 Link ya kubadilisha password imetumwa kwa " + email; DUKA_UI.ok = true; dukaRerender(); })
@@ -246,11 +322,12 @@ function dukaAdminPanel() {
           <select class="field" style="margin-top:4px;max-width:200px;padding:4px" onchange="dukaEdition('${s.code}',this.value)">${["mali", "duka", "stoki", "pro"].map((k) => `<option value="${k}" ${s.edition === k ? "selected" : ""}>${EDITIONS[k].name}</option>`).join("")}</select>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
             <button class="${DUKA_HOOK.ghost}" onclick="dukaOpenShop('${s.code}')">Fungua</button>
+            <button class="${DUKA_HOOK.ghost}" onclick="dukaCredsToggle('${s.code}')">🔑 Passwords</button>
             <button class="${DUKA_HOOK.ghost}" onclick="dukaToggle('${s.code}',${s.active === false})">${s.active === false ? "Washa" : "Simamisha"}</button>
             <button class="${DUKA_HOOK.ghost}" onclick="dukaAddMember('${s.code}')">+ Email</button>
             <button class="${DUKA_HOOK.ghost}" onclick="dukaReset('${dukaEsc(s.ownerEmail || (s.members || [])[0] || "")}')">Reset password</button>
             <button class="${DUKA_HOOK.ghost}" style="color:#b91c1c" onclick="dukaDelete('${s.code}', ${dukaEsc(JSON.stringify(s.name))})">Futa</button>
-          </div></td></tr>`).join("")}</table></div>`}
+          </div>${dukaCredsView(s)}</td></tr>`).join("")}</table></div>`}
   </div>`;
 }
 

@@ -325,6 +325,7 @@ function renderDeviceLogin() {
     <input id="dl-pw" class="field" type="password" autocomplete="current-password" placeholder="Password" onkeydown="if(event.key==='Enter')activateDevice()" oninput="UI.devLogin.pw=this.value">
     ${f.msg ? `<p class="settings-msg ${f.ok ? "ok" : "err"}">${esc(f.msg)}</p>` : ""}
     <button class="btn btn-primary" onclick="activateDevice()">Washa kifaa</button>
+    <button class="btn btn-ghost" onclick="dukaForgot(UI.devLogin.email)">Umesahau password?</button>
   </div></div>`;
 }
 function activateDevice() {
@@ -638,7 +639,7 @@ function handleSetup() {
 function handleLogin() {
   const pw = document.getElementById("login-password").value;
   UI.authError = null;
-  if (pw !== STATE.settings.appPassword) { UI.authError = "Incorrect password."; return rerender(); }
+  if (pw !== STATE.settings.appPassword) { UI.authError = "Password si sahihi. Umesahau? Wasiliana na E.E.Msango."; return rerender(); }
   SESSION_UNLOCKED = true;
   rerender();
 }

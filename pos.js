@@ -326,7 +326,7 @@ function loginView() {
     <input id="pin" class="field" type="password" inputmode="numeric" maxlength="6" placeholder="PIN" onkeydown="if(event.key==='Enter')doLogin()">
     ${U.pinMsg ? `<div class="err">${esc(U.pinMsg)}</div>` : ""}
     <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="doLogin()">Ingia</button>
-    <div class="hint">Umesahau PIN? Mmiliki anaweza kukubadilishia kwenye 👥 Watumiaji.</div>
+    <div class="hint">Umesahau PIN? Mmiliki anaweza kukubadilishia kwenye 👥 Watumiaji. Mmiliki akisahau, wasiliana na E.E.Msango.</div>
   </div></div>`;
 }
 async function doLogin() {
@@ -1372,6 +1372,7 @@ function deviceLoginView() {
     <input id="dv-pw" class="field" type="password" autocomplete="current-password" placeholder="Password" style="margin-top:8px" oninput="U.devLogin.pw=this.value" onkeydown="if(event.key==='Enter')activateDevice()">
     ${f.msg ? `<div class="${f.ok ? "ok" : "err"}">${esc(f.msg)}</div>` : ""}
     <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="activateDevice()">Washa kifaa</button>
+    <button class="btn btn-g" style="width:100%;margin-top:8px" onclick="dukaForgot(U.devLogin.email)">Umesahau password?</button>
   </div></div>`;
 }
 function activateDevice() {
