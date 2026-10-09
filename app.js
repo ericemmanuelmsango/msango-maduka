@@ -695,6 +695,7 @@ function renderShell() {
             ${icon} <span>${label}</span>
             ${id === "alerts" && dueCount > 0 ? `<span class="menu-badge">${dueCount}</span>` : ""}
           </li>`).join("")}
+        ${SHOP && ed().pos ? `<li onclick="location.href='pos.html'" style="background:#14a37f;color:#fff;border-radius:8px;margin-top:6px">🛒 <span>POS — Uza</span></li>` : ""}
       </ul>
       <div class="sidebar-bottom">Better Financial Control<br>for a Stronger Business</div>
     </aside>

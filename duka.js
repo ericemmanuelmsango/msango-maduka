@@ -1,5 +1,5 @@
 /* =====================================================================
-   MSANGO MADUKA — mfumo wa maduka ya wateja  · duka.js v3
+   MSANGO MADUKA — mfumo wa maduka ya wateja  · duka.js v4
    Mradi huu ni TOFAUTI kabisa na mfumo wa E.E.MSANGO wa Eric:
    Firebase yake mwenyewe, link yake mwenyewe, data yake mwenyewe.
 
@@ -83,6 +83,7 @@ function dukaAdminBanner() {
     <button style="margin-left:auto;background:#fff;color:#7c2d12;border:0;border-radius:6px;padding:5px 10px;font-weight:700;cursor:pointer" onclick="dukaCloseShop()">← Orodha ya maduka</button></div>`;
 }
 function dukaOpenShop(code) { try { localStorage.setItem("ms_open_shop", code); } catch (e) {} location.reload(); }
+function dukaOpenPos(code) { try { localStorage.setItem("ms_open_shop", code); } catch (e) {} location.href = DUKA_HOOK.posUrl || "pos.html"; }
 function dukaCloseShop() { try { localStorage.removeItem("ms_open_shop"); } catch (e) {} location.reload(); }
 
 /* ---------- 🏢 Admin: Maduka ya wateja (only Eric) ---------- */
@@ -322,6 +323,7 @@ function dukaAdminPanel() {
           <select class="field" style="margin-top:4px;max-width:200px;padding:4px" onchange="dukaEdition('${s.code}',this.value)">${["mali", "duka", "stoki", "pro"].map((k) => `<option value="${k}" ${s.edition === k ? "selected" : ""}>${EDITIONS[k].name}</option>`).join("")}</select>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
             <button class="${DUKA_HOOK.ghost}" onclick="dukaOpenShop('${s.code}')">Fungua</button>
+            ${(EDITIONS[s.edition] || {}).pos ? `<button class="${DUKA_HOOK.ghost}" onclick="dukaOpenPos('${s.code}')">🛒 POS</button>` : ""}
             <button class="${DUKA_HOOK.ghost}" onclick="dukaCredsToggle('${s.code}')">🔑 Passwords</button>
             <button class="${DUKA_HOOK.ghost}" onclick="dukaToggle('${s.code}',${s.active === false})">${s.active === false ? "Washa" : "Simamisha"}</button>
             <button class="${DUKA_HOOK.ghost}" onclick="dukaAddMember('${s.code}')">+ Email</button>

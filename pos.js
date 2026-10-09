@@ -358,7 +358,7 @@ function shellView() {
     <div class="who"><span class="sync">${sync}</span>
       <button class="icon-top" title="Dark / Light" onclick="toggleTheme()">${document.documentElement.getAttribute("data-theme") === "dark" ? "☀️" : "🌙"}</button>
       <button class="icon-top" title="Skrini nzima" onclick="toggleFull()">⛶</button><b>${isOwner() ? "👑" : "🧑‍💼"} ${esc(U.user.name)}</b><button onclick="logout()">⏻ Toka</button></div></div>
-  <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${U.page === k ? "on" : ""}" onclick="go('${k}')">${l}</button>`).join("")}</div>
+  <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${U.page === k ? "on" : ""}" onclick="go('${k}')">${l}</button>`).join("")}<button class="tab" onclick="location.href='./'">📚 Wadai na Stock</button></div>
   <main>${pages[U.page]()}</main>
   ${U.page === "uza" && U.cart.length ? `<button class="cart-fab no-print" onclick="document.getElementById('cart').scrollIntoView({behavior:'smooth'})">🛒 ${U.cart.length} · ${fmt(cartTotal())}</button>` : ""}
   ${U.receipt ? receiptModal(U.receipt) : ""}
