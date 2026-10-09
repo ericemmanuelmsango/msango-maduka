@@ -1,5 +1,5 @@
 /* =====================================================================
-   MSANGO MADUKA — mfumo wa maduka ya wateja  · duka.js v1
+   MSANGO MADUKA — mfumo wa maduka ya wateja  · duka.js v2
    Mradi huu ni TOFAUTI kabisa na mfumo wa E.E.MSANGO wa Eric:
    Firebase yake mwenyewe, link yake mwenyewe, data yake mwenyewe.
 
@@ -43,7 +43,7 @@ async function resolveShop(user) {
   SHOP = null; IS_ADMIN = false; SHOP_VIA_ADMIN = false; SHOP_MISSING = false;
   if (!user || user.isAnonymous) return null;
   const email = (user.email || "").toLowerCase();
-  try {
+  if (email !== ADMIN_EMAIL.toLowerCase()) try {
     const q = await db.collection("shops").where("members", "array-contains", email).limit(1).get();
     if (!q.empty) { SHOP = { code: q.docs[0].id, ...q.docs[0].data() }; return SHOP; }
   } catch (e) { /* rules not updated yet, or offline — fall through */ }
@@ -121,6 +121,7 @@ async function dukaCreate() {
   if (!name) return fail("Andika jina la duka.");
   if (code.length < 3) return fail("Code ya duka iwe na herufi 3 au zaidi (mf. kirumba-spare).");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Andika email sahihi ya mteja.");
+  if (email === ADMIN_EMAIL.toLowerCase()) return fail("Hii ni email yako ya msimamizi. Mteja anahitaji email yake mwenyewe.");
   if (pw.length < 6) return fail("Password iwe na herufi 6 au zaidi.");
   DUKA_UI.busy = true; DUKA_UI.msg = "Inatengeneza duka…"; DUKA_UI.ok = true; dukaRerender();
   try {
@@ -166,6 +167,18 @@ function dukaAddMember(code) {
   const em = (prompt("Email ya kuongeza kwenye duka hili (lazima iwe imesajiliwa kwenye Firebase Authentication):") || "").trim().toLowerCase();
   if (!em) return;
   dukaUpdate(code, { members: firebase.firestore.FieldValue.arrayUnion(em) }, "✅ " + em + " ameongezwa.");
+}
+async function dukaDelete(code, name) {
+  if (!confirm("FUTA duka \"" + name + "\" pamoja na data yake YOTE? Haiwezi kurudishwa.")) return;
+  try {
+    const ref = db.collection("shops").doc(code);
+    const docs = await ref.collection("data").get();
+    for (const d of docs.docs) await d.ref.delete();
+    await ref.delete();
+    try { if (localStorage.getItem("ms_open_shop") === code) localStorage.removeItem("ms_open_shop"); } catch (e) {}
+    if (DUKA_UI.created && DUKA_UI.created.code === code) DUKA_UI.created = null;
+    DUKA_UI.msg = "🗑️ Duka \"" + name + "\" limefutwa."; DUKA_UI.ok = true; dukaLoad();
+  } catch (e) { DUKA_UI.msg = "Halikufutika: " + ((e && e.message) || ""); DUKA_UI.ok = false; dukaRerender(); }
 }
 function dukaReset(email) {
   auth.sendPasswordResetEmail(email).then(() => { DUKA_UI.msg = "📧 Link ya kubadilisha password imetumwa kwa " + email; DUKA_UI.ok = true; dukaRerender(); })
@@ -236,6 +249,7 @@ function dukaAdminPanel() {
             <button class="${DUKA_HOOK.ghost}" onclick="dukaToggle('${s.code}',${s.active === false})">${s.active === false ? "Washa" : "Simamisha"}</button>
             <button class="${DUKA_HOOK.ghost}" onclick="dukaAddMember('${s.code}')">+ Email</button>
             <button class="${DUKA_HOOK.ghost}" onclick="dukaReset('${dukaEsc(s.ownerEmail || (s.members || [])[0] || "")}')">Reset password</button>
+            <button class="${DUKA_HOOK.ghost}" style="color:#b91c1c" onclick="dukaDelete('${s.code}', ${dukaEsc(JSON.stringify(s.name))})">Futa</button>
           </div></td></tr>`).join("")}</table></div>`}
   </div>`;
 }
