@@ -270,6 +270,7 @@
 
   registerPack({
     id: "supermarket", name: "Supermarket", theme: "mkaa", home: "kaunta",
+    money: (inR) => { const R = txList("sale", (s) => inR(s.day)); return { rev: R.reduce((a, s) => a + s.total, 0), cost: R.reduce((a, s) => a + s.items.reduce((b, i) => b + i.qty * (i.cost || 0), 0), 0) }; },
     roles: [["meneja", "Meneja"], ["keshia", "Keshia"], ["stoka", "Mtunza stoo"]],
     pages: [
       { id: "kaunta", label: "Kaunta", icon: "🛒", roles: ["meneja", "keshia"], render: pageKaunta },

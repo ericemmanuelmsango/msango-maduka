@@ -206,6 +206,7 @@
 
   registerPack({
     id: "saluni", name: "Saluni & Spa", theme: "kifalme", home: "miadi",
+    money: (inR) => { const V = txList("visit", (v) => inR(v.day)); return { rev: V.reduce((a, v) => a + v.total, 0), cost: V.reduce((a, v) => a + v.items.reduce((b, l) => b + (l.comm || 0) + (l.kind === "prod" ? l.qty * ((get(l.id) || {}).cost || 0) : 0), 0), 0) }; },
     roles: [["meneja", "Meneja"], ["mapokezi", "Mapokezi / Keshia"], ["mhudumu", "Mhudumu"]],
     pages: [
       { id: "miadi", label: "Miadi", icon: "📅", roles: ["meneja", "mapokezi", "mhudumu"], render: pageMiadi, actions: () => stys().length ? `<button class="btn p s" onclick="PK.pack.aptForm()">＋ Miadi</button>` : "" },

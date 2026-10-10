@@ -206,6 +206,7 @@
 
   registerPack({
     id: "simu", name: "Simu & Electronics", theme: "theluji", home: "uza",
+    money: (inR) => { const R = txList("sale", (s) => inR(s.day)), J = txList("job", (j) => inR(j.day)); return { rev: R.reduce((a, s) => a + s.total, 0) + J.reduce((a, j) => a + (j.total || 0), 0), cost: R.reduce((a, s) => a + s.items.reduce((b, l) => b + l.qty * (l.cost || 0), 0), 0) + J.reduce((a, j) => a + (j.partsCost || 0), 0) }; },
     roles: [["meneja", "Meneja"], ["muuzaji", "Muuzaji"], ["fundi", "Fundi"]],
     pages: [
       { id: "uza", label: "Uza", icon: "📱", roles: ["meneja", "muuzaji"], render: pageUza },

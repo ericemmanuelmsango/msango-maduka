@@ -203,6 +203,7 @@
 
   registerPack({
     id: "mgahawa", name: "Mgahawa & Bar", theme: "kitenge", home: "meza",
+    money: (inR) => { const R = txList("ord", (o) => inR(o.day)); return { rev: R.reduce((a, o) => a + (o.total || 0), 0), cost: R.reduce((a, o) => a + live(o).reduce((b, l) => b + l.qty * ((get(l.item) || {}).cost || 0), 0), 0) }; },
     roles: [["meneja", "Meneja"], ["mhudumu", "Mhudumu"], ["jikoni", "Jikoni / Bar"], ["keshia", "Keshia"]],
     pages: [
       { id: "meza", label: "Meza", icon: "🪑", roles: ["meneja", "mhudumu", "keshia"], render: pageMeza, actions: () => roleOk(["meneja"]) ? `<button class="btn s" onclick="PK.pack.tablesForm()">🪑 Panga meza</button>` : "" },

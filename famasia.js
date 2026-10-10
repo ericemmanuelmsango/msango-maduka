@@ -193,6 +193,7 @@
 
   registerPack({
     id: "famasia", name: "Famasia", theme: "zumaridi", home: "uza",
+    money: (inR) => { const R = txList("sale", (s) => inR(s.day)); return { rev: R.reduce((a, s) => a + s.total, 0), cost: R.reduce((a, s) => a + s.items.reduce((b, l) => b + l.qty * (l.cost || 0), 0), 0) + txList("disp", (x) => inR(x.day)).reduce((a, x) => a + (x.value || 0), 0) }; },
     roles: [["meneja", "Meneja"], ["mfamasia", "Mfamasia"], ["muuzaji", "Muuzaji (dispenser)"]],
     pages: [
       { id: "uza", label: "Uza", icon: "💊", roles: ["meneja", "mfamasia", "muuzaji"], render: pageUza },

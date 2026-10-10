@@ -194,6 +194,7 @@
 
   registerPack({
     id: "msambazaji", name: "Msambazaji", theme: "bahari", home: "oda",
+    money: (inR) => { const O = txList("ord", (o) => inR(o.day) && o.status === "imefikishwa"); return { rev: O.reduce((a, o) => a + o.total, 0), cost: O.reduce((a, o) => a + o.items.reduce((b, l) => b + l.qty * (l.cost || 0), 0), 0) }; },
     roles: [["meneja", "Meneja"], ["mauzo", "Muuzaji (rep)"], ["stoo", "Stoo"], ["dereva", "Dereva"], ["mhasibu", "Mhasibu"]],
     pages: [
       { id: "oda", label: "Oda", icon: "📝", roles: ["meneja", "mauzo", "stoo", "dereva"], render: pageOda, actions: () => roleOk(["meneja", "mauzo"]) ? `<button class="btn p s" onclick="PK.pack.orderForm()">＋ Oda</button>` : "" },

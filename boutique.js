@@ -184,6 +184,7 @@
 
   registerPack({
     id: "boutique", name: "Boutique", theme: "waridi", home: "uza",
+    money: (inR) => { const R = txList("sale", (s) => inR(s.day)), ret = txList("ret", (r) => inR(r.day) && r.mode === "refund"); return { rev: R.reduce((a, s) => a + s.total + (s.creditUsed || 0), 0) - ret.reduce((a, r) => a + r.amount, 0), cost: R.reduce((a, s) => a + s.items.reduce((b, l) => b + l.qty * (l.cost || 0), 0), 0) }; },
     roles: [["meneja", "Meneja"], ["muuzaji", "Muuzaji"]],
     pages: [
       { id: "uza", label: "Uza", icon: "🛍️", roles: ["meneja", "muuzaji"], render: pageUza },

@@ -74,7 +74,7 @@ async function nextNo(key) {
 /* ripoti za zamani kuliko siku 31 */
 async function loadRange(from, to) {
   const snap = await col().where("day", ">=", from).get();
-  PK.extraTx = {}; snap.forEach((d) => { const v = d.data(); if (v.day <= to) PK.extraTx[d.id] = { ...v, id: d.id }; });
+  PK.extraTx = {}; snap.forEach((d) => { const v = d.data(); if (v.k === "tx" && v.day <= to) PK.extraTx[d.id] = { ...v, id: d.id }; });
   render(); return PK.extraTx;
 }
 let _unsub = [];
@@ -123,6 +123,7 @@ function say(m) { PK.msg = m; render(); }
 
 /* ---------- urambazaji ---------- */
 const COMMON = [
+  { id: "matumizi", label: "Matumizi & Faida", icon: "💸", roles: ["meneja"], render: pageMatumizi, actions: () => `<button class="btn p s" onclick="expForm()">＋ Matumizi</button>` },
   { id: "watu", label: "Watumiaji", icon: "👥", roles: ["meneja"], render: pageUsers },
   { id: "mipangilio", label: "Mipangilio", icon: "⚙️", roles: [], render: pageSettings },
 ];
@@ -196,11 +197,34 @@ function checkoutDone() {
   closeModal(); c.onPay && c.onPay(p);
 }
 /* kipindi cha ripoti */
-PK.range = "leo";
-function rangeFrom() { return PK.range === "leo" ? today() : PK.range === "jana" ? addDays(today(), -1) : addDays(today(), -(Number(PK.range) - 1)); }
-function inRange(day) { const f = rangeFrom(); return day >= f && (PK.range === "jana" ? day === f : day <= today()); }
-function rangeChips() { return `<div class="chips">${[["leo", "Leo"], ["jana", "Jana"], ["7", "Siku 7"], ["30", "Siku 30"]].map(([k, l]) => `<button class="chip ${PK.range === k ? "on" : ""}" onclick="PK.range='${k}';render()">${l}</button>`).join("")}</div>`; }
-function rangeDays() { return PK.range === "leo" || PK.range === "jana" ? 1 : Number(PK.range); }
+PK.range = "leo"; PK.rFrom = ""; PK.rTo = "";
+function rangeBounds() {
+  const t = today(), r = PK.range;
+  if (r === "leo") return [t, t];
+  if (r === "jana") { const y = addDays(t, -1); return [y, y]; }
+  if (r === "mwezi") return [t.slice(0, 8) + "01", t];
+  if (r === "mwezi-1") { const f = addDays(t.slice(0, 8) + "01", -1); return [f.slice(0, 8) + "01", f]; }
+  if (r === "mwaka") return [t.slice(0, 5) + "01-01", t];
+  if (r === "chagua") return [PK.rFrom || addDays(t, -30), PK.rTo || t];
+  return [addDays(t, -(Number(r) - 1)), t];
+}
+function rangeFrom() { return rangeBounds()[0]; }
+function rangeTo() { return rangeBounds()[1]; }
+function inRange(day) { const [f, t] = rangeBounds(); return !!day && day >= f && day <= t; }
+function rangeDays() { const [f, t] = rangeBounds(); return Math.max(1, daysBetween(f, t) + 1); }
+/* kipindi kikianza kabla ya siku 31 zilizopakiwa, vuta miamala ya zamani */
+function ensureRange() {
+  const f = rangeFrom(); if (f >= addDays(today(), -PK.TX_DAYS)) return;
+  if (PK._rangeLoaded && PK._rangeLoaded <= f) return;
+  PK._rangeLoaded = f; toast("⏳ Inavuta kumbukumbu za zamani…");
+  loadRange(f, today()).then(() => toast("✅ Kumbukumbu zimepakiwa")).catch(() => { PK._rangeLoaded = ""; toast("⚠️ Haikuwezekana kuvuta — angalia mtandao"); });
+}
+function setRange(r) { PK.range = r; ensureRange(); render(); }
+function rangeChips() {
+  const opts = [["leo", "Leo"], ["jana", "Jana"], ["7", "Siku 7"], ["30", "Siku 30"], ["mwezi", "Mwezi huu"], ["mwezi-1", "Mwezi uliopita"], ["mwaka", "Mwaka huu"], ["chagua", "📅 Chagua"]];
+  return `<div style="display:grid;gap:8px"><div class="chips">${opts.map(([k, l]) => `<button class="chip ${PK.range === k ? "on" : ""}" onclick="setRange('${k}')">${l}</button>`).join("")}</div>
+    ${PK.range === "chagua" ? `<div class="row"><input id="rg-f" class="f" type="date" style="width:auto" value="${rangeFrom()}" onchange="PK.rFrom=this.value;ensureRange();render()"> → <input id="rg-t" class="f" type="date" style="width:auto" value="${rangeTo()}" onchange="PK.rTo=this.value;render()"></div>` : ""}</div>`;
+}
 function searchBox(ph) { return `<input id="pk-q" class="f" type="search" placeholder="${esc(ph || "Tafuta…")}" value="${esc(PK.q || "")}" oninput="PK.q=this.value;soft()" style="max-width:340px">`; }
 function downloadCSV(name, rows) {
   const csv = rows.map((r) => r.map((x) => { x = String(x == null ? "" : x); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(",")).join("\n");
@@ -253,7 +277,7 @@ function receiptText(r) {
 }
 function receipt(r) {
   const b = biz();
-  const html = `${mhead(r.title || "Risiti")}<div class="rc">
+  const html = `${mhead(r.title || "Risiti")}<div class="rc ${S("rcw", "80") === "58" ? "w58" : ""}">
     <div class="c b">${esc(b.name)}</div>${b.address ? `<div class="c">${esc(b.address)}</div>` : ""}${b.phone ? `<div class="c">Simu: ${esc(b.phone)}</div>` : ""}${b.tin ? `<div class="c">TIN: ${esc(b.tin)}</div>` : ""}
     <hr><div class="ln"><span>${esc(r.title || "RISITI")}${r.no ? " #" + esc(r.no) : ""}</span><span>${fdate(today())} ${hm(Date.now())}</span></div>
     ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>` : ""}${r.by !== false && PK.user ? `<div>Mhudumu: ${esc(PK.user.name)}</div>` : ""}<hr>
@@ -305,6 +329,50 @@ async function userSave(id) {
   } else { const nid = newId("user"); await save({ id: nid, t: "user", name, role, active: true, pinHash: await pinHash(nid, pin) }); }
   closeModal(); toast("✅ Imehifadhiwa");
 }
+/* ---------- matumizi & faida halisi (pakiti zote) ---------- */
+const EXP_CATS = ["Kodi ya pango", "Mishahara", "Umeme", "Maji", "Usafiri", "Mawasiliano / Bando", "Ushuru & Leseni", "Matengenezo", "Usafi", "Chakula cha wafanyakazi", "Matangazo", "Mengineyo"];
+function expForm(id) {
+  const e = id ? get(id) : { cat: "", amount: "", method: "cash", note: "", day: today() };
+  modal(`${mhead(id ? "Badilisha matumizi" : "Matumizi mapya")}<div class="form">
+    <label class="l">Aina<input id="ex-c" class="f" list="ex-cl" value="${esc(e.cat)}" placeholder="mf. Umeme"><datalist id="ex-cl">${EXP_CATS.map((c) => `<option value="${c}">`).join("")}</datalist></label>
+    <label class="l">Kiasi<input id="ex-a" class="f" inputmode="numeric" value="${esc(e.amount)}"></label>
+    <label class="l">Tarehe<input id="ex-d" class="f" type="date" value="${e.day}"></label>
+    <label class="l">Njia<select id="ex-m" class="f">${opt(METHODS.filter((m) => m[0] !== "credit"), e.method)}</select></label>
+    <label class="l" style="grid-column:1/-1">Maelezo<input id="ex-n" class="f" value="${esc(e.note || "")}" placeholder="mf. LUKU ya mwezi"></label></div>
+    <div class="chips">${EXP_CATS.slice(0, 8).map((c) => `<button class="chip" onclick="document.getElementById('ex-c').value='${c}'">${c}</button>`).join("")}</div>
+    <div class="row between">${id ? `<button class="btn d" onclick="delDoc('${id}');closeModal()">Futa</button>` : "<span></span>"}<button class="btn p" onclick="expSave('${id || ""}')">Hifadhi</button></div>`);
+}
+function expSave(id) {
+  const d = { cat: val("ex-c") || "Mengineyo", amount: num(val("ex-a")), day: val("ex-d") || today(), method: val("ex-m"), note: val("ex-n") };
+  if (!d.amount) return toast("Andika kiasi");
+  if (id) patch(id, d); else save({ id: newId("exp"), t: "exp", k: "tx", ...d });
+  closeModal(); toast("✅ Matumizi yameandikwa");
+}
+function pageMatumizi() {
+  ensureRange();
+  const E = txList("exp", (e) => inRange(e.day)).sort((a, b) => b.day.localeCompare(a.day) || b.at - a.at), exp = E.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+  let m = { rev: 0, cost: 0 }; try { if (PK.pack.money) m = PK.pack.money(inRange) || m; } catch (e) { console.error(e); }
+  const gross = m.rev - m.cost, net = gross - exp;
+  const byCat = groupSum(E, (e) => e.cat, (e) => Number(e.amount) || 0);
+  return `${rangeChips()}
+    <div class="kpis">${kpi("Mapato", tzs(m.rev))}${kpi("Gharama ya bidhaa/huduma", tzs(m.cost))}${kpi("Faida ghafi", tzs(gross))}${kpi("Matumizi", tzs(exp))}${kpi(net >= 0 ? "Faida halisi" : "Hasara", tzs(Math.abs(net)), true)}</div>
+    <p class="mu xs" style="margin:0">Faida halisi = Mapato − Gharama ya bidhaa − Matumizi. Gharama ya bidhaa inatoka kwenye bei ya kununua uliyoweka kwa kila bidhaa.</p>
+    <div class="grid2"><div class="card"><h3>Matumizi kwa aina</h3>${byCat.length ? `<table class="t"><tbody>${byCat.map((c) => `<tr><td>${esc(c.key)}</td><td class="r">${c.count}</td><td class="r num">${n0(c.value)}</td><td class="r mu xs">${exp ? Math.round((c.value / exp) * 100) : 0}%</td></tr>`).join("")}</tbody></table>` : `<p class="mu sm" style="margin:0">Bado hakuna matumizi kwenye kipindi hiki.</p>`}</div>
+      <div class="card"><h3>Matumizi kwa siku (siku 14)</h3>${bars(dailySeries(txList("exp"), 14, (e) => Number(e.amount) || 0))}</div></div>
+    ${E.length ? `<div class="row between"><h3>Orodha</h3><button class="btn s" onclick="downloadCSV('matumizi-'+PK.range,[['Tarehe','Aina','Kiasi','Njia','Maelezo','Aliyeandika']].concat(txList('exp',e=>inRange(e.day)).map(e=>[e.day,e.cat,e.amount,methodName(e.method),e.note,e.by])))">⬇️ CSV</button></div>
+      <div class="tw"><table class="t"><tbody>${E.slice(0, 100).map((e) => `<tr class="click" onclick="expForm('${e.id}')"><td>${fdate(e.day)}</td><td><b>${esc(e.cat)}</b>${e.note ? `<br><small class="mu">${esc(e.note)}</small>` : ""}</td><td>${esc(methodName(e.method))}</td><td class="mu sm">${esc(e.by || "")}</td><td class="r num">${n0(e.amount)}</td></tr>`).join("")}</tbody></table></div>` : ""}`;
+}
+/* ---------- backup ---------- */
+async function backup() {
+  toast("⏳ Inaandaa backup…");
+  try {
+    const snap = await col().get(), docs = {}; snap.forEach((d) => (docs[d.id] = d.data()));
+    const data = { shop: SHOP.code, name: SHOP.name, industry: SHOP.industry, at: new Date().toISOString(), count: Object.keys(docs).length, docs };
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+    a.download = `backup-${SHOP.code}-${today()}.json`; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500);
+    saveSettings({ lastBackup: Date.now() }); toast("✅ Backup imepakuliwa (kumbukumbu " + data.count + ")");
+  } catch (e) { toast("⚠️ Backup imeshindikana: " + (e.message || "")); }
+}
 function pageSettings() {
   const b = biz(), extra = PK.pack.settings || [];
   const fld = (s) => { const v = S(s.key, s.def); return s.type === "select" ? `<label class="l">${esc(s.label)}<select id="st-${s.key}" class="f">${opt(s.options, v)}</select></label>`
@@ -316,11 +384,13 @@ function pageSettings() {
       <label class="l">TIN<input id="st-tin" class="f" value="${esc(b.tin)}"></label>
       <label class="l">Ujumbe wa chini ya risiti<input id="st-footer" class="f" value="${esc(b.footer)}"></label></div></div>
     ${extra.length ? `<div class="card"><h3>${esc(PK.pack.name)}</h3><div class="form">${extra.map(fld).join("")}</div></div>` : ""}
+    <div class="card"><h3>Risiti</h3><div class="form"><label class="l">Upana wa printer<select id="st-rcw" class="f">${opt([["80", "80mm (kubwa)"], ["58", "58mm (ndogo, Bluetooth)"]], S("rcw", "80"))}</select></label></div></div>
     <div class="row"><button class="btn p" onclick="settingsSave()">💾 Hifadhi mipangilio</button></div>
+    ${PK.user && PK.user.role === "owner" ? `<div class="card"><h3>🛡️ Backup ya data</h3><p class="mu sm" style="margin:0">Pakua nakala ya kumbukumbu zote za biashara yako (faili moja). Ihifadhi mahali salama, mfano Google Drive au email. ${S("lastBackup", 0) ? "Backup ya mwisho: " + fdate(dayOf(S("lastBackup", 0))) : "Bado hujawahi kupakua backup."}</p><button class="btn" style="justify-self:start" onclick="backup()">⬇️ Pakua backup sasa</button></div>` : ""}
     ${dukaSignOutButton().replace(/class="btn btn-ghost"/g, 'class="btn"').replace(/class="panel"/, 'class="card"')}`;
 }
 function settingsSave() {
-  const p = { phone: val("st-phone"), address: val("st-address"), tin: val("st-tin"), footer: val("st-footer") };
+  const p = { phone: val("st-phone"), address: val("st-address"), tin: val("st-tin"), footer: val("st-footer"), rcw: val("st-rcw") || "80" };
   (PK.pack.settings || []).forEach((s) => { const v = val("st-" + s.key); p[s.key] = s.type === "number" ? num(v) : v; });
   saveSettings(p).then(() => toast("✅ Mipangilio imehifadhiwa"));
 }
@@ -423,7 +493,7 @@ function setTheme() {
   if (SHOP) document.title = SHOP.name + " — " + ((INDUSTRIES[SHOP.industry] || {}).name || "Msango");
 }
 function loadPack(industry) {
-  return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = industry + ".js?v=1"; s.onload = ok; s.onerror = () => bad(new Error("Pakiti " + industry + " haikupatikana")); document.head.appendChild(s); });
+  return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = industry + ".js?v=2"; s.onload = ok; s.onerror = () => bad(new Error("Pakiti " + industry + " haikupatikana")); document.head.appendChild(s); });
 }
 function registerPack(p) { PK.pack = p; }
 DUKA_HOOK.rerender = () => render();

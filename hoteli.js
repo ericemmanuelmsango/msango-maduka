@@ -195,7 +195,7 @@
     if (overlaps(room, today(), to, bkId).length) return toast("Chumba kina booking ndani ya siku hizo — punguza usiku au chagua kingine");
     const d = { guest, phone: val("ci-p"), room, from: today(), to, rate: num(val("ci-rate")) || typeOf(get(room)).rate, adults: num(val("ci-ad")) || 1, idNo: val("ci-id"), nat: val("ci-nat"), home: val("ci-from"), car: val("ci-car"), status: "in", checkinAt: Date.now(), checkinBy: PK.user.name };
     const pay = num(val("ci-pay")), m = val("ci-m"); let id = bkId;
-    if (bkId) { const b = get(bkId); patch(bkId, { ...d, payments: (b.payments || []).concat(pay ? [{ amt: pay, method: m, day: today(), by: PK.user.name, what: "Malipo" }] : []) }); }
+    if (bkId) { const b = get(bkId); patch(bkId, d); if (pay) pushTo(bkId, "payments", [{ amt: pay, method: m, day: today(), by: PK.user.name, what: "Malipo", at: Date.now() }]); }
     else { id = newId("bk"); save({ id, t: "bk", source: "walkin", ...d, charges: [], payments: pay ? [{ amt: pay, method: m, day: today(), by: PK.user.name, what: "Malipo" }] : [], createdAt: Date.now() }); }
     if (pay) payTx(id, d, pay, m);
     upsertGuest(d, { idNo: d.idNo, nat: d.nat, home: d.home, lastVisit: today() });
@@ -219,13 +219,13 @@
       <div class="row"><button class="btn" onclick="PK.pack.payForm('${id}')">💵 Pokea malipo</button><button class="btn" onclick="PK.pack.extendForm('${id}')">📅 Ongeza siku</button><button class="btn" onclick="PK.pack.moveForm('${id}')">🔁 Hamisha chumba</button><button class="btn" onclick="PK.pack.folioReceipt('${id}')">🧾 Risiti</button></div>
       <button class="btn p big" onclick="PK.pack.checkout('${id}')">🚪 Check-out</button>`}`, true);
   }
-  function addCharge(id) { const b = get(id), n = val("fc-n"), a = num(val("fc-a")); if (!n || !a) return toast("Andika huduma na kiasi"); patch(id, { charges: (b.charges || []).concat([{ name: n, amt: a, day: today(), by: PK.user.name }]) }); save({ id: newId("chg"), t: "chg", k: "tx", bk: id, name: n, amt: a, room: b.room }); openFolio(id); }
+  function addCharge(id) { const b = get(id), n = val("fc-n"), a = num(val("fc-a")); if (!n || !a) return toast("Andika huduma na kiasi"); pushTo(id, "charges", [{ name: n, amt: a, day: today(), by: PK.user.name, at: Date.now() }]); save({ id: newId("chg"), t: "chg", k: "tx", bk: id, name: n, amt: a, room: b.room }); openFolio(id); }
   function delCharge(id, i) { if (!roleOk(["meneja"])) return toast("Meneja tu anaweza kuondoa"); const b = get(id), c = (b.charges || []).slice(); c.splice(i, 1); patch(id, { charges: c }); openFolio(id); }
   function payForm(id) {
     const b = get(id), f = folio(b);
     checkout({ total: Math.max(0, f.bal), title: "Malipo · " + b.guest, onPay: (p) => {
       const amt = p.method === "cash" && p.change ? p.paid : p.paid; if (!amt) return;
-      patch(id, { payments: (b.payments || []).concat([{ amt, method: p.method, day: today(), by: PK.user.name, ref: p.ref }]) }); payTx(id, b, amt, p.method); toast("✅ Malipo " + tzs(amt)); setTimeout(() => openFolio(id), 50);
+      pushTo(id, "payments", [{ amt, method: p.method, day: today(), by: PK.user.name, ref: p.ref, at: Date.now() }]); payTx(id, b, amt, p.method); toast("✅ Malipo " + tzs(amt)); setTimeout(() => openFolio(id), 50);
     } });
     setTimeout(() => { const t = document.querySelector(".pk-md .total span:last-child"); if (t && !f.bal) t.textContent = "—"; }, 0);
   }
@@ -250,7 +250,7 @@
       closeModal(); toast("🚪 " + b.guest + " ameondoka · chumba " + (get(b.room) || {}).no + " kimewekwa usafi");
     };
     if (f.bal > 0) {
-      if (!roleOk(["meneja"])) return checkout({ total: f.bal, title: "Lipa kabla ya kuondoka", onPay: (p) => { patch(id, { payments: (b.payments || []).concat([{ amt: p.paid, method: p.method, day: today(), by: PK.user.name }]) }); payTx(id, b, p.paid, p.method); setTimeout(done, 30); } });
+      if (!roleOk(["meneja"])) return checkout({ total: f.bal, title: "Lipa kabla ya kuondoka", onPay: (p) => { pushTo(id, "payments", [{ amt: p.paid, method: p.method, day: today(), by: PK.user.name, at: Date.now() }]); payTx(id, b, p.paid, p.method); setTimeout(done, 30); } });
       return confirmBox(`Mgeni anadaiwa ${tzs(f.bal)}. Aondoke na deni? (Chagua "Hapana" kupokea malipo kwanza)`, done, "Ndiyo, aondoke na deni");
     }
     confirmBox(`Check-out ${b.guest} kutoka chumba ${(get(b.room) || {}).no}?`, done, "Check-out");
@@ -271,7 +271,7 @@
   }
   function settleOld(id) {
     const s = get(id);
-    checkout({ total: s.balance, title: "Deni la " + s.guest, onPay: (p) => { patch(id, { balance: s.balance - p.paid, payments: (s.payments || []).concat([{ amt: p.paid, method: p.method, day: today(), by: PK.user.name }]) }); payTx(id, s, p.paid, p.method, "Deni"); toast("✅ Imepokelewa"); } });
+    checkout({ total: s.balance, title: "Deni la " + s.guest, onPay: (p) => { bump(id, "balance", -p.paid); pushTo(id, "payments", [{ amt: p.paid, method: p.method, day: today(), by: PK.user.name, at: Date.now() }]); payTx(id, s, p.paid, p.method, "Deni"); toast("✅ Imepokelewa"); } });
   }
 
   /* ---------- WAGENI ---------- */
@@ -317,6 +317,7 @@
 
   registerPack({
     id: "hoteli", name: "Hoteli & Lodge", theme: "dhahabu", home: "vyumba",
+    money: (inR) => ({ rev: txList("pay", (p) => inR(p.day)).reduce((a, p) => a + p.amt, 0), cost: 0 }),
     roles: [["meneja", "Meneja"], ["mapokezi", "Mapokezi"], ["usafi", "Usafi"]],
     pages: [
       { id: "vyumba", label: "Vyumba", icon: "🛏️", roles: ["meneja", "mapokezi"], render: pageVyumba, actions: () => `${roleOk(["meneja"]) ? `<button class="btn s" onclick="PK.pack.setupRooms()">⚙️ Panga</button>` : ""}<button class="btn p s" onclick="PK.pack.checkinForm()">🛎️ Walk-in</button>` },
