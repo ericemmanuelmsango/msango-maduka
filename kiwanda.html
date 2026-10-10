@@ -104,7 +104,7 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=6"></script>
+<script src="duka.js?v=7"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -188,7 +188,7 @@ function themePicker(cur, fn) {
     ${esc(t.name)}${t.tier === "premium" ? " 💎" : ""}</button>`).join("")}</div>`;
 }
 function industrySelect(cur, onchange) {
-  return `<select onchange="${onchange}">${Object.entries(INDUSTRIES).map(([k, x]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${esc(x.name)}${x.status !== "ipo" ? " (moduli inajengwa)" : ""}</option>`).join("")}</select>`;
+  return `<select onchange="${onchange}">${Object.entries(INDUSTRIES).map(([k, x]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${esc(x.name)}${k === "spea" ? " (Wadai + POS)" : " (pakiti maalum)"}</option>`).join("")}</select>`;
 }
 function vNew() {
   const f = K.form || (K.form = blankForm());
@@ -260,12 +260,13 @@ async function createShop() {
 
 function welcome(c, s) {
   const feats = s ? { ...presetFeatures(s.edition), ...(s.features || {}) } : {};
-  const pos = s ? feats.pos : true;
+  const pack = s && isPackShop(s);
+  const pos = s && !pack ? feats.pos : !s;
   const P = K.pub || {};
   return `Habari! Mfumo wa ${c.name} uko tayari.
 
 Fungua link ${pos ? "hizi" : "hii"} kwenye simu yako kwa Chrome, kisha ⋮ → "Add to Home screen":
-• Madeni na stock: ${shopLink(c.code, "")}${pos ? "\n• POS ya mauzo: " + shopLink(c.code, "pos.html") : ""}
+${pack ? "• Mfumo wako (" + (INDUSTRIES[s.industry] || {}).name + "): " + systemLink(s) : "• Madeni na stock: " + shopLink(c.code, "")}${pos ? "\n• POS ya mauzo: " + shopLink(c.code, "pos.html") : ""}${pack ? "\n\nUkiingia mara ya kwanza utaweka jina lako na PIN ya mmiliki, kisha utaongeza wafanyakazi wako." : ""}
 
 Ingia kwa:
 Email: ${c.email}
@@ -282,7 +283,7 @@ function vCreated() {
     ${c.exposed ? `<div class="msg err"><b>Usimpe bado!</b> Email mpya iliweza kuona mifumo mingine — rules hazijawekwa. Weka rules (Mipangilio) kwanza.</div>` : ""}
     ${c.existed ? `<div class="msg wn">Email hii ilikuwa tayari imesajiliwa — password yake ya zamani inabaki.</div>` : ""}
     <div class="row">
-      <a class="btn pri" href="${shopLink(c.code, "")}" target="_blank" rel="noopener">↗ Fungua mfumo wake</a>
+      <a class="btn pri" href="${s ? systemLink(s) : shopLink(c.code, "")}" target="_blank" rel="noopener">↗ Fungua mfumo wake</a>
       <a class="btn" href="ofisi.html#${esc(c.clientId)}">📋 Rekodi yake Ofisini</a>
     </div>
     <label class="f">Ujumbe wa WhatsApp kwa mteja<textarea id="welcome" readonly style="min-height:200px;font-size:13px">${esc(welcome(c, s))}</textarea></label>
@@ -309,8 +310,8 @@ function vSys(s) {
       <span class="pill ${cls}">${label}</span>
     </div>
     <div class="row">
-      <a class="btn sm" href="${shopLink(s.code, "")}" target="_blank" rel="noopener">↗ Fungua</a>
-      ${({ ...presetFeatures(s.edition), ...(s.features || {}) }).pos ? `<a class="btn sm" href="${shopLink(s.code, "pos.html")}" target="_blank" rel="noopener">↗ POS</a>` : ""}
+      <a class="btn sm" href="${systemLink(s)}" target="_blank" rel="noopener">↗ Fungua</a>
+      ${!isPackShop(s) && ({ ...presetFeatures(s.edition), ...(s.features || {}) }).pos ? `<a class="btn sm" href="${shopLink(s.code, "pos.html")}" target="_blank" rel="noopener">↗ POS</a>` : ""}
       <button class="sm" onclick="copyLink('${s.code}')">🔗 Link</button>
       <button class="sm" onclick="extend('${s.code}',30)">＋ Mwezi 1</button>
       <button class="sm ${open ? "pri" : ""}" onclick="toggle('${s.code}')">⚙️ ${open ? "Funga" : "Badilisha"}</button>
@@ -320,7 +321,7 @@ function vSys(s) {
 }
 function toggle(code) { K.open = K.open === code ? null : code; history.replaceState(null, "", K.open ? "#" + K.open : location.pathname); render(); }
 function copyLink(code) {
-  const t = shopLink(code, "");
+  const s = K.shops.find((x) => x.code === code); const t = s ? systemLink(s) : shopLink(code, "");
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("🔗 Link imenakiliwa: " + t)).catch(() => prompt("Nakili link hii:", t));
 }
 async function extend(code, days) {
@@ -423,7 +424,9 @@ async function loadCreds(code) {
   try {
     const col = db.collection("shops").doc(code).collection("data");
     const [m, p] = await Promise.all([col.doc("data").get(), col.doc("pos_settings").get()]);
-    K.creds[code] = { appPw: ((m.exists && m.data().settings) || {}).appPassword || "", users: ((p.exists && p.data().users) || []).filter((u) => u.active !== false) };
+    const sh = K.shops.find((x) => x.code === code); let pk = [];
+    if (sh && isPackShop(sh)) { const q = await col.where("t", "==", "user").get(); pk = q.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => u.active !== false); }
+    K.creds[code] = { appPw: ((m.exists && m.data().settings) || {}).appPassword || "", users: ((p.exists && p.data().users) || []).filter((u) => u.active !== false), pk };
   } catch (e) { K.creds[code] = { err: e.message || "Imeshindikana" }; }
   render();
 }
@@ -438,10 +441,12 @@ function vCreds(s) {
     <div class="kv"><span>Password ya kuingia</span><b class="mono">${s.loginPw ? esc(s.loginPw) : "haijulikani"}</b>
       <button class="sm" onclick="dukaForgotFor('${esc(em)}')">📧 Tuma link ya kubadilisha</button>
       <button class="sm" onclick="noteLoginPw('${s.code}')">✏️ Andika kumbukumbu</button></div>
+    ${isPackShop(s) ? `<div class="kv"><span>Watumiaji wa ${esc((INDUSTRIES[s.industry] || {}).name || "pakiti")}</span>${c.pk.length ? "" : `<span class="note">bado hakuna — mmiliki ataweka jina na PIN akiingia mara ya kwanza</span>`}</div>
+    ${c.pk.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span><input id="pkpin-${u.id}" class="mono" inputmode="numeric" maxlength="6" placeholder="PIN mpya" style="width:110px"><button class="sm" onclick="packPin('${s.code}','${u.id}')">Weka PIN</button></div>`).join("")}` : `
     <div class="kv"><span>Password ya mfumo (Wadai)</span><b class="mono">${c.appPw ? esc(c.appPw) : "bado haijawekwa"}</b>
       <button class="sm" onclick="setAppPw('${s.code}')">Badilisha</button></div>
     <div class="kv"><span>PIN za POS</span>${c.users.length ? "" : `<span class="note">bado hakuna mtumiaji wa POS</span>`}</div>
-    ${c.users.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span><b class="mono">••••</b><button class="sm" onclick="setPin('${s.code}','${u.id}',${esc(JSON.stringify(u.name))})">Weka PIN mpya</button></div>`).join("")}
+    ${c.users.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span><b class="mono">••••</b><button class="sm" onclick="setPin('${s.code}','${u.id}',${esc(JSON.stringify(u.name))})">Weka PIN mpya</button></div>`).join("")}`}
     <div class="kv"><span>Email nyingine za duka</span><span class="mono">${esc((s.members || []).filter((x) => x !== em).join(", ") || "—")}</span><button class="sm" onclick="addMember('${s.code}')">＋ Ongeza email</button></div>
   </div>
   <p class="note">PIN hazionekani kwa usalama — ukisahau, weka mpya. Mteja akibadilisha password ya kuingia kwa link, hutaiona hapa.</p>`;
@@ -462,6 +467,13 @@ async function setPin(code, uid, name) {
   const u = users.find((x) => x.id === uid); if (!u) return toast("Mtumiaji hakupatikana");
   u.pinHash = await dukaPinHash(uid, pin);
   await ref.set({ users }, { merge: true }); toast("✅ PIN ya " + name + " sasa ni " + pin); loadCreds(code);
+}
+async function packPin(code, uid) {
+  const pin = (($("#pkpin-" + uid) || {}).value || "").trim();
+  if (!/^\d{4,6}$/.test(pin)) return toast("PIN iwe namba 4 hadi 6");
+  const data = new TextEncoder().encode("pk:" + uid + ":" + pin), h = await crypto.subtle.digest("SHA-256", data);
+  const hash = Array.from(new Uint8Array(h)).map((x) => x.toString(16).padStart(2, "0")).join("");
+  try { await db.collection("shops").doc(code).collection("data").doc(uid).update({ pinHash: hash, at: Date.now() }); toast("✅ PIN mpya ni " + pin); loadCreds(code); } catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
 }
 function addMember(code) {
   const em = (prompt("Email ya kuongeza (lazima iwe imesajiliwa Firebase → Authentication):") || "").trim().toLowerCase(); if (!em) return;

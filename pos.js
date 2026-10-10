@@ -1029,6 +1029,7 @@ auth.onAuthStateChanged(async (u) => {
   if (_started) return;
   _started = true;
   await resolveShop(u);                         // 🏪 which shop is this device for? (duka.js)
+  if (!shopBlocked() && packRedirect()) return;
   if (shopBlocked()) { D.loaded = true; D.blocked = true; render(); return; }
   if (adminHome()) { D.loaded = true; D.adminHome = true; render(); return; }
   colRef = dataCollection();

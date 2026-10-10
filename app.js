@@ -241,6 +241,7 @@ function loadState() {
     _dataStarted = true;
     await resolveShop(u);                 // 🏪 which shop is this device for? (duka.js)
     AUTH_READY = true;
+    if (!shopBlocked() && packRedirect()) return;
     if (shopBlocked() || adminHome()) { STATE_LOADED = true; rerender(); return; }
     if (!has(UI.page) && !["dashboard", "settings"].includes(UI.page)) UI.page = "dashboard";
     colRef = dataCollection();

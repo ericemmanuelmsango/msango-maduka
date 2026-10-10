@@ -182,7 +182,7 @@ table.t td.r,table.t th.r{text-align:right}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=6"></script>
+<script src="duka.js?v=7"></script>
 <script>
 /* ---------- Blueprint data (from E.E.Msango Company Blueprint) ---------- */
 const ED = {
@@ -562,10 +562,10 @@ function sMfumo(c){
       <div>📦 ${esc(E.name)}${s.features?" (umebadilishwa kwa ajili yake)":""} · <b class="num">${tzs(s.monthly||E.price)}</b>/mwezi</div>
       <div>⏳ Umelipiwa hadi <b>${fmtDate(s.paidUntil)}</b></div>
       <div class="note">Vipengele: ${FEATURES.filter(([k])=>f[k]).map(([,l])=>l.split(" — ")[0]).join(" · ")}</div>
-      <div class="note">🔗 ${esc(shopLink(s.code,""))}</div>
+      <div class="note">🔗 ${esc(systemLink(s))}</div>
     </div>
     <div class="row">
-      <a class="btnl pri" href="${shopLink(s.code,"")}" target="_blank" rel="noopener">↗ Fungua mfumo wake</a>
+      <a class="btnl pri" href="${systemLink(s)}" target="_blank" rel="noopener">↗ Fungua mfumo wake</a>
       <a class="btnl" href="kiwanda.html#${s.code}">⚙️ Badilisha kwenye Kiwanda</a>
     </div>
     <p class="note">Ukirekodi malipo kwenye tab ya <b>Malipo</b>, muda wa mfumo unaongezwa wenyewe na mfumo unajiwasha.</p></div>`;

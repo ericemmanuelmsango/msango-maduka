@@ -104,14 +104,18 @@ function applyTheme(key, color) {
 /* ---------- 🏢 AINA ZA BIASHARA (industries) ---------- */
 const INDUSTRIES = {
   spea:      { name: "Spea & Hardware", status: "ipo", theme: "asili", nav: ["Uza", "Spea", "Stock", "Madeni", "Ripoti"], kpi: [["Mauzo leo", "1,240,000"], ["Madeni", "3,450,000"], ["Stock ndogo", "12"]], list: ["Brake pad Boxer", "Chain set TVS", "Plug NGK"], extra: ["Bei za jumla na rejareja", "Godown", "Madeni ya mafundi"] },
-  supermarket:{ name: "Supermarket & Mini market", status: "ipo", theme: "mkaa", nav: ["Kaunta", "Bidhaa", "Stock", "Wasambazaji", "Ripoti"], kpi: [["Mauzo leo", "2,860,000"], ["Risiti", "184"], ["Zinazoisha", "23"]], list: ["Sukari 1kg", "Mafuta 3L", "Mchele 5kg"], extra: ["Kaunta za haraka", "Barcode (inajengwa)", "Ripoti ya kila zamu"] },
-  msambazaji:{ name: "Msambazaji / Wholesale", status: "sehemu", theme: "bahari", nav: ["Oda", "Maduka", "Njia", "Madeni", "Ripoti"], kpi: [["Oda leo", "37"], ["Madeni ya maduka", "18,200,000"], ["Njia hai", "5"]], list: ["Duka la Mama Neema", "Kirumba Traders", "Igoma Shop"], extra: ["Mikopo kwa maduka", "Oda za wauzaji wa njia (inajengwa)", "Ankara (invoice)"] },
-  famasia:   { name: "Famasia & Duka la dawa", status: "inajengwa", theme: "zumaridi", nav: ["Uza", "Dawa", "Zinaisha muda", "Wateja", "Ripoti"], kpi: [["Mauzo leo", "680,000"], ["Zinaisha ≤ siku 30", "9"], ["Stock ndogo", "14"]], list: ["Amoxicillin 500mg", "Paracetamol", "ORS"], extra: ["Batch na tarehe ya kuisha", "Tahadhari ya dawa kuisha muda", "Dawa za cheti (prescription)"] },
-  mgahawa:   { name: "Mgahawa, Hoteli & Bar", status: "inajengwa", theme: "kitenge", nav: ["Oda", "Meza", "Jikoni", "Menyu", "Ripoti"], kpi: [["Oda wazi", "8"], ["Mauzo leo", "940,000"], ["Meza zenye watu", "6/14"]], list: ["Meza 4 · Pilau x2", "Meza 7 · Chips kuku", "Take-away · Chai"], extra: ["Oda kwa meza", "Skrini ya jikoni", "Menyu na bei", "Bili kugawanywa"] },
-  saluni:    { name: "Saluni, Spa & Urembo", status: "inajengwa", theme: "kifalme", nav: ["Miadi", "Huduma", "Wahudumu", "Wateja", "Ripoti"], kpi: [["Miadi leo", "15"], ["Mapato leo", "420,000"], ["Kamisheni", "84,000"]], list: ["10:00 · Rasta · Neema", "11:30 · Manicure · Asha", "13:00 · Kunyoa · Juma"], extra: ["Kalenda ya miadi", "Kamisheni ya kila mhudumu", "Kumbukumbu za wateja"] },
-  boutique:  { name: "Boutique & Mavazi", status: "inajengwa", theme: "waridi", nav: ["Uza", "Mavazi", "Saizi & Rangi", "Wateja", "Ripoti"], kpi: [["Mauzo leo", "760,000"], ["Vipande", "1,240"], ["Wateja wa kudumu", "86"]], list: ["Gauni · M · Nyekundu", "Suti · 42 · Nyeusi", "Viatu · 39 · Kahawia"], extra: ["Saizi na rangi kwa kila bidhaa", "Pointi za wateja", "Msimu na punguzo"] },
-  simu:      { name: "Simu & Electronics", status: "inajengwa", theme: "theluji", nav: ["Uza", "Bidhaa", "IMEI/Serial", "Warranty", "Ripoti"], kpi: [["Mauzo leo", "3,900,000"], ["Simu stock", "48"], ["Warranty hai", "131"]], list: ["Samsung A15 · IMEI 35…21", "Tecno Spark 20", "Earphones JBL"], extra: ["IMEI / serial kwa kila kipande", "Warranty na marejesho", "Matengenezo (repair tickets)"] },
+  supermarket:{ name: "Supermarket & Mini market", status: "ipo", theme: "mkaa", nav: ["Kaunta", "Bidhaa", "Zamu", "Wasambazaji", "Ripoti"], kpi: [["Mauzo leo", "2,860,000"], ["Risiti", "184"], ["Zinazoisha", "23"]], list: ["Sukari 1kg", "Mafuta 3L", "Mchele 5kg"], extra: ["Kaunta ya haraka + barcode", "Zamu na droo ya pesa", "Wasambazaji na manunuzi"] },
+  hoteli:    { name: "Hoteli & Lodge", status: "ipo", theme: "dhahabu", nav: ["Vyumba", "Booking", "Wageni", "Bili", "Ripoti"], kpi: [["Vyumba vyenye wageni", "18/24"], ["Wanaoingia leo", "6"], ["Mapato leo", "1,450,000"]], list: ["Chumba 104 · Deluxe · John M.", "Chumba 207 · Single · Wazi", "Chumba 301 · Suite · Usafi"], extra: ["Ramani ya vyumba", "Booking na check-in/out", "Folio ya mgeni", "Usafi (housekeeping)"] },
+  mgahawa:   { name: "Mgahawa & Bar", status: "ipo", theme: "kitenge", nav: ["Meza", "Oda", "Jikoni", "Menyu", "Ripoti"], kpi: [["Oda wazi", "8"], ["Mauzo leo", "940,000"], ["Meza zenye watu", "6/14"]], list: ["Meza 4 · Pilau x2", "Meza 7 · Chips kuku", "Take-away · Chai"], extra: ["Oda kwa meza", "Skrini ya jikoni na bar", "Menyu na bei", "Bili kugawanywa"] },
+  famasia:   { name: "Famasia & Duka la dawa", status: "ipo", theme: "zumaridi", nav: ["Uza", "Dawa", "Zinaisha muda", "Vyeti", "Ripoti"], kpi: [["Mauzo leo", "680,000"], ["Zinaisha ≤ siku 90", "9"], ["Stock ndogo", "14"]], list: ["Amoxicillin 500mg", "Paracetamol", "ORS"], extra: ["Batch na tarehe ya kuisha (FEFO)", "Tahadhari ya dawa kuisha muda", "Dawa za cheti (prescription)"] },
+  saluni:    { name: "Saluni, Spa & Urembo", status: "ipo", theme: "kifalme", nav: ["Miadi", "Kaunta", "Huduma", "Wateja", "Ripoti"], kpi: [["Miadi leo", "15"], ["Mapato leo", "420,000"], ["Kamisheni", "84,000"]], list: ["10:00 · Rasta · Neema", "11:30 · Manicure · Asha", "13:00 · Kunyoa · Juma"], extra: ["Kalenda ya miadi kwa kila mhudumu", "Kamisheni ya kila mhudumu", "Kumbukumbu za wateja"] },
+  boutique:  { name: "Boutique & Mavazi", status: "ipo", theme: "waridi", nav: ["Uza", "Mavazi", "Wateja", "Marejesho", "Ripoti"], kpi: [["Mauzo leo", "760,000"], ["Vipande", "1,240"], ["Wateja wa kudumu", "86"]], list: ["Gauni · M · Nyekundu", "Suti · 42 · Nyeusi", "Viatu · 39 · Kahawia"], extra: ["Saizi na rangi kwa kila bidhaa", "Pointi za wateja", "Kubadilisha (exchange)"] },
+  simu:      { name: "Simu & Electronics", status: "ipo", theme: "theluji", nav: ["Uza", "Bidhaa", "IMEI", "Matengenezo", "Ripoti"], kpi: [["Mauzo leo", "3,900,000"], ["Simu stock", "48"], ["Warranty hai", "131"]], list: ["Samsung A15 · IMEI 35…21", "Tecno Spark 20", "Earphones JBL"], extra: ["IMEI / serial kwa kila kipande", "Warranty na marejesho", "Matengenezo (repair tickets)"] },
+  msambazaji:{ name: "Msambazaji / Wholesale", status: "ipo", theme: "bahari", nav: ["Oda", "Maduka", "Njia", "Ankara", "Ripoti"], kpi: [["Oda leo", "37"], ["Madeni ya maduka", "18,200,000"], ["Njia hai", "5"]], list: ["Duka la Mama Neema", "Kirumba Traders", "Igoma Shop"], extra: ["Mikopo kwa maduka", "Njia na wauzaji", "Ankara (invoice)"] },
 };
+/* biashara isiyo spea inatumia pakiti yake (pakiti.html) */
+function isPackShop(s) { s = s || SHOP; return !!(s && s.industry && s.industry !== "spea" && INDUSTRIES[s.industry]); }
+function packRedirect() { if (isPackShop() && !/pakiti\.html/.test(location.pathname)) { location.replace("pakiti.html?duka=" + SHOP.code); return true; } return false; }
 
 /* ---------- 💎 VIPENGELE VYA ZIADA (premium / enterprise) — bei ni mapendekezo ---------- */
 const ADDONS = [
@@ -154,6 +158,8 @@ function daysLeft(s) { s = s || SHOP; if (!s || !s.paidUntil) return null; retur
 function isExpired(s) { s = s || SHOP; return !!s && !(s.paidUntil > Date.now()); }
 function baseUrl() { return location.origin + location.pathname.replace(/[^/]*$/, ""); }
 function shopLink(code, page) { return baseUrl() + (page || "") + "?duka=" + code; }
+/* link kuu ya mfumo wa mteja: pakiti kwa biashara zenye pakiti, Wadai kwa spea */
+function systemLink(s) { return shopLink(s.code, isPackShop(s) ? "pakiti.html" : ""); }
 /* keep ?duka=CODE when moving between Wadai and POS */
 function dukaHref(page) { const code = (SHOP && SHOP.code) || URL_SHOP; return (page || "./") + (code ? "?duka=" + code : ""); }
 
@@ -161,7 +167,7 @@ function dukaHref(page) { const code = (SHOP && SHOP.code) || URL_SHOP; return (
 let PRE_BRAND = null;  // brands/{URL_SHOP} — before login
 function loadPreBrand() {
   if (!URL_SHOP) return Promise.resolve(null);
-  return db.collection("brands").doc(URL_SHOP).get().then((d) => { PRE_BRAND = d.exists ? d.data() : null; applyBrand(PRE_BRAND); dukaRerender(); return PRE_BRAND; }).catch(() => null);
+  return db.collection("brands").doc(URL_SHOP).get().then((d) => { PRE_BRAND = d.exists ? d.data() : null; if (PRE_BRAND && PRE_BRAND.industry && PRE_BRAND.industry !== "spea" && INDUSTRIES[PRE_BRAND.industry] && !/pakiti\.html/.test(location.pathname)) { location.replace("pakiti.html?duka=" + URL_SHOP); return PRE_BRAND; } applyBrand(PRE_BRAND); dukaRerender(); return PRE_BRAND; }).catch(() => null);
 }
 function applyBrand(b) {
   b = b || (SHOP && SHOP.brand) || null;
@@ -276,7 +282,7 @@ function dukaForgot(email) {
    ADMIN API — inatumiwa na Kiwanda na Ofisi (msimamizi tu; rules zinalinda)
    ===================================================================== */
 function dukaApp(name) { return firebase.apps.find((a) => a.name === name) || firebase.initializeApp(firebaseConfig, name); }
-function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "", theme: (s.brand && s.brand.theme) || "" }; }
+function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "", theme: (s.brand && s.brand.theme) || "", industry: s.industry || "spea" }; }
 /* Tengeneza mfumo mpya. opts: {name, code, edition, features, users, monthly, brand:{color,tagline}, email, pw, phone, location, trialDays, notes, clientId} */
 async function adminCreateShop(o) {
   const name = (o.name || "").trim(), code = dukaSlug(o.code || o.name), email = (o.email || "").trim().toLowerCase(), pw = o.pw || "";
@@ -331,7 +337,7 @@ async function adminCreateShop(o) {
 async function adminUpdateShop(code, patch) {
   const ref = db.collection("shops").doc(code);
   await ref.update(patch);
-  if ("name" in patch || "brand" in patch) {
+  if ("name" in patch || "brand" in patch || "industry" in patch) {
     const s = (await ref.get()).data();
     await db.collection("brands").doc(code).set(shopPublic(s));
   }
