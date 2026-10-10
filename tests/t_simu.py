@@ -1,0 +1,18 @@
+from h import *
+with sync_playwright() as pw:
+    p = open_page(pw, "pakiti.html?duka=p1", shop_store("p1", "simu", "theluji"))
+    setup_owner(p)
+    p.click(".pk-nav:has-text('Bidhaa')"); p.click("text=＋ Bidhaa"); p.fill("#pf-n","Samsung A15 128GB"); p.fill("#pf-b","Samsung"); p.fill("#pf-p","420000"); p.fill("#pf-k","360000"); p.click(".pk-md >> button:has-text('Hifadhi')"); p.wait_for_timeout(200)
+    p.fill("#rv-list","356789012345672\n356789012345680, 356789012345698\n12345\n356789012345671"); p.fill("#rv-c","Nyeusi"); p.click("text=✅ Ingiza"); p.wait_for_timeout(300); print("toast:", p.inner_text("#pk-toast"))
+    p.click("text=＋ Bidhaa"); p.fill("#pf-n","Earphones JBL"); p.select_option("#pf-c","Earphones"); p.fill("#pf-p","25000"); p.fill("#pf-w","0"); p.uncheck("#pf-s"); p.fill("#pf-q","10"); p.click(".pk-md >> button:has-text('Hifadhi')"); p.wait_for_timeout(200)
+    print(p.inner_text(".pk-page")[:400]); shot(p,"simu-bidhaa")
+    p.click(".pk-nav:has-text('Uza')"); p.fill("#sm-q","356789012345680"); p.press("#sm-q","Enter"); p.wait_for_timeout(200); p.click(".prod:has-text('Earphones')")
+    shot(p,"simu-uza"); p.click("text=💳 Lipa >> nth=0"); p.fill("#co-cust","Baraka Paul"); p.fill("#co-phone","0767000000"); p.click("text=✅ Thibitisha"); p.wait_for_timeout(400); print(p.inner_text(".rc")[-330:]); p.click(".pk-md >> text=✕")
+    p.click(".pk-nav:has-text('IMEI')"); p.fill("#im-f","345680"); p.wait_for_timeout(300); print(p.inner_text(".pk-page")[:600]); shot(p,"simu-imei")
+    p.click("text=Fungua matengenezo"); p.fill("#jb-pr","Haichaji"); p.click("text=Pokea na toa risiti"); p.wait_for_timeout(400); print(p.inner_text(".rc")[-250:]); p.click(".pk-md >> text=✕")
+    p.click(".pk-nav:has-text('Matengenezo')"); p.click("text=＋ Pokea kifaa"); p.fill("#jb-c","Ali"); p.fill("#jb-d","Tecno Spark 10"); p.fill("#jb-pr","Kioo kimevunjika"); p.fill("#jb-e","60000"); p.fill("#jb-dp","20000"); p.click("text=Pokea na toa risiti"); p.wait_for_timeout(300); p.click(".pk-md >> text=✕")
+    p.click(".tk:has-text('Tecno')"); p.fill("#jp-n","Kioo"); p.fill("#jp-c","25000"); p.click(".pk-md >> button:has-text('＋')"); p.wait_for_timeout(200); p.click(".pk-md >> .chip:has-text('Tayari')"); p.wait_for_timeout(200)
+    shot(p,"simu-job"); p.click("text=Mteja amechukua"); p.wait_for_timeout(200); p.click("text=✅ Thibitisha"); p.wait_for_timeout(300); print(p.inner_text(".rc")[-200:]); p.click(".pk-md >> text=✕")
+    print(p.inner_text(".kan")); shot(p,"simu-kan")
+    p.click(".pk-nav:has-text('Ripoti')"); p.wait_for_timeout(200); print(p.inner_text(".kpis"))
+    print("ERRS", p.errs)

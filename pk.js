@@ -436,11 +436,11 @@ function vShell() {
   const N = navPages(); if (!N.find((p) => p.id === PK.page)) PK.page = firstPage();
   const P = pages().find((p) => p.id === PK.page);
   const bot = N.slice(0, 4), more = N.slice(4);
-  let body = ""; try { body = P.render(); } catch (e) { console.error(e); body = `<div class="card err">Hitilafu kwenye ukurasa huu: ${esc(e.message)}</div>`; }
+  let body = ""; try { body = P.render(); } catch (e) { console.error(e); dukaLogError("error", "Ukurasa " + P.id + ": " + e.message, { stack: String(e.stack || "").slice(0, 1500) }); body = `<div class="card err">Hitilafu kwenye ukurasa huu: ${esc(e.message)} — imeripotiwa kwa E.E.Msango.</div>`; }
   return `${dukaAdminBanner()}${dukaExpiryBanner()}<div class="pk">
     <aside class="pk-side"><div class="pk-brand"><small>${esc(PK.pack.name)}</small><b>${esc(SHOP.name)}</b></div>
       ${N.map((p) => `<button class="pk-nav ${p.id === PK.page ? "on" : ""}" onclick="go('${p.id}')"><i>${p.icon || "•"}</i>${esc(p.label)}${(() => { const x = p.badge && p.badge(); return x ? ` <span class="pill bd" style="margin-left:auto">${x}</span>` : ""; })()}</button>`).join("")}
-      <div class="sp"></div><div class="xs" style="opacity:.6;padding:8px">Msango Maduka</div></aside>
+      <div class="sp"></div><button class="pk-nav" onclick="dukaReport()"><i>🆘</i>Ripoti tatizo</button><div class="xs" style="opacity:.6;padding:8px">Msango Maduka</div></aside>
     <main class="pk-main"><header class="pk-top"><h2>${esc(P.label)}</h2>${P.actions ? P.actions() : ""}
       <div class="pk-who"><span class="mu">${esc(PK.user.name)}</span><button class="btn s" onclick="lock()" title="Funga">🔒</button></div></header>
       <div class="pk-page">${body}</div></main>

@@ -104,7 +104,7 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=7"></script>
+<script src="duka.js?v=8"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -480,6 +480,40 @@ function addMember(code) {
   adminUpdateShop(code, { members: firebase.firestore.FieldValue.arrayUnion(em) }).then(() => toast("✅ " + em + " ameongezwa"));
 }
 
+/* ---------- 🐞 hitilafu & ripoti za wateja ---------- */
+async function loadErrors() {
+  K.err = { loading: true }; render();
+  try { const q = await db.collection("errors").orderBy("at", "desc").limit(300).get(); K.err = { list: q.docs.map((d) => ({ id: d.id, ...d.data() })) }; }
+  catch (e) { K.err = { msg: e.code === "permission-denied" ? "Weka rules mpya (Mipangilio ya Kiwanda → Rules) kisha jaribu tena." : e.message || "Imeshindikana" }; }
+  render();
+}
+function errGroups() {
+  const g = {}; (K.err.list || []).forEach((e) => { const k = e.type === "report" ? e.id : e.type + "|" + e.shop + "|" + e.msg; (g[k] = g[k] || { ...e, n: 0, ids: [], last: 0 }); g[k].n++; g[k].ids.push(e.id); g[k].last = Math.max(g[k].last, e.at || 0); });
+  return Object.values(g).sort((a, b) => (b.type === "report") - (a.type === "report") || b.last - a.last);
+}
+function errText() {
+  return "Hitilafu za Msango Maduka (" + new Date().toLocaleString("sw-TZ") + ")\n\n" + errGroups().map((e, i) => `${i + 1}. [${e.type === "report" ? "RIPOTI YA MTEJA" : "ERROR ×" + e.n}] ${e.shopName || e.shop} (${e.industry || "?"}) · ${e.page} · ${e.ver || ""}\n   ${e.msg}${e.src ? "\n   @ " + e.src : ""}${e.stack ? "\n   " + e.stack.split("\n").slice(0, 3).join(" | ") : ""}${e.phone ? "\n   Simu: " + e.phone : ""}\n   Mara ya mwisho: ${new Date(e.last).toLocaleString("sw-TZ")} · ${e.who}${e.staff ? " (" + e.staff + ")" : ""}`).join("\n\n");
+}
+async function delErrors(ids) {
+  try { const b = db.batch(); ids.slice(0, 450).forEach((id) => b.delete(db.collection("errors").doc(id))); await b.commit(); toast("🗑️ Imefutwa"); loadErrors(); } catch (e) { toast("Haikufutika: " + (e.message || "")); }
+}
+function vErrors() {
+  const E = K.err;
+  const head = `<summary>🐞 Hitilafu & ripoti za wateja${E && E.list ? ` <span class="pill ${E.list.length ? "bad" : "good"}">${E.list.length}</span>` : ""}</summary>`;
+  if (!E) return `<details class="panel" ontoggle="if(this.open&&!K.err)loadErrors()">${head}<p class="note">Fungua kuona…</p></details>`;
+  if (E.loading) return `<details class="panel" open>${head}<p class="note">Inapakia…</p></details>`;
+  if (E.msg) return `<details class="panel" open>${head}<div class="msg err">${esc(E.msg)}</div><button class="sm" onclick="loadErrors()">↻ Jaribu tena</button></details>`;
+  const G = errGroups();
+  return `<details class="panel" open>${head}
+    <div class="row"><button class="sm" onclick="loadErrors()">↻ Onyesha upya</button>${G.length ? `<button class="sm pri" onclick="const t=document.getElementById('errtxt');t.value=errText();copy('errtxt')">📋 Nakili kwa Claude</button><button class="sm" onclick="if(confirm('Futa zote?'))delErrors(K.err.list.map(e=>e.id))">🗑️ Futa zote</button>` : ""}</div>
+    <textarea id="errtxt" readonly style="position:absolute;left:-9999px"></textarea>
+    ${G.length ? G.map((e) => `<div class="box" style="margin-top:8px;${e.type === "report" ? "border-color:var(--warn,#e8a317)" : ""}"><div class="row" style="justify-content:space-between"><b>${e.type === "report" ? "🆘 Ripoti" : "🐞 Error ×" + e.n} · ${esc(e.shopName || e.shop || "—")}</b><span class="note">${new Date(e.last).toLocaleString("sw-TZ")}</span></div>
+      <div class="mono" style="font-size:13px;white-space:pre-wrap;word-break:break-word">${esc(e.msg)}</div>
+      <div class="note">${esc(e.industry || "")} · ${esc(e.page || "")} · ${esc(e.who || "")}${e.staff ? " (" + esc(e.staff) + ")" : ""}${e.phone ? " · 📞 " + esc(e.phone) : ""} · ${esc(e.ver || "")}</div>
+      <button class="sm" onclick="delErrors(${esc(JSON.stringify(e.ids))})">✓ Imeshughulikiwa (futa)</button></div>`).join("") : `<p class="note">Hakuna hitilafu. 🎉</p>`}
+    <p class="note">Bonyeza "📋 Nakili kwa Claude", kisha bandika kwenye mazungumzo na Claude ili arekebishe.</p></details>`;
+}
+
 /* ---------- mipangilio ---------- */
 function vSettings() {
   const P = K.pub || {};
@@ -517,6 +551,7 @@ function render() {
     ${K.showNew ? vNew() : ""}
     ${vCreated()}
     ${vList()}
+    ${vErrors()}
     ${vSettings()}`;
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
 }

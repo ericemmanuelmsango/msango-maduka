@@ -1,0 +1,38 @@
+from h import *
+with sync_playwright() as pw:
+    p = open_page(pw, "pakiti.html?duka=sm1", shop_store("sm1", "supermarket", "mkaa"))
+    print("title", p.title())
+    setup_owner(p)
+    print(p.inner_text(".pk-top")[:80])
+    p.fill("#sh-float", "50000"); p.click("button:has-text(\"Fungua zamu\")"); p.wait_for_timeout(300)
+    # add products
+    for nm, code, pr, cost, q in [("Sukari 1kg","1111111",3200,2800,40),("Mafuta 3L","2222222",15000,13000,2),("Mchele 5kg","3333333",14000,12000,10)]:
+        p.click(".pk-nav:has-text('Bidhaa')"); p.click("text=＋ Bidhaa"); p.fill("#pf-name",nm); p.fill("#pf-code",code); p.fill("#pf-cat","Vyakula"); p.fill("#pf-price",str(pr)); p.fill("#pf-cost",str(cost)); p.fill("#pf-qty",str(q)); p.click(".pk-md >> text=Hifadhi"); p.wait_for_timeout(200)
+    shot(p,"sm-bidhaa")
+    p.click(".pk-nav:has-text('Kaunta')"); p.wait_for_timeout(200)
+    p.fill("#sm-q","3*sukari"); p.press("#sm-q","Enter"); p.wait_for_timeout(200)
+    # simulate scanner on body
+    p.click("h3:has-text('Kikapu')")
+    p.keyboard.type("2222222", delay=5); p.keyboard.press("Enter"); p.wait_for_timeout(300)
+    shot(p,"sm-kaunta")
+    print(p.inner_text(".card.sticky")[:300])
+    p.keyboard.press("F2"); p.wait_for_timeout(200)
+    p.fill("#co-got","30000"); p.wait_for_timeout(100); print("change:", p.inner_text("#co-ch"))
+    p.click("text=✅ Thibitisha"); p.wait_for_timeout(500)
+    shot(p,"sm-risiti")
+    print(p.inner_text(".rc")[:400])
+    st = store(p)
+    print({k:v.get("qty") for k,v in st.items() if "prod_" in k})
+    print([ (v["t"],v.get("no"),v.get("total")) for k,v in st.items() if v.get("t")=="sale"])
+    p.click(".pk-md >> text=✕")
+    # credit sale
+    p.click(".prod:has-text('Mchele')"); p.click("text=💳 Lipa"); p.click(".chip:has-text('Mkopo')"); p.fill("#co-cust","Mama Neema"); p.fill("#co-part","4000"); p.click("text=✅ Thibitisha"); p.wait_for_timeout(400); p.click(".pk-md >> text=✕")
+    p.click(".pk-nav:has-text('Madeni')"); p.wait_for_timeout(200); print(p.inner_text(".pk-page")[:200])
+    p.click(".pk-nav:has-text('Zamu')"); p.click("text=Funga zamu"); p.fill("#cl-count","80000"); p.wait_for_timeout(100); print(p.inner_text(".pk-md")[:300]); p.click(".pk-md >> button:has-text('Funga zamu')"); p.wait_for_timeout(300)
+    print(p.inner_text(".pk-page")[-200:])
+    p.click(".pk-nav:has-text('Ripoti')"); p.wait_for_timeout(300); shot(p,"sm-ripoti"); print(p.inner_text(".kpis"))
+    p.click(".pk-nav:has-text('Wasambazaji')"); p.click("text=＋ Msambazaji"); p.fill("#sf-n","Azam Ltd"); p.click(".pk-md >> text=Hifadhi"); p.click("text=📦 Pokea mzigo"); p.select_option("#rv-sup", index=1); p.fill("#rv-p","Mafuta 3L"); p.fill("#rv-q","10"); p.fill("#rv-c","12500"); p.click(".pk-md >> text=＋"); p.fill("#rv-paid","50000"); p.click("text=✅ Ingiza stock"); p.wait_for_timeout(300)
+    print(p.inner_text(".kpis"))
+    print({v["name"]:v.get("qty") for k,v in store(p).items() if "prod_" in k})
+    p.set_viewport_size({"width":390,"height":800}); p.click(".pk-bot >> text=Kaunta"); p.wait_for_timeout(200); shot(p,"sm-mobile")
+    print("ERRS", p.errs)

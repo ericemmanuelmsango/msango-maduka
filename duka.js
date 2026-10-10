@@ -269,7 +269,8 @@ function dukaSignOutButton() {
     ${SHOP ? `<p style="font-size:13px;margin:4px 0">📦 Mpango: <b>${dukaEsc(ed().name)}</b> · TZS ${Number(ed().price || 0).toLocaleString("en-US")}/mwezi</p>
     <p style="font-size:13px;margin:4px 0">⏳ Umelipiwa hadi: <b>${fmtDate(SHOP.paidUntil)}</b>${dl != null ? " (siku " + Math.max(dl, 0) + ")" : ""}</p>` : ""}
     <p style="font-size:13px;margin:4px 0">Kifaa hiki kimeingia kwa <b>${dukaEsc(u.email)}</b>.</p>
-    ${IS_ADMIN ? "" : `<button class="${DUKA_HOOK.ghost}" onclick="if(confirm('Toa kifaa hiki? Utahitaji email na password kuingia tena.'))auth.signOut().then(()=>location.reload())">Toa kifaa hiki</button>`}</div>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="${DUKA_HOOK.ghost}" onclick="dukaReport()">🆘 Ripoti tatizo</button>
+    ${IS_ADMIN ? "" : `<button class="${DUKA_HOOK.ghost}" onclick="if(confirm('Toa kifaa hiki? Utahitaji email na password kuingia tena.'))auth.signOut().then(()=>location.reload())">Toa kifaa hiki</button>`}</div></div>`;
 }
 function dukaForgot(email) {
   email = (email || "").trim();
@@ -396,8 +397,54 @@ service cloud.firestore {
     match /clients/{id} {
       allow read, write: if isAdmin();
     }
+    // 🐞 hitilafu na ripoti za matatizo kutoka kwa mifumo ya wateja
+    match /errors/{id} {
+      allow create: if signedIn() && request.resource.data.keys().size() < 20 && request.resource.data.msg is string && request.resource.data.msg.size() < 2000;
+      allow read, delete: if isAdmin();
+    }
   }
 }`;
+}
+/* ---------- 🐞 kumbukumbu za hitilafu (zinaonekana Kiwanda → Hitilafu) ---------- */
+const DUKA_VER = "v7.2";
+const _errSeen = {}; let _errCount = 0;
+function dukaLogError(type, msg, extra) {
+  try {
+    if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
+    const user = firebase.auth().currentUser; if (!user || !user.email) return;
+    msg = String(msg || "").slice(0, 1800); const key = type + "|" + msg;
+    if (type === "error") { if (_errSeen[key] || _errCount >= 10) return; _errSeen[key] = 1; _errCount++; }
+    const pk = typeof PK !== "undefined" ? PK : null;
+    const d = { type, msg, shop: (SHOP && SHOP.code) || URL_SHOP || "", shopName: (SHOP && SHOP.name) || "", industry: (SHOP && SHOP.industry) || "",
+      page: location.pathname.split("/").pop() + (pk && pk.page ? "#" + pk.page : ""), who: user.email, staff: pk && pk.user ? pk.user.name : "",
+      ua: navigator.userAgent.slice(0, 160), ver: DUKA_VER, at: Date.now(), ...(extra || {}) };
+    Object.keys(d).forEach((k) => { if (typeof d[k] === "string") d[k] = d[k].slice(0, 1800); });
+    return firebase.firestore().collection("errors").add(d).catch(() => {});
+  } catch (e) {}
+}
+window.addEventListener("error", (e) => { if (!e || !e.message || /ResizeObserver|Script error/i.test(e.message)) return; dukaLogError("error", e.message, { src: ((e.filename || "").split("/").pop() || "") + ":" + (e.lineno || 0), stack: String((e.error && e.error.stack) || "").slice(0, 1500) }); });
+window.addEventListener("unhandledrejection", (e) => { const r = e && e.reason; const m = (r && (r.message || r.code)) || String(r || ""); if (!m || /permission-denied|unavailable|network|offline/i.test(m)) return; dukaLogError("error", "Promise: " + m, { stack: String((r && r.stack) || "").slice(0, 1500) }); });
+/* 🆘 mteja anaripoti tatizo (dirisha lake lenyewe, linafanya kazi kwenye kurasa zote) */
+function dukaReport() {
+  const old = document.getElementById("duka-rep"); if (old) old.remove();
+  const ov = document.createElement("div"); ov.id = "duka-rep";
+  ov.style.cssText = "position:fixed;inset:0;z-index:999;background:rgba(10,12,16,.55);display:grid;place-items:center;padding:16px;font-family:system-ui,sans-serif";
+  ov.innerHTML = `<div style="background:#fff;color:#172033;border-radius:16px;padding:18px;width:min(460px,100%);display:grid;gap:10px">
+    <b style="font-size:17px">🆘 Ripoti tatizo kwa E.E.Msango</b>
+    <span style="font-size:13px;color:#555">Eleza kilichotokea: ulikuwa unafanya nini, ukurasa gani, na nini kilitokea. Tutapokea pamoja na taarifa za mfumo wako.</span>
+    <textarea id="duka-rep-t" rows="5" style="width:100%;box-sizing:border-box;border:1px solid #ccd;border-radius:10px;padding:10px;font:inherit" placeholder="mf. Nikibonyeza Lipa, inakataa…"></textarea>
+    <input id="duka-rep-p" style="border:1px solid #ccd;border-radius:10px;padding:10px;font:inherit" placeholder="Simu yako (tukupigie)">
+    <div id="duka-rep-m" style="font-size:13px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button id="duka-rep-x" style="padding:9px 14px;border-radius:9px;border:1px solid #ccd;background:#fff;cursor:pointer">Funga</button>
+    <button id="duka-rep-s" style="padding:9px 14px;border-radius:9px;border:0;background:#172033;color:#fff;font-weight:700;cursor:pointer">Tuma</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#duka-rep-x").onclick = () => ov.remove();
+  ov.querySelector("#duka-rep-s").onclick = async () => {
+    const t = ov.querySelector("#duka-rep-t").value.trim(), m = ov.querySelector("#duka-rep-m"); if (t.length < 5) { m.textContent = "Andika maelezo kidogo."; return; }
+    m.textContent = "Inatuma…"; await dukaLogError("report", t, { phone: ov.querySelector("#duka-rep-p").value.trim() });
+    m.innerHTML = "✅ Imetumwa. Tutawasiliana nawe hivi karibuni."; setTimeout(() => ov.remove(), 1600);
+  };
+  setTimeout(() => ov.querySelector("#duka-rep-t").focus(), 30);
 }
 /* Kitufe cha "Umesahau password?" + skrini ya kuingia yenye chapa ya mteja */
 function dukaLoginHeader() {
