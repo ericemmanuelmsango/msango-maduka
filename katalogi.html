@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="sw">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Katalogi ya Mifumo — Msango Maduka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link id="themefonts" rel="stylesheet" href="">
+<style>
+/* Katalogi: chumba cha maonyesho — chaguzi upande wa kushoto, simu yenye mfumo hai upande wa kulia (inakaa juu kwenye simu). */
+:root{
+  --bg:#E9EBEE; --surface:#FFFFFF; --sunk:#DEE1E5; --ink:#0F1115; --muted:#5A616B; --line:#D3D7DD;
+  --accent:#0D6A5B; --accent-ink:#FFFFFF; --accent-soft:#D9ECE7; --gold:#9C7A2E;
+  --ok:#1D7A3B; --ok-soft:#E1F1E5; --mid:#8A5A00; --mid-soft:#FBEFD9; --soon:#2556A3; --soon-soft:#E1EAF7;
+  --f-display:"Fraunces",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E1013; --surface:#171A1F; --sunk:#1F2329; --ink:#E8EAED; --muted:#9AA1AA; --line:#2A2F36;
+  --accent:#43B9A2; --accent-ink:#06201B; --accent-soft:#143832; --gold:#D8B56A;
+  --ok:#5DC985; --ok-soft:#173322; --mid:#E3A43C; --mid-soft:#3A2B10; --soon:#80A9F1; --soon-soft:#18284A; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;font-weight:700;letter-spacing:-.01em}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+header.hero{padding-block:28px 18px;display:grid;gap:10px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.hero h1{font-size:clamp(30px,5vw,48px);line-height:1.05}
+.hero h1 em{font-style:italic;color:var(--accent);font-weight:500}
+.hero p{margin:0;max-width:62ch;color:var(--muted)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.steps span{font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
+.layout{display:grid;gap:22px;grid-template-columns:1fr;grid-template-areas:"s1" "s2" "pv" "s3" "sum"}
+@media (min-width:980px){.layout{grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"s1 pv" "s2 pv" "s3 pv" "sum pv"}}
+.s1{grid-area:s1}.s2{grid-area:s2}.s3{grid-area:s3}.sum{grid-area:sum}
+.pv{grid-area:pv}
+@media (min-width:980px){.pv{position:sticky;top:16px;align-self:start}}
+section.step{display:grid;gap:12px;min-width:0}
+.sh{display:flex;align-items:baseline;gap:10px}
+.sh .n{font-family:var(--f-display);font-size:28px;color:var(--accent);line-height:1}
+.sh h2{font-size:22px}
+.sh p{margin:0;color:var(--muted);font-size:14px}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr))}
+.opt{all:unset;cursor:pointer;display:grid;gap:6px;align-content:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;position:relative}
+.opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.opt[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.opt b{font-size:15px}
+.opt small{color:var(--muted);font-size:12.5px;line-height:1.4}
+.opt ul{margin:2px 0 0;padding-left:16px;font-size:12.5px;color:var(--muted)}
+.badge{justify-self:start;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+.b-ipo{background:var(--ok-soft);color:var(--ok)} .b-sehemu{background:var(--mid-soft);color:var(--mid)} .b-inajengwa{background:var(--soon-soft);color:var(--soon)}
+.b-premium{background:color-mix(in srgb,var(--gold) 16%,transparent);color:var(--gold)} .b-enterprise{background:var(--ink);color:var(--bg)} .b-msingi{background:var(--sunk);color:var(--muted)}
+.swatch{display:flex;height:44px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.swatch i{flex:1}
+.swatch i:first-child{flex:2}
+.tname{font-size:19px;line-height:1.1}
+.feats{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))}
+.grp{grid-column:1/-1;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:8px}
+.ck{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-size:14px}
+.ck input{width:18px;height:18px;margin:1px 0 0;accent-color:var(--accent)}
+.ck.on{border-color:var(--accent);background:var(--accent-soft)}
+.ck .p{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.ck .s{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+/* phone preview */
+.pvbox{display:grid;gap:10px;justify-items:center}
+.pvtabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.pvtabs button{all:unset;cursor:pointer;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;color:var(--muted)}
+.pvtabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.pvtabs button:focus-visible{outline:2px solid var(--accent)}
+.phone{width:300px;max-width:100%;aspect-ratio:300/600;border-radius:38px;background:#0b0c0e;padding:10px;box-shadow:0 30px 60px -25px rgba(0,0,0,.45)}
+.scr{height:100%;border-radius:29px;overflow:hidden;background:var(--t-bg);color:var(--t-ink);display:flex;flex-direction:column;font-family:var(--t-fb);transition:background .3s}
+.sbar{display:flex;justify-content:space-between;font-size:10px;padding:8px 18px 4px;color:#fff;background:var(--t-side);font-family:var(--f-mono)}
+.thead{background:var(--t-side);color:#fff;padding:10px 16px 18px;display:grid;gap:2px}
+.thead small{opacity:.7;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.thead b{font-family:var(--t-fd);font-size:22px;line-height:1.1;font-weight:600}
+.thead span{font-size:11px;opacity:.8}
+.tbody{flex:1;padding:12px;display:grid;gap:10px;align-content:start;overflow:hidden}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kp div{background:var(--t-surface);border:1px solid var(--t-line);border-radius:10px;padding:8px;display:grid;gap:2px;min-width:0}
+.kp small{font-size:9px;color:var(--t-muted);line-height:1.2}
+.kp b{font-family:var(--t-fd);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card{background:var(--t-surface);border:1px solid var(--t-line);border-radius:12px;padding:10px;display:grid;gap:6px}
+.card h4{margin:0;font-family:var(--t-fd);font-size:13px}
+.row{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;border-top:1px solid var(--t-line);padding-top:6px}
+.row:first-of-type{border-top:0;padding-top:0}
+.row span:last-child{color:var(--t-accent);font-weight:600}
+.cta{background:var(--t-accent);color:var(--t-accent-ink);border-radius:10px;padding:9px;text-align:center;font-size:12px;font-weight:700}
+.tnav{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--t-line);background:var(--t-surface)}
+.tnav span{font-size:9.5px;text-align:center;padding:9px 2px 12px;color:var(--t-muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tnav span:first-child{color:var(--t-accent)}
+.tnav span:first-child::before{content:"";display:block;width:18px;height:3px;border-radius:2px;background:var(--t-accent);margin:0 auto 5px}
+.login{flex:1;display:grid;place-items:center;padding:22px;background:var(--t-side);color:#fff}
+.login .lc{width:100%;background:var(--t-surface);color:var(--t-ink);border-radius:16px;padding:18px;display:grid;gap:8px;text-align:center}
+.login .lc small{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--t-muted)}
+.login .lc b{font-family:var(--t-fd);font-size:20px;line-height:1.1}
+.login .lc i{font-style:normal;font-size:11px;color:var(--t-muted)}
+.login .in{border:1px solid var(--t-line);border-radius:8px;padding:8px;font-size:11px;color:var(--t-muted);text-align:left}
+.pvname{display:flex;gap:6px;width:100%;max-width:300px}
+input.txt{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+input.txt:focus-visible{outline:2px solid var(--accent)}
+/* summary */
+.sumbox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px}
+.tier{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tier h3{font-size:24px}
+table.lines{width:100%;border-collapse:collapse;font-size:14px}
+table.lines td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+table.lines td.r{text-align:right;font-family:var(--f-mono);white-space:nowrap;padding-left:10px}
+.total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.total b{font-family:var(--f-display);font-size:34px;line-height:1}
+.note{font-size:12.5px;color:var(--muted)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;font-size:14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 16px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.warn{background:var(--soon-soft);color:var(--soon);border-radius:10px;padding:10px 12px;font-size:13px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:20}
+@media (prefers-reduced-motion:reduce){.scr{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">E.E.MSANGO · Msango Maduka</div>
+    <h1>Katalogi ya <em>Mifumo</em></h1>
+    <p>Chagua aina ya biashara, muundo wa mfumo na vipengele unavyotaka. Simu iliyo pembeni inaonyesha mfumo wako unavyoonekana, na bei inahesabiwa papo hapo.</p>
+    <div class="steps"><span>1 · Biashara</span><span>2 · Muundo</span><span>3 · Vipengele</span><span>4 · Bei</span></div>
+  </header>
+  <div class="layout" id="app"></div>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="duka.js?v=6"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = dukaEsc;
+const tzs = (n) => "TZS " + Math.round(+n || 0).toLocaleString("en-US");
+function toast(m) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2600); }
+const ST = { ind: "spea", theme: "asili", name: "Duka Lako", view: "dash", f: presetFeatures("duka"), a: {} };
+const STATUS = { ipo: ["b-ipo", "Ipo sasa"], sehemu: ["b-sehemu", "Sehemu ipo"], inajengwa: ["b-inajengwa", "Inajengwa ukiagiza"] };
+
+function baseEdition() {
+  const f = ST.f;
+  if (f.ripoti) return "pro";
+  if (f.jumla || f.godown) return "stoki";
+  if (f.pos || f.sales || f.matumizi || f.funga || f.whatsapp || f.posMadeni) return "duka";
+  return "mali";
+}
+function addonsOn() { const on = ADDONS.filter(([k]) => ST.a[k]); if (ST.theme !== "asili" && !ST.a.theme) on.unshift(ADDONS[0]); return on; }
+function tierOf() {
+  const on = addonsOn();
+  if (on.some((x) => x[2] === "enterprise")) return ["enterprise", "Almasi", "Enterprise — kwa biashara kubwa na matawi"];
+  if (on.length) return ["premium", "Dhahabu", "Premium — muundo wa kifahari na vipengele vya ziada"];
+  return ["msingi", "Kawaida", "Standard — kila kitu cha msingi"];
+}
+function setupFee() { const t = tierOf()[0]; return t === "enterprise" ? "250,000+" : t === "premium" ? "100,000" : "30,000 – 50,000"; }
+
+/* ---------- vipande ---------- */
+function vIndustries() {
+  return `<section class="step s1"><div class="sh"><span class="n">1</span><div><h2>Aina ya biashara</h2><p>Kila biashara inapata menyu, maneno na vipengele vyake.</p></div></div>
+    <div class="grid">${Object.entries(INDUSTRIES).map(([k, x]) => `<button class="opt" aria-pressed="${ST.ind === k}" data-ind="${k}">
+      <span class="badge ${STATUS[x.status][0]}">${STATUS[x.status][1]}</span><b>${esc(x.name)}</b>
+      <ul>${x.extra.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></button>`).join("")}</div></section>`;
+}
+function vThemes() {
+  return `<section class="step s2"><div class="sh"><span class="n">2</span><div><h2>Muundo</h2><p>Rangi, fonti na mwonekano wa mfumo mzima — skrini ya kuingia, dashboard na risiti.</p></div></div>
+    <div class="grid">${Object.entries(THEMES).map(([k, t]) => `<button class="opt" aria-pressed="${ST.theme === k}" data-theme-k="${k}">
+      <div class="swatch"><i style="background:${t.side}"></i><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i><i style="background:${t.bg}"></i></div>
+      <b class="tname" style="font-family:'${t.fd}',Georgia,serif">${esc(t.name)}</b>
+      <small>${esc(t.mood)}</small>
+      <span class="badge ${t.tier === "premium" ? "b-premium" : "b-msingi"}">${t.tier === "premium" ? "Premium +" + tzs(ADDONS[0][3]).replace("TZS ", "") : "Bila gharama"}</span></button>`).join("")}</div></section>`;
+}
+function vPreview() {
+  const t = THEMES[ST.theme], I = INDUSTRIES[ST.ind];
+  const dark = t.dark;
+  const vars = `--t-bg:${t.bg};--t-surface:${t.surface};--t-ink:${t.ink};--t-muted:${t.muted};--t-line:${t.line};--t-side:${t.side};--t-accent:${t.accent};--t-accent-ink:${dark || ST.theme === "theluji" ? (dark ? "#111" : "#fff") : "#fff"};--t-fd:'${t.fd}',Georgia,serif;--t-fb:'${t.fb}',system-ui,sans-serif`;
+  const screen = ST.view === "login"
+    ? `<div class="sbar"><span>9:41</span><span>●●● 4G</span></div><div class="login"><div class="lc"><small>Mfumo wa</small><b>${esc(ST.name)}</b><i>${esc(I.name)}</i>
+        <div class="in">✉️ Email</div><div class="in">🔒 Password</div><div class="cta">Ingia</div><i>Umesahau password?</i></div></div>`
+    : `<div class="sbar"><span>9:41</span><span>●●● 4G</span></div>
+      <div class="thead"><small>${esc(I.name)}</small><b>${esc(ST.name)}</b><span>Jumamosi · Mwanza</span></div>
+      <div class="tbody">
+        <div class="kp">${I.kpi.map(([l, v]) => `<div><small>${esc(l)}</small><b>${esc(v)}</b></div>`).join("")}</div>
+        <div class="card"><h4>Za hivi karibuni</h4>${I.list.map((x, i) => `<div class="row"><span>${esc(x)}</span><span>${["✓", "•", "•"][i]}</span></div>`).join("")}</div>
+        <div class="cta">${ST.ind === "mgahawa" ? "＋ Oda mpya" : ST.ind === "saluni" ? "＋ Miadi mpya" : "＋ Uza sasa"}</div>
+      </div>
+      <div class="tnav">${I.nav.map((n) => `<span>${esc(n)}</span>`).join("")}</div>`;
+  return `<aside class="pv"><div class="pvbox">
+    <div class="pvname"><input class="txt" id="shopname" value="${esc(ST.name)}" aria-label="Jina la duka la mfano" placeholder="Jina la duka"></div>
+    <div class="pvtabs" role="group" aria-label="Mwonekano"><button data-view="dash" aria-pressed="${ST.view === "dash"}">Dashboard</button><button data-view="login" aria-pressed="${ST.view === "login"}">Skrini ya kuingia</button></div>
+    <div class="phone"><div class="scr" style="${vars}">${screen}</div></div>
+    <div class="note" style="text-align:center;max-width:300px">Muundo: <b>${esc(t.name)}</b> · ${esc(I.name)}${I.status !== "ipo" ? " · mfano wa jinsi itakavyokuwa" : ""}</div>
+  </div></aside>`;
+}
+function vFeatures() {
+  let grp = "";
+  const core = FEATURES.map(([k, label, g]) => {
+    const h = g !== grp ? ((grp = g), `<div class="grp">${g === "POS" ? "POS ya mauzo" : "Madeni, bidhaa na stock"}</div>`) : "";
+    return h + `<label class="ck ${ST.f[k] ? "on" : ""}"><input type="checkbox" data-f="${k}" ${ST.f[k] ? "checked" : ""}><span>${esc(label)}<span class="s">Kwenye mpango wa msingi</span></span><span class="p"></span></label>`;
+  }).join("");
+  const extra = ADDONS.map(([k, label, tier, price, st]) => {
+    const forced = k === "theme" && ST.theme !== "asili";
+    const on = forced || ST.a[k];
+    return `<label class="ck ${on ? "on" : ""}"><input type="checkbox" data-a="${k}" ${on ? "checked" : ""} ${forced ? "disabled" : ""}><span>${esc(label)}
+      <span class="s"><span class="badge ${tier === "enterprise" ? "b-enterprise" : "b-premium"}">${tier === "enterprise" ? "Enterprise" : "Premium"}</span> <span class="badge ${STATUS[st][0]}">${STATUS[st][1]}</span></span></span><span class="p">+${(price / 1000).toFixed(0)}k</span></label>`;
+  }).join("");
+  return `<section class="step s3"><div class="sh"><span class="n">3</span><div><h2>Vipengele</h2><p>Washa anachohitaji tu — bei inabadilika papo hapo.</p></div></div>
+    <div class="feats">${core}<div class="grp">Vipengele vya ziada (kwa mwezi)</div>${extra}</div></section>`;
+}
+function vSummary() {
+  const ed = baseEdition(), E = EDITIONS[ed], on = addonsOn(), [tk, tn, td] = tierOf(), I = INDUSTRIES[ST.ind], T = THEMES[ST.theme];
+  const total = E.price + on.reduce((s, x) => s + x[3], 0);
+  const building = on.filter((x) => x[4] !== "ipo").map((x) => x[1]);
+  if (I.status !== "ipo") building.unshift("Moduli ya " + I.name);
+  return `<section class="step sum"><div class="sh"><span class="n">4</span><div><h2>Bei na muhtasari</h2><p>Bei ni mapendekezo — unaweza kuyabadilisha Kiwandani.</p></div></div>
+    <div class="sumbox">
+      <div class="tier"><span class="badge ${tk === "enterprise" ? "b-enterprise" : tk === "premium" ? "b-premium" : "b-msingi"}">${tk}</span><h3>Mpango wa ${tn}</h3></div>
+      <div class="note">${esc(td)}</div>
+      <table class="lines">
+        <tr><td>Biashara: <b>${esc(I.name)}</b> · Muundo: <b>${esc(T.name)}</b></td><td class="r"></td></tr>
+        <tr><td>Mpango wa msingi: <b>${esc(E.name)}</b></td><td class="r">${tzs(E.price)}</td></tr>
+        ${on.map((x) => `<tr><td>${esc(x[1])}</td><td class="r">+${tzs(x[3])}</td></tr>`).join("")}
+      </table>
+      <div class="total"><span>Jumla kwa mwezi</span><b class="num">${tzs(total)}</b></div>
+      <div class="note">Ada ya kuweka mfumo (setup), mafunzo na kuingiza bidhaa: <b>TZS ${setupFee()}</b> mara moja.</div>
+      ${building.length ? `<div class="warn">⏳ Vitajengwa baada ya kuagiza (tutakubaliana muda): ${building.map(esc).join(" · ")}</div>` : ""}
+      <div class="btns">
+        <button class="btn pri" data-act="copy">📋 Nakili muhtasari (WhatsApp)</button>
+        <a class="btn" href="${kiwandaLink()}">🏭 Tengeneza kwenye Kiwanda</a>
+      </div>
+      <div class="note">"Tengeneza kwenye Kiwanda" ni kwa msimamizi tu — inahitaji kuingia.</div>
+    </div></section>`;
+}
+function kiwandaLink() {
+  const p = new URLSearchParams({ biashara: ST.ind, mandhari: ST.theme, jina: ST.name,
+    f: Object.keys(ST.f).filter((k) => ST.f[k]).join(","), z: addonsOn().map((x) => x[0]).join(",") });
+  return "kiwanda.html?" + p.toString();
+}
+function summaryText() {
+  const ed = baseEdition(), E = EDITIONS[ed], on = addonsOn(), [, tn] = tierOf(), I = INDUSTRIES[ST.ind], T = THEMES[ST.theme];
+  const total = E.price + on.reduce((s, x) => s + x[3], 0);
+  return `*${ST.name} — Mfumo wa ${tn}*
+Biashara: ${I.name}
+Muundo: ${T.name}
+
+Vipengele:
+${FEATURES.filter(([k]) => ST.f[k]).map(([, l]) => "• " + l).join("\n")}
+${on.length ? "\nZiada:\n" + on.map((x) => "• " + x[1] + " (+" + tzs(x[3]) + ")").join("\n") + "\n" : ""}
+Mpango wa msingi (${E.name}): ${tzs(E.price)}
+*Jumla kwa mwezi: ${tzs(total)}*
+Setup (mara moja): TZS ${setupFee()}
+
+— E.E.MSANGO COMPANY LIMITED`;
+}
+
+/* ---------- render ---------- */
+function render() {
+  const a = document.activeElement, fid = a && a.id, sel = a && "selectionStart" in a ? [a.selectionStart, a.selectionEnd] : null;
+  const t = THEMES[ST.theme];
+  $("#themefonts").href = fontHref(Object.values(THEMES).flatMap(themeFonts).filter((v, i, a) => a.indexOf(v) === i));
+  $("#app").innerHTML = vIndustries() + vThemes() + vPreview() + vFeatures() + vSummary();
+  if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button,[data-act]"); if (!b) return;
+  if (b.dataset.ind) { ST.ind = b.dataset.ind; const sug = INDUSTRIES[ST.ind].theme; if (ST.theme === "asili" || !ST._themeChosen) ST.theme = sug; render(); }
+  else if (b.dataset.themeK) { ST.theme = b.dataset.themeK; ST._themeChosen = true; render(); }
+  else if (b.dataset.view) { ST.view = b.dataset.view; render(); }
+  else if (b.dataset.act === "copy") {
+    const txt = summaryText();
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast("📋 Muhtasari umenakiliwa — bandika WhatsApp")).catch(() => toast("Haikunakiliwa — jaribu tena"));
+  }
+});
+document.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.dataset.f) { ST.f[el.dataset.f] = el.checked; if (["jumla", "matumizi", "funga", "whatsapp", "posMadeni", "ripoti"].includes(el.dataset.f) && el.checked) ST.f.pos = true; render(); }
+  if (el.dataset.a) { ST.a[el.dataset.a] = el.checked; render(); }
+});
+document.addEventListener("input", (e) => { if (e.target.id === "shopname") { ST.name = e.target.value || "Duka Lako"; clearTimeout(render.t); render.t = setTimeout(render, 150); } });
+render();
+</script>
+</body>
+</html>

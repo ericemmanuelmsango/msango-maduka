@@ -81,6 +81,11 @@ pre,.mono{font-family:var(--f-mono);font-size:12px}
 details summary{cursor:pointer;font-weight:700}
 .center{min-height:70vh;display:grid;place-items:center}
 .card{max-width:380px;width:100%;display:grid;gap:10px}
+.themes{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}
+.th{all:unset;cursor:pointer;display:grid;gap:4px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px;font-weight:600}
+.th[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.th:focus-visible{outline:2px solid var(--accent)}
+.th .sw{display:flex;height:22px;border-radius:5px;overflow:hidden}.th .sw i{flex:1}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
 </style>
 </head>
@@ -89,6 +94,7 @@ details summary{cursor:pointer;font-weight:700}
   <span class="brand">Msango Maduka</span>
   <a href="ofisi.html">📋 Ofisi</a>
   <a href="kiwanda.html" class="on">🏭 Kiwanda</a>
+  <a href="katalogi.html">💎 Katalogi</a>
   <span class="sp"></span>
   <span id="who" class="note"></span>
 </div></nav>
@@ -98,7 +104,7 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=5"></script>
+<script src="duka.js?v=6"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -113,6 +119,7 @@ const K = { user: null, shops: [], loaded: false, open: location.hash.slice(1) |
 function blankForm() {
   return { name: "", code: "", _codeTouched: false, email: "", pw: genPw(), phone: "", location: "", owner: "", edition: "duka",
     features: presetFeatures("duka"), users: EDITIONS.duka.users, monthly: EDITIONS.duka.price, color: "#0d6a5b", tagline: "",
+    theme: "asili", industry: "spea", addons: [],
     trialDays: (K.pub && K.pub.trialDays) || 14, notes: "", clientId: "" };
 }
 function genPw() { const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for (let i = 0; i < 8; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
@@ -175,6 +182,14 @@ function featBoxes(features, onchange) {
   }).join("")}</div>`;
 }
 
+function themePicker(cur, fn) {
+  return `<div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="th" aria-pressed="${cur === k}" onclick="${fn}('${k}')">
+    <span class="sw"><i style="background:${t.side}"></i><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i><i style="background:${t.bg}"></i></span>
+    ${esc(t.name)}${t.tier === "premium" ? " 💎" : ""}</button>`).join("")}</div>`;
+}
+function industrySelect(cur, onchange) {
+  return `<select onchange="${onchange}">${Object.entries(INDUSTRIES).map(([k, x]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${esc(x.name)}${x.status !== "ipo" ? " (moduli inajengwa)" : ""}</option>`).join("")}</select>`;
+}
 function vNew() {
   const f = K.form || (K.form = blankForm());
   const editionOpts = Object.entries(EDITIONS).map(([k, e]) => `<option value="${k}" ${f.edition === k ? "selected" : ""}>${e.name} — ${tzs(e.price)}/mwezi</option>`).join("");
@@ -201,9 +216,12 @@ function vNew() {
       <label class="f">Bei kwa mwezi (TZS)<input id="nf-monthly" type="number" step="1000" value="${f.monthly}" oninput="nf('monthly',+this.value)"></label>
     </div>
     ${featBoxes(f.features, "nfFeat")}
-    <h4>4. Chapa yake</h4>
+    <h4>4. Muundo na chapa</h4>
+    <label class="f">Aina ya biashara${industrySelect(f.industry, "nf('industry',this.value)")}</label>
+    ${themePicker(f.theme, "nfTheme")}
+    <div class="note">💎 = Premium. <a href="katalogi.html" target="_blank" rel="noopener">Ona mifano kwenye Katalogi ↗</a>${f.addons && f.addons.length ? " · Ziada kutoka Katalogi: " + esc(f.addons.join(", ")) : ""}</div>
     <div class="form">
-      <label class="f">Rangi kuu<input id="nf-color" type="color" value="${esc(f.color)}" oninput="nf('color',this.value)"></label>
+      ${f.theme === "asili" ? `<label class="f">Rangi kuu<input id="nf-color" type="color" value="${esc(f.color)}" oninput="nf('color',this.value)"></label>` : ""}
       <label class="f">Maneno chini ya jina (risiti, kuingia)<input id="nf-tagline" value="${esc(f.tagline)}" oninput="nf('tagline',this.value)" placeholder="mf. Spea za pikipiki — jumla na rejareja"></label>
     </div>
     <h4>5. Muda</h4>
@@ -222,11 +240,12 @@ function nf(k, v) {
 }
 function nfEdition(e) { const f = K.form; f.edition = e; f.features = presetFeatures(e); f.users = EDITIONS[e].users; f.monthly = EDITIONS[e].price; render(); }
 function nfFeat(k, on) { K.form.features[k] = on; render(); }
+function nfTheme(k) { K.form.theme = k; render(); }
 
 async function createShop() {
   const f = K.form; K.busy = true; K.msg = "Inatengeneza…"; K.ok = true; render();
   try {
-    const r = await adminCreateShop({ ...f, brand: { color: f.color, tagline: f.tagline } });
+    const r = await adminCreateShop({ ...f, brand: { color: f.color, tagline: f.tagline, theme: f.theme } });
     K.created = r; K.form = null; K.showNew = false; K.msg = ""; K.open = r.code; location.hash = r.code;
     toast("✅ Mfumo wa " + r.name + " umetengenezwa");
   } catch (e) {
@@ -281,12 +300,12 @@ function vList() {
 function vSys(s) {
   const [cls, label] = status(s), open = K.open === s.code;
   const E = EDITIONS[s.edition] || EDITIONS.duka;
-  const color = (s.brand && s.brand.color) || "var(--sunk)";
+  const color = (s.brand && s.brand.theme && THEMES[s.brand.theme] && s.brand.theme !== "asili" ? THEMES[s.brand.theme].side : (s.brand && s.brand.color)) || "var(--sunk)";
   return `<div class="sys" id="sys-${s.code}">
     <div class="top">
       <span class="sw" style="background:${esc(color)}"></span>
       <div style="min-width:0"><div class="n">${esc(s.name)}</div>
-        <div class="m">${esc(s.code)} · ${esc(E.name)}${s.features ? " (imebadilishwa)" : ""} · ${tzs(s.monthly || E.price)}/mwezi · hadi ${fmtDate(s.paidUntil)}</div></div>
+        <div class="m">${esc(s.code)} · ${esc((INDUSTRIES[s.industry] || INDUSTRIES.spea).name)} · ${esc(E.name)}${s.brand && s.brand.theme && s.brand.theme !== "asili" ? " · 💎 " + esc((THEMES[s.brand.theme] || {}).name || "") : ""}${s.features ? " (imebadilishwa)" : ""} · ${tzs(s.monthly || E.price)}/mwezi · hadi ${fmtDate(s.paidUntil)}</div></div>
       <span class="pill ${cls}">${label}</span>
     </div>
     <div class="row">
@@ -314,7 +333,8 @@ function vEditor(s) {
   const E = K.edit[s.code] || (K.edit[s.code] = {
     edition: s.edition, features: { ...presetFeatures(s.edition), ...(s.features || {}) }, users: s.users || (EDITIONS[s.edition] || EDITIONS.duka).users,
     monthly: s.monthly || (EDITIONS[s.edition] || EDITIONS.duka).price, name: s.name, color: (s.brand && s.brand.color) || "#0d6a5b",
-    tagline: (s.brand && s.brand.tagline) || "", phone: s.phone || "", location: s.location || "", notes: s.notes || "" });
+    tagline: (s.brand && s.brand.tagline) || "", phone: s.phone || "", location: s.location || "", notes: s.notes || "",
+    theme: (s.brand && s.brand.theme) || "asili", industry: s.industry || "spea" });
   const tabs = [["vipengele", "🧩 Vipengele"], ["chapa", "🎨 Chapa"], ["muda", "⏳ Muda & malipo"], ["kuingia", "🔑 Kuingia"], ["hatari", "⚠️ Hatari"]];
   let body = "";
   if (t === "vipengele") body = `
@@ -327,9 +347,11 @@ function vEditor(s) {
     <label class="f">Maombi maalum ya mteja<textarea oninput="K.edit['${s.code}'].notes=this.value">${esc(E.notes)}</textarea></label>
     <div class="row"><button class="pri" onclick="saveFeatures('${s.code}')">💾 Hifadhi vipengele</button><span class="note">Mteja anaona mabadiliko akifungua mfumo upya.</span></div>`;
   if (t === "chapa") body = `
+    <label class="f">Aina ya biashara${industrySelect(E.industry, "K.edit['" + s.code + "'].industry=this.value")}</label>
+    ${themePicker(E.theme, "edTheme_" + s.code.replace(/-/g, "_"))}
     <div class="form">
       <label class="f">Jina la duka<input value="${esc(E.name)}" oninput="K.edit['${s.code}'].name=this.value"></label>
-      <label class="f">Rangi kuu<input type="color" value="${esc(E.color)}" oninput="K.edit['${s.code}'].color=this.value"></label>
+      ${E.theme === "asili" ? `<label class="f">Rangi kuu<input type="color" value="${esc(E.color)}" oninput="K.edit['${s.code}'].color=this.value"></label>` : ""}
       <label class="f">Maneno chini ya jina<input value="${esc(E.tagline)}" oninput="K.edit['${s.code}'].tagline=this.value"></label>
       <label class="f">Simu (risiti)<input value="${esc(E.phone)}" oninput="K.edit['${s.code}'].phone=this.value"></label>
       <label class="f">Eneo (risiti)<input value="${esc(E.location)}" oninput="K.edit['${s.code}'].location=this.value"></label>
@@ -358,6 +380,7 @@ function vEditor(s) {
     <button class="danger" onclick="delShop('${s.code}')">🗑️ Futa ${esc(s.name)}</button>
     ${K.delMsg && K.delMsg.code === s.code ? `<div class="msg ${K.delMsg.ok ? "ok" : "err"}">${esc(K.delMsg.text)}</div>` : ""}</div>`;
   window["edFeat_" + s.code.replace(/-/g, "_")] = (k, on) => { K.edit[s.code].features[k] = on; render(); };
+  window["edTheme_" + s.code.replace(/-/g, "_")] = (k) => { K.edit[s.code].theme = k; render(); };
   return `<div class="editor">
     <div class="row">${tabs.map(([k, l]) => `<button class="sm ${t === k ? "pri" : ""}" onclick="K.tab['${s.code}']='${k}';render()">${l}</button>`).join("")}</div>
     ${body}</div>`;
@@ -374,7 +397,7 @@ async function saveFeatures(code) {
 }
 async function saveBrand(code) {
   const E = K.edit[code];
-  try { await adminUpdateShop(code, { name: E.name, brand: { color: E.color, tagline: E.tagline }, phone: E.phone, location: E.location }); toast("✅ Chapa imehifadhiwa"); }
+  try { await adminUpdateShop(code, { name: E.name, brand: { color: E.color, tagline: E.tagline, theme: E.theme }, industry: E.industry, phone: E.phone, location: E.location }); toast("✅ Muundo na chapa vimehifadhiwa — mteja ataona akifungua upya"); }
   catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
 }
 async function setActive(code, on) {
@@ -505,9 +528,24 @@ async function prefillFromClient(id) {
   } catch (e) {}
 }
 
+function prefillFromKatalogi() {
+  const q = new URLSearchParams(location.search); if (!q.get("biashara") && !q.get("mandhari")) return;
+  const f = blankForm();
+  f.industry = INDUSTRIES[q.get("biashara")] ? q.get("biashara") : "spea";
+  f.theme = THEMES[q.get("mandhari")] ? q.get("mandhari") : "asili";
+  if (q.get("jina") && q.get("jina") !== "Duka Lako") { f.name = q.get("jina"); f.code = dukaSlug(f.name); }
+  const fs = (q.get("f") || "").split(",").filter(Boolean);
+  if (fs.length) { FEATURES.forEach(([k]) => (f.features[k] = fs.includes(k))); }
+  f.edition = f.features.ripoti ? "pro" : (f.features.jumla || f.features.godown) ? "stoki" : f.features.pos ? "duka" : "mali";
+  f.users = EDITIONS[f.edition].users;
+  f.addons = (q.get("z") || "").split(",").filter((k) => ADDONS.some((a) => a[0] === k));
+  f.monthly = EDITIONS[f.edition].price + ADDONS.filter((a) => f.addons.includes(a[0])).reduce((s, a) => s + a[3], 0);
+  if (f.addons.length) f.notes = "Kutoka Katalogi — ziada: " + ADDONS.filter((a) => f.addons.includes(a[0])).map((a) => a[1]).join("; ");
+  K.form = f; K.showNew = true;
+}
 auth.onAuthStateChanged(async (u) => {
   K.user = u;
-  if (u) { await resolveShop(u); $("#who").textContent = u.email; if (IS_ADMIN) { listen(); const m = location.search.match(/[?&]mteja=([^&]+)/); if (m) prefillFromClient(decodeURIComponent(m[1])); } }
+  if (u) { await resolveShop(u); $("#who").textContent = u.email; if (IS_ADMIN) { listen(); prefillFromKatalogi(); const m = location.search.match(/[?&]mteja=([^&]+)/); if (m) prefillFromClient(decodeURIComponent(m[1])); } }
   else $("#who").textContent = "";
   render();
   if (K.open) setTimeout(() => { const el = document.getElementById("sys-" + K.open); el && el.scrollIntoView({ block: "start" }); }, 400);

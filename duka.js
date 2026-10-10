@@ -1,5 +1,5 @@
 /* =====================================================================
-   MSANGO MADUKA — kiini cha pamoja (core)  · duka.js v5
+   MSANGO MADUKA — kiini cha pamoja (core)  · duka.js v6
    Kurasa 4 zinasoma faili hili:
      index.html  → Wadai na Stock ya mteja        (?duka=CODE)
      pos.html    → POS ya mteja                     (?duka=CODE)
@@ -52,6 +52,81 @@ const EDITIONS = {
 };
 function presetFeatures(edition) { const e = EDITIONS[edition] || EDITIONS.duka; const o = {}; FEATURES.forEach(([k]) => (o[k] = e.f.includes(k))); return o; }
 
+/* ---------- 🎨 MIUNDO (themes) — Katalogi, Kiwanda na mifumo ya wateja zinasoma hapa ---------- */
+const THEMES = {
+  asili:    { name: "Asili", tier: "msingi", mood: "Safi na rahisi — kwa kila biashara", dark: false,
+              bg: "#f3f6fa", surface: "#ffffff", ink: "#172033", muted: "#6b7280", line: "#dfe4ec", side: "#0b1b30", accent: "#1677ff", accent2: "#08b66c", fd: "Archivo", fb: "IBM Plex Sans" },
+  dhahabu:  { name: "Usiku wa Dhahabu", tier: "premium", mood: "Kifahari cha usiku — hoteli, vito, boutique za hadhi", dark: true,
+              bg: "#121110", surface: "#1c1a17", ink: "#f3ede1", muted: "#a99f8c", line: "#2e2a23", side: "#0a0908", accent: "#c9a45c", accent2: "#e8d3a2", fd: "Cormorant Garamond", fb: "Manrope" },
+  zumaridi: { name: "Zumaridi", tier: "premium", mood: "Kijani cha heshima na krimu — famasia, kliniki, maduka makubwa", dark: false,
+              bg: "#f4efe4", surface: "#fffdf8", ink: "#16302a", muted: "#5f6e66", line: "#e2d9c6", side: "#0f3d33", accent: "#0f6b55", accent2: "#c8a24a", fd: "Fraunces", fb: "Manrope" },
+  kifalme:  { name: "Kifalme", tier: "premium", mood: "Zambarau ya kifalme na shampeni — saluni, spa, urembo", dark: false,
+              bg: "#f6f1f4", surface: "#ffffff", ink: "#2a1328", muted: "#74606f", line: "#e7dbe3", side: "#3b1f3a", accent: "#7b2f6e", accent2: "#d8b26e", fd: "Playfair Display", fb: "DM Sans" },
+  bahari:   { name: "Bahari", tier: "premium", mood: "Bluu ya kina na mchanga — wasambazaji, logistics, kampuni", dark: false,
+              bg: "#eef3f7", surface: "#ffffff", ink: "#0b2033", muted: "#5a6b7c", line: "#d9e3ec", side: "#0b2a4a", accent: "#1d5f99", accent2: "#e0b77a", fd: "Archivo", fb: "IBM Plex Sans" },
+  waridi:   { name: "Waridi", tier: "premium", mood: "Rose gold laini — boutique, mavazi, vipodozi", dark: false,
+              bg: "#fbf3f1", surface: "#ffffff", ink: "#3a2a2e", muted: "#86717a", line: "#efdfdb", side: "#4a2f35", accent: "#b76e79", accent2: "#e7c3b8", fd: "Marcellus", fb: "Nunito Sans" },
+  theluji:  { name: "Theluji", tier: "premium", mood: "Nyeupe ya kisasa na grafiti — electronics, ofisi, maduka ya kisasa", dark: false,
+              bg: "#fafaf7", surface: "#ffffff", ink: "#1e1e1e", muted: "#6e6e68", line: "#e6e6e0", side: "#1e1e1e", accent: "#1e1e1e", accent2: "#b8b8b0", fd: "DM Serif Display", fb: "Karla" },
+  kitenge:  { name: "Kitenge", tier: "premium", mood: "Rangi za Kiafrika — mgahawa, utalii, biashara zenye nguvu", dark: false,
+              bg: "#f7efe3", surface: "#fffaf2", ink: "#2b1a10", muted: "#7a6352", line: "#eadbc4", side: "#2d2a6e", accent: "#c4572a", accent2: "#e3a72f", fd: "Bricolage Grotesque", fb: "Work Sans" },
+  mkaa:     { name: "Mkaa na Moto", tier: "premium", mood: "Giza la kitaalamu na kaharabu — supermarket za usiku, bar, lounge", dark: true,
+              bg: "#15171a", surface: "#1f2226", ink: "#e8eaed", muted: "#9aa1a9", line: "#2c3036", side: "#0f1113", accent: "#f59e0b", accent2: "#fbbf24", fd: "Sora", fb: "Manrope" },
+};
+function themeFonts(t) { return [t.fd, t.fb].filter((v, i, a) => v && a.indexOf(v) === i); }
+function fontHref(fams) { return "https://fonts.googleapis.com/css2?" + fams.map((f) => "family=" + f.replace(/ /g, "+") + ":wght@400;500;600;700").join("&") + "&display=swap"; }
+function shade(hex, amt) { const n = parseInt(hex.slice(1), 16); const c = (x) => Math.max(0, Math.min(255, x + amt)); return "#" + [c(n >> 16), c((n >> 8) & 255), c(n & 255)].map((v) => v.toString(16).padStart(2, "0")).join(""); }
+/* Paka muundo kwenye Wadai (app="wadai") au POS (app="pos") */
+function applyTheme(key, color) {
+  const t = THEMES[key]; if (!t) return false;
+  const side = color && /^#[0-9a-f]{6}$/i.test(color) && key === "asili" ? color : t.side;
+  let link = document.getElementById("ms-theme-font");
+  if (!link) { link = document.createElement("link"); link.id = "ms-theme-font"; link.rel = "stylesheet"; document.head.appendChild(link); }
+  link.href = fontHref(themeFonts(t));
+  if (t.dark) document.documentElement.setAttribute("data-theme", "dark");
+  const fb = `'${t.fb}',system-ui,-apple-system,'Segoe UI',sans-serif`, fd = `'${t.fd}',Georgia,serif`;
+  const css = `
+  :root{--navy:${side};--navy2:${shade(side, 18)};--blue:${t.accent};--teal:${t.accent};--teal-d:${shade(t.accent, -24)};--amber:${t.accent2}}
+  ${t.dark ? "" : `:root{--paper:${t.bg};--paper-alt:${shade(t.bg, -6)};--bg:${t.bg};--card:${t.surface};--ink:${t.ink};--line:${t.line};--mute:${t.muted}}`}
+  ${t.dark ? `html[data-theme="dark"]{--paper:${t.bg};--paper-alt:${t.surface};--bg:${t.bg};--card:${t.surface};--ink:${t.ink};--line:${t.line};--mute:${t.muted}}
+  html[data-theme="dark"] .login-card,html[data-theme="dark"] .panel,html[data-theme="dark"] .column,html[data-theme="dark"] .card,html[data-theme="dark"] .field,html[data-theme="dark"] .entry-form,html[data-theme="dark"] [style*="background:#fff"]{background:${t.surface}!important;border-color:${t.line}!important}` : ""}
+  *{font-family:${fb}}
+  h1,h2,.logo,.logo h2,.login-card h1,.login-card h2,.top .t,.kpi b,.stat b{font-family:${fd}!important;letter-spacing:.01em}
+  .btn-primary,.btn-p,.menu li.active,.menu li:hover{background:${t.accent}!important;color:${t.dark || key === "theluji" ? (t.dark ? "#111" : "#fff") : "#fff"}!important}
+  .sidebar,.top,.topbar,.login-wrap{background:${side}!important}`;
+  let st = document.getElementById("ms-theme-css");
+  if (!st) { st = document.createElement("style"); st.id = "ms-theme-css"; document.head.appendChild(st); }
+  st.textContent = css;
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", side);
+  return true;
+}
+
+/* ---------- 🏢 AINA ZA BIASHARA (industries) ---------- */
+const INDUSTRIES = {
+  spea:      { name: "Spea & Hardware", status: "ipo", theme: "asili", nav: ["Uza", "Spea", "Stock", "Madeni", "Ripoti"], kpi: [["Mauzo leo", "1,240,000"], ["Madeni", "3,450,000"], ["Stock ndogo", "12"]], list: ["Brake pad Boxer", "Chain set TVS", "Plug NGK"], extra: ["Bei za jumla na rejareja", "Godown", "Madeni ya mafundi"] },
+  supermarket:{ name: "Supermarket & Mini market", status: "ipo", theme: "mkaa", nav: ["Kaunta", "Bidhaa", "Stock", "Wasambazaji", "Ripoti"], kpi: [["Mauzo leo", "2,860,000"], ["Risiti", "184"], ["Zinazoisha", "23"]], list: ["Sukari 1kg", "Mafuta 3L", "Mchele 5kg"], extra: ["Kaunta za haraka", "Barcode (inajengwa)", "Ripoti ya kila zamu"] },
+  msambazaji:{ name: "Msambazaji / Wholesale", status: "sehemu", theme: "bahari", nav: ["Oda", "Maduka", "Njia", "Madeni", "Ripoti"], kpi: [["Oda leo", "37"], ["Madeni ya maduka", "18,200,000"], ["Njia hai", "5"]], list: ["Duka la Mama Neema", "Kirumba Traders", "Igoma Shop"], extra: ["Mikopo kwa maduka", "Oda za wauzaji wa njia (inajengwa)", "Ankara (invoice)"] },
+  famasia:   { name: "Famasia & Duka la dawa", status: "inajengwa", theme: "zumaridi", nav: ["Uza", "Dawa", "Zinaisha muda", "Wateja", "Ripoti"], kpi: [["Mauzo leo", "680,000"], ["Zinaisha ≤ siku 30", "9"], ["Stock ndogo", "14"]], list: ["Amoxicillin 500mg", "Paracetamol", "ORS"], extra: ["Batch na tarehe ya kuisha", "Tahadhari ya dawa kuisha muda", "Dawa za cheti (prescription)"] },
+  mgahawa:   { name: "Mgahawa, Hoteli & Bar", status: "inajengwa", theme: "kitenge", nav: ["Oda", "Meza", "Jikoni", "Menyu", "Ripoti"], kpi: [["Oda wazi", "8"], ["Mauzo leo", "940,000"], ["Meza zenye watu", "6/14"]], list: ["Meza 4 · Pilau x2", "Meza 7 · Chips kuku", "Take-away · Chai"], extra: ["Oda kwa meza", "Skrini ya jikoni", "Menyu na bei", "Bili kugawanywa"] },
+  saluni:    { name: "Saluni, Spa & Urembo", status: "inajengwa", theme: "kifalme", nav: ["Miadi", "Huduma", "Wahudumu", "Wateja", "Ripoti"], kpi: [["Miadi leo", "15"], ["Mapato leo", "420,000"], ["Kamisheni", "84,000"]], list: ["10:00 · Rasta · Neema", "11:30 · Manicure · Asha", "13:00 · Kunyoa · Juma"], extra: ["Kalenda ya miadi", "Kamisheni ya kila mhudumu", "Kumbukumbu za wateja"] },
+  boutique:  { name: "Boutique & Mavazi", status: "inajengwa", theme: "waridi", nav: ["Uza", "Mavazi", "Saizi & Rangi", "Wateja", "Ripoti"], kpi: [["Mauzo leo", "760,000"], ["Vipande", "1,240"], ["Wateja wa kudumu", "86"]], list: ["Gauni · M · Nyekundu", "Suti · 42 · Nyeusi", "Viatu · 39 · Kahawia"], extra: ["Saizi na rangi kwa kila bidhaa", "Pointi za wateja", "Msimu na punguzo"] },
+  simu:      { name: "Simu & Electronics", status: "inajengwa", theme: "theluji", nav: ["Uza", "Bidhaa", "IMEI/Serial", "Warranty", "Ripoti"], kpi: [["Mauzo leo", "3,900,000"], ["Simu stock", "48"], ["Warranty hai", "131"]], list: ["Samsung A15 · IMEI 35…21", "Tecno Spark 20", "Earphones JBL"], extra: ["IMEI / serial kwa kila kipande", "Warranty na marejesho", "Matengenezo (repair tickets)"] },
+};
+
+/* ---------- 💎 VIPENGELE VYA ZIADA (premium / enterprise) — bei ni mapendekezo ---------- */
+const ADDONS = [
+  // [key, jina, tier, bei/mwezi, hali]
+  ["theme", "Muundo wa kifahari (rangi, fonti, nembo)", "premium", 15000, "ipo"],
+  ["barcode", "Kusoma barcode kwa kamera ya simu", "premium", 10000, "inajengwa"],
+  ["printer", "Risiti kwa printer ndogo ya Bluetooth (58mm)", "premium", 5000, "inajengwa"],
+  ["sms", "SMS za kukumbusha madeni (+ gharama ya SMS)", "premium", 10000, "inajengwa"],
+  ["loyalty", "Pointi za wateja (loyalty)", "premium", 10000, "inajengwa"],
+  ["matawi", "Matawi mengi + ripoti ya pamoja (kwa tawi)", "enterprise", 30000, "inajengwa"],
+  ["roles", "Ruhusa za kina kwa kila mfanyakazi", "enterprise", 10000, "inajengwa"],
+  ["domain", "Link yake mwenyewe (mf. dukalake.co.tz)", "enterprise", 15000, "inajengwa"],
+  ["ai", "Msaidizi wa AI — uchambuzi wa mauzo kwa Kiswahili", "enterprise", 25000, "inajengwa"],
+];
+
 /* ---------- hali ya ukurasa huu ---------- */
 let SHOP = null;            // mfumo unaofanyiwa kazi
 let IS_ADMIN = false;
@@ -91,7 +166,10 @@ function loadPreBrand() {
 function applyBrand(b) {
   b = b || (SHOP && SHOP.brand) || null;
   const color = b && b.color;
-  if (color && /^#[0-9a-f]{6}$/i.test(color)) {
+  const premium = b && b.theme && b.theme !== "asili" && THEMES[b.theme];
+  if (premium) applyTheme(b.theme, color);
+  else if (b && b.theme === "asili") applyTheme("asili", color);
+  if (!premium && color && /^#[0-9a-f]{6}$/i.test(color)) {
     document.documentElement.style.setProperty("--navy", color);
     const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", color);
   }
@@ -198,7 +276,7 @@ function dukaForgot(email) {
    ADMIN API — inatumiwa na Kiwanda na Ofisi (msimamizi tu; rules zinalinda)
    ===================================================================== */
 function dukaApp(name) { return firebase.apps.find((a) => a.name === name) || firebase.initializeApp(firebaseConfig, name); }
-function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "" }; }
+function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "", theme: (s.brand && s.brand.theme) || "" }; }
 /* Tengeneza mfumo mpya. opts: {name, code, edition, features, users, monthly, brand:{color,tagline}, email, pw, phone, location, trialDays, notes, clientId} */
 async function adminCreateShop(o) {
   const name = (o.name || "").trim(), code = dukaSlug(o.code || o.name), email = (o.email || "").trim().toLowerCase(), pw = o.pw || "";
@@ -218,7 +296,8 @@ async function adminCreateShop(o) {
     name, edition: o.edition || "duka", features: o.features || presetFeatures(o.edition || "duka"),
     users: Number(o.users) || (EDITIONS[o.edition] || EDITIONS.duka).users,
     monthly: Number(o.monthly) || (EDITIONS[o.edition] || EDITIONS.duka).price,
-    brand: { color: (o.brand && o.brand.color) || "", tagline: (o.brand && o.brand.tagline) || "" },
+    brand: { color: (o.brand && o.brand.color) || "", tagline: (o.brand && o.brand.tagline) || "", theme: (o.brand && o.brand.theme) || "" },
+    industry: o.industry || "spea", addons: o.addons || [],
     members: [email], ownerEmail: email, phone: (o.phone || "").trim(), location: (o.location || "").trim(),
     active: true, paidUntil: now + trial * DAY, trialEnds: now + trial * DAY, createdAt: now,
     loginPw: existed ? "" : pw, notes: o.notes || "", clientId: o.clientId || "",
