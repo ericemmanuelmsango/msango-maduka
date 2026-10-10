@@ -354,7 +354,9 @@ function vEditor(s) {
   }
   if (t === "kuingia") body = vCreds(s);
   if (t === "hatari") body = `<div class="box"><b>Futa mfumo huu</b><span class="note">Inafuta mfumo, data yote ya duka, na link yake. Rekodi ya Ofisi inabaki. Haiwezi kurudishwa.</span>
-    <button class="danger" onclick="delShop('${s.code}', ${esc(JSON.stringify(s.name))})">🗑️ Futa ${esc(s.name)}</button></div>`;
+    <label class="f">Kuthibitisha, andika code ya mfumo: <b class="mono">${esc(s.code)}</b><input id="del-${s.code}" autocomplete="off" placeholder="${esc(s.code)}"></label>
+    <button class="danger" onclick="delShop('${s.code}')">🗑️ Futa ${esc(s.name)}</button>
+    ${K.delMsg && K.delMsg.code === s.code ? `<div class="msg ${K.delMsg.ok ? "ok" : "err"}">${esc(K.delMsg.text)}</div>` : ""}</div>`;
   window["edFeat_" + s.code.replace(/-/g, "_")] = (k, on) => { K.edit[s.code].features[k] = on; render(); };
   return `<div class="editor">
     <div class="row">${tabs.map(([k, l]) => `<button class="sm ${t === k ? "pri" : ""}" onclick="K.tab['${s.code}']='${k}';render()">${l}</button>`).join("")}</div>
@@ -376,7 +378,6 @@ async function saveBrand(code) {
   catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
 }
 async function setActive(code, on) {
-  if (!on && !confirm("Simamisha mfumo huu? Mteja hataweza kuufungua hadi uuwashe. Data haifutwi.")) return;
   try { await adminUpdateShop(code, { active: on }); toast(on ? "▶️ Mfumo umewashwa" : "⏸️ Mfumo umesimamishwa"); } catch (e) { toast(e.message || "Imeshindikana"); }
 }
 async function setUntil(code) {
@@ -384,10 +385,13 @@ async function setUntil(code) {
   const ms = new Date(v + "T23:59:59").getTime();
   try { await adminUpdateShop(code, { paidUntil: ms, active: true }); toast("✅ Hadi " + fmtDate(ms)); } catch (e) { toast(e.message || "Imeshindikana"); }
 }
-async function delShop(code, name) {
-  if (!confirm("FUTA mfumo \"" + name + "\" pamoja na data yake YOTE? Haiwezi kurudishwa.")) return;
-  if ((prompt("Andika code ya mfumo (" + code + ") kuthibitisha:") || "").trim() !== code) return toast("Haikufutwa — code haikulingana");
-  try { await adminDeleteShop(code); K.open = null; toast("🗑️ " + name + " imefutwa"); } catch (e) { toast("Haikufutika: " + (e.message || "")); }
+async function delShop(code) {
+  const typed = (($("#del-" + code) || {}).value || "").trim().toLowerCase();
+  const say = (text, ok) => { K.delMsg = { code, text, ok }; render(); };
+  if (typed !== code) return say("Andika code \"" + code + "\" kwenye kisanduku kwanza, kisha bonyeza Futa.", false);
+  say("Inafuta… usifunge ukurasa.", true);
+  try { const name = (K.shops.find((x) => x.code === code) || {}).name || code; await adminDeleteShop(code); K.open = null; K.delMsg = null; history.replaceState(null, "", location.pathname); render(); toast("🗑️ " + name + " imefutwa"); }
+  catch (e) { say("Haikufutika: " + ((e && e.code === "permission-denied") ? "Firebase imekataa — hakikisha rules mpya (v5) zimewekwa na umeingia kwa email ya msimamizi." : (e && e.message) || "hitilafu"), false); }
 }
 
 /* ---------- 🔑 kuingia ---------- */
