@@ -112,7 +112,7 @@ svg text{fill:var(--mu);font-family:var(--fm);font-size:10px}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
 "use strict";
-firebase.initializeApp({ apiKey: "AIzaSyDE4CyCyhI2dFUvkIJNXB0Fz5oBpGLRA4Y", authDomain: "msango--maduka-a-town.firebaseapp.com", projectId: "msango--maduka-a-town", storageBucket: "msango--maduka-a-town.firebasestorage.app", messagingSenderId: "357014773049", appId: "1:357014773049:web:7a2097fd707cca9aa19ce8" });
+firebase.initializeApp({ apiKey: "AIzaSyBvu8P09kqVPNeyDSHdSOM6niKW6EpjVXI", authDomain: "quantvision-eric-bot.firebaseapp.com", projectId: "quantvision-eric-bot", storageBucket: "quantvision-eric-bot.firebasestorage.app", messagingSenderId: "818022873017", appId: "1:818022873017:web:abc8424608e72710b7a868" });
 const ADMIN = "ericemmanuelmsango2004@gmail.com";
 const db = firebase.firestore(), auth = firebase.auth();
 try { db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch (e) {}
@@ -321,7 +321,7 @@ function vAcct() {
   ${S.acct ? `<div class="card"><h3>Kuunganisha robot ya ${esc(S.acct)}</h3>
     <p class="sm" style="margin:0">Sync key ya akaunti hii:</p>${nk ? `<code class="k" id="keytxt">${esc(nk)}</code><button class="btn" onclick="copyKey()">📋 Nakili key</button>` : `<p class="mu sm" style="margin:0">Key haijatengenezwa. Bonyeza "＋ Ongeza" na uweke namba hii.</p>`}
     <ol class="steps"><li>MT5 (kompyuta): <b>Tools → Options → Expert Advisors</b> → weka ✓ <b>Allow WebRequest</b> na ongeza: <code class="num gold">https://firestore.googleapis.com</code></li>
-      <li>Weka EA <b>QuantVision_SMC_EA v1.20</b> kwenye chati ya XAUUSD M5.</li>
+      <li>Weka EA <b>QuantVision_SMC_EA v1.21</b> kwenye chati ya XAUUSD M5.</li>
       <li>Kwenye <b>Inputs</b>: <b>InpSyncKey</b> = key hiyo hapo juu.</li>
       <li>Ndani ya sekunde 10 hali itakuwa <span class="pill up live"><span class="dot"></span>Live</span>.</li></ol>
     <p class="xs mu" style="margin:0">MT5 lazima ibaki wazi na ina mtandao (kompyuta au VPS). App hii inaonyesha tu kile robot inatuma.</p></div>` : ""}
