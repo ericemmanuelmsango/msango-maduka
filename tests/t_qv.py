@@ -8,7 +8,10 @@ st = {"k": "x", "login": "51234567", "name": "Eric Msango", "server": "Exness-MT
       "trigger": True, "kz": "London", "entry": 4123.5, "sl": 4118.2, "tp": 4134.1, "rr": 2.0,
       "checklist": [{"label": "H1 bias bullish", "w": 20, "ok": True, "veto": False}, {"label": "Price in discount", "w": 10, "ok": False, "veto": False}],
       "positions": [{"ticket": "1", "side": "BUY", "vol": 0.05, "open": 4120.1, "sl": 4115.0, "tp": 4131.0, "price": 4123.45, "profit": 12.4, "r": 0.66, "time": now}],
-      "zones": [{"type": "Demand OB", "top": 4119, "bot": 4116}], "dr": {"ok": True, "lo": 4100, "hi": 4140, "dir": 1}, "lastSignal": now - 6e5, "ver": "1.20", "err": "", "t": now}
+      "zones": [{"type": "Demand OB", "top": 4119, "bot": 4116}], "dr": {"ok": True, "lo": 4100, "hi": 4140, "dir": 1}, "lastSignal": now - 6e5, "ver": "1.40", "err": "", "t": now,
+      "guards": {"market": "", "account": "", "news": "next: USD CPI m/m 15:30", "newsBlock": False, "newsOn": True, "regime": "TREND", "er": 0.31, "atrPct": 62, "regimeMode": 0,
+                 "spreadAtr": 0.06, "spreadAtrMax": 0.15, "dd": 6.2, "peak": 1080, "ddReduceAt": 5, "ddStopAt": 10, "ddStop": False, "riskEff": 0.5, "week": -22.5, "weekPct": -2.2,
+                 "weekMax": 6, "weekStop": False, "kill": False, "killAvg": 0.18, "killN": 12, "killNeed": 20, "killAt": -0.25}}
 import math
 bars = []; t0 = int(now - 150 * 3e5); px_ = 4100.0
 for i in range(150):
@@ -18,15 +21,24 @@ CH = {"k": "x", "t": now, "tf": "M5", "symbol": "XAUUSD", "digits": 2, "bars": b
       "events": [{"type": "BOS", "dir": 1, "level": 4115, "t0": t0 + 80 * 3e5, "t1": t0 + 100 * 3e5}, {"type": "CHoCH", "dir": -1, "level": 4108, "t0": t0 + 110 * 3e5, "t1": t0 + 130 * 3e5}],
       "sweeps": [{"dir": 1, "level": 4098, "t": t0 + 90 * 3e5}], "dr": {"ok": True, "lo": 4095, "hi": 4130, "dir": 1, "t0": t0 + 70 * 3e5},
       "plan": {"live": True, "dir": 1, "entry": 4112, "sl": 4104, "tp": 4128}}
-store_ = {"qv/51234567": st, "qvkeys/51234567": {"key": "abc"}, "qvctl/51234567": {"auto": False, "paused": False, "risk": 1},
+import random
+random.seed(4)
+SIG = {}
+for i in range(40):
+    f = {k: random.random() < 0.5 for k in ["htf", "ms", "pd", "ote", "poi", "conf", "liq", "kz"]}
+    win = random.random() < (0.55 if f["liq"] else 0.3)
+    SIG[f"qv/51234567/signals/X_{i}"] = {"side": "BUY", "entry": 4100, "sl": 4095, "tp": 4110, "rr": 2, "score": 75, "kz": "London", "auto": False, "blk": "news USD CPI" if i % 9 == 0 else "",
+        "regime": "TREND" if i % 2 else "RANGE", "feat": f, "result": "TP" if win else "SL", "r": 1.95 if win else -1.04, "bars": 12, "t": now - (i + 2) * 36e5}
+store_ = dict(SIG); store_.update({"qv/51234567": st, "qvkeys/51234567": {"key": "abc"}, "qvctl/51234567": {"auto": False, "paused": False, "risk": 1},
           "qv/51234567/signals/s1": {"side": "BUY", "entry": 4123.5, "sl": 4118.2, "tp": 4134.1, "rr": 2, "score": 80, "kz": "London", "auto": False, "t": now - 6e5},
           "qv/51234567/chart/now": CH,
           "qv/51234567/trades/d1": {"position": "9", "side": "SELL", "profit": 25.5, "r": 1.0, "reason": "TP hit", "partial": True, "t": now - 3e6},
           "qv/51234567/trades/d2": {"position": "9", "side": "SELL", "profit": 30.1, "r": 1.1, "reason": "TP hit", "partial": False, "t": now - 2e6},
-          "qv/51234567/trades/d3": {"position": "8", "side": "BUY", "profit": -20, "r": -1, "reason": "SL hit", "partial": False, "t": now - 9e6}}
+          "qv/51234567/trades/d3": {"position": "8", "side": "BUY", "profit": -20, "r": -1, "reason": "SL hit", "partial": False, "t": now - 9e6}})
 with sync_playwright() as pw:
     p = open_page(pw, "qv/index.html", store_, email=ADMIN, w=400, h=860, mobile=True); p.wait_for_timeout(800)
     print(p.inner_text("main")[:260].replace("\n", " | ")); shot(p, "qv-home")
+    hm_ = p.inner_text("main"); assert "ULINZI WA PRO" in hm_.upper() and "Inayofuata: USD CPI" in hm_ and "Imepunguzwa" in hm_, hm_.replace("\n"," | ")[:1500]
     p.click("nav.tabs >> text=Chati"); p.wait_for_timeout(400)
     assert p.locator("#cv").count() == 1 and "Uliza Claude" in p.inner_text("main")
     lit = p.evaluate("(()=>{const c=document.querySelector('#cv').getContext('2d').getImageData(0,0,300,300).data;let n=0;for(let i=3;i<c.length;i+=4)if(c[i])n++;return n})()")
@@ -37,9 +49,11 @@ with sync_playwright() as pw:
     from urllib.parse import unquote; txt = unquote(href.split("q=")[1]); assert "SWALI: Nifanye nini sasa?" in txt and "BOS bullish" in txt and "Zone: OB" in txt
     p.mouse.move(200, 300); p.mouse.down(); p.mouse.move(260, 300); p.mouse.up(); p.click("[aria-label=Kuza]"); shot(p, "qv-chart")
     p.click("nav.tabs >> text=Trade"); p.wait_for_timeout(200); print(p.inner_text("main")[:200].replace("\n", " | ")); shot(p, "qv-trades")
-    p.click("nav.tabs >> text=Signal"); p.wait_for_timeout(200); assert "Entry" in p.inner_text("main")
+    p.click("nav.tabs >> text=Signal"); p.wait_for_timeout(300); sg = p.inner_text("main"); assert "Entry" in sg and "TAKWIMU ZA STRATEGY" in sg.upper() and "KIGEZO KIPI" in sg.upper() and "Liquidity sweep" in sg
+    print(sg[:420].replace("\n", " | ")); shot(p, "qv-stats")
     p.click("nav.tabs >> text=Udhibiti"); p.wait_for_timeout(200); p.click("[aria-label=Auto-trading]"); p.wait_for_timeout(300)
     print("ctl:", store(p)["qvctl/51234567"]); assert store(p)["qvctl/51234567"]["auto"] is True; shot(p, "qv-control")
+    p.click("text=Reset ulinzi"); p.click("text=Ndiyo, reset"); p.wait_for_timeout(300); assert store(p)["qvctl/51234567"].get("reset")
     p.click("text=Funga trade zote sasa"); p.click("text=Ndiyo, funga zote"); p.wait_for_timeout(300); assert store(p)["qvctl/51234567"].get("closeAll")
     p.click("[aria-label=Akaunti]"); p.wait_for_timeout(200); p.click("text=＋ Ongeza"); p.fill("#ac-login", "60000001"); p.click("text=Tengeneza key"); p.wait_for_timeout(400)
     print("new key:", store(p).get("qvkeys/60000001")); shot(p, "qv-acct")

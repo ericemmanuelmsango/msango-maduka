@@ -101,6 +101,13 @@ svg text{fill:var(--mu);font-family:var(--fm);font-size:10px}
 .seg{display:flex;background:var(--sf2);border-radius:10px;padding:3px;gap:3px}
 .seg button{flex:1;border:0;background:none;padding:7px 4px;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--mu);cursor:pointer}
 .seg button.on{background:var(--sf);color:var(--fg)}
+.meter{position:relative;height:7px;border-radius:99px;background:var(--sf2);overflow:hidden}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:99px}
+.meter b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--mu);opacity:.7}
+.gr{display:grid;gap:4px;padding:10px 0;border-top:1px solid var(--ln)} .gr:first-of-type{border-top:0}
+.gr .row{flex-wrap:nowrap} .gr .v{margin-left:auto;font-family:var(--fm);font-size:13px;font-weight:700;white-space:nowrap}
+table.ft{width:100%;border-collapse:collapse;font-size:12.5px} table.ft th{font-size:10.5px;color:var(--mu);text-align:right;font-weight:700;padding:4px 2px;text-transform:uppercase;letter-spacing:.04em}
+table.ft th:first-child,table.ft td:first-child{text-align:left} table.ft td{padding:7px 2px;border-top:1px solid var(--ln);text-align:right;font-family:var(--fm)} table.ft td:first-child{font-family:var(--fb)}
 .cv{position:relative;margin:0 -4px}
 .cv canvas{display:block;width:100%;height:360px;touch-action:none;border-radius:10px;background:var(--sf2)}
 .cv .zb{position:absolute;top:8px;left:8px;display:flex;gap:6px}
@@ -171,7 +178,7 @@ function watch(id) {
   S.sub.push(ref.onSnapshot((d) => { S.st = d.exists ? d.data() : null; render(); }));
   S.sub.push(db.collection("qvctl").doc(id).onSnapshot((d) => { S.ctl = d.exists ? d.data() : null; render(); }, () => {}));
   S.sub.push(db.collection("qvkeys").doc(id).onSnapshot((d) => { S.key = d.exists ? d.data().key : null; render(); }, () => {}));
-  S.sub.push(ref.collection("signals").orderBy("t", "desc").limit(60).onSnapshot((q) => { S.signals = q.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.t - a.t); render(); }, () => {}));
+  S.sub.push(ref.collection("signals").orderBy("t", "desc").limit(500).onSnapshot((q) => { S.signals = q.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.t - a.t); render(); }, () => {}));
   S.chart = null;
   S.sub.push(ref.collection("chart").doc("now").onSnapshot((d) => { S.chart = d.exists ? d.data() : null; if (S.tab === "chart") render(); }, () => {}));
   S.sub.push(ref.collection("trades").orderBy("t", "desc").limit(500).onSnapshot((q) => { S.trades = q.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.t - a.t); render(); }, () => {}));
@@ -252,6 +259,7 @@ function vHome() {
     <div class="kv"><div><span>Floating</span><b class="${fl >= 0 ? "up" : "dn"}">${money(fl, true)}</b></div><div><span>Trade leo</span><b>${st.tradesToday || 0}/${st.maxTrades || 0}</b></div><div><span>Free margin</span><b>${money(st.freeMargin)}</b></div></div>
     <div class="row"><span class="pill ${mode[1]}">${mode[0]}</span><span class="pill">Risk ${(st.risk || 0).toFixed(2)}%</span>${st.dailyStop ? `<span class="pill dn">Imesimama leo: hasara ${st.maxDailyLoss}%</span>` : `<span class="pill">Kikomo ${st.maxDailyLoss || 0}%/siku</span>`}</div>
   </div>
+  ${guardsCard()}
   <div class="card">
     <h3>AI Analyst <span class="pill">${esc(st.symbol)} ${esc(st.tf)} · ${esc(st.htfName)} ${st.htf === 1 ? "▲" : st.htf === -1 ? "▼" : "◆"}</span></h3>
     <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
@@ -308,10 +316,65 @@ function chart(c) {
   const d = c.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" "), col = c[c.length - 1] >= 0 ? "var(--up)" : "var(--dn)";
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Mchoro wa faida"><line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--ln)" stroke-dasharray="3 3"/><path d="${d} L${W} ${y(0)} L0 ${y(0)} Z" fill="${col}" opacity=".12"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/><circle cx="${x(c.length - 1)}" cy="${y(c[c.length - 1])}" r="3.5" fill="${col}"/></svg>`;
 }
+function resPill(s) {
+  if (s.result) return `<span class="pill ${s.r > 0 ? "up" : "dn"}">${esc(s.result)} ${s.r >= 0 ? "+" : "−"}${Math.abs(s.r || 0).toFixed(2)}R</span>`;
+  return s.feat ? `<span class="pill">inaendelea…</span>` : "";
+}
 function vSignals() {
-  return `<div class="card"><h3>Signal za robot <span class="pill">${S.signals.length}</span></h3>${S.signals.length ? `<div class="lst">${S.signals.map((s) => `<div class="it"><span class="side ${s.side}">${s.side}</span>
-    <div style="min-width:0"><b class="num sm">Entry ${px(s.entry)}</b><div class="xs mu num">SL ${px(s.sl)} · TP ${px(s.tp)} · 1:${(s.rr || 0).toFixed(1)}</div><div class="xs mu">${dstr(s.t)} ${hm(s.t)}${s.kz ? " · " + esc(s.kz) : ""}</div></div>
-    <div style="text-align:right;display:grid;gap:4px;justify-items:end"><span class="pill ${s.score >= 80 ? "up" : "gold"}">${Math.round(s.score)}</span>${s.auto ? `<span class="pill up">traded</span>` : `<span class="pill">alert</span>`}</div></div>`).join("")}</div>` : `<div class="empty">Signal zitaonekana hapa robot ikiziona. Zinakuja tu vigezo vikitimia — inaweza kuchukua masaa.</div>`}</div>`;
+  return sigStats() + `<div class="card"><h3>Signal za robot <span class="pill">${S.signals.length}</span></h3>${S.signals.length ? `<div class="lst">${S.signals.map((s) => `<div class="it" style="${s.blk ? "opacity:.6" : ""}"><span class="side ${s.side}">${s.side}</span>
+    <div style="min-width:0"><b class="num sm">Entry ${px(s.entry)}</b><div class="xs mu num">SL ${px(s.sl)} · TP ${px(s.tp)} · 1:${(s.rr || 0).toFixed(1)}</div><div class="xs mu">${dstr(s.t)} ${hm(s.t)}${s.kz ? " · " + esc(s.kz) : ""}${s.regime ? " · " + esc(s.regime) : ""}</div>${s.blk ? `<div class="xs gold">Imezuiwa: ${esc(why(s.blk))}</div>` : ""}</div>
+    <div style="text-align:right;display:grid;gap:4px;justify-items:end"><span class="pill ${s.score >= 80 ? "up" : "gold"}">${Math.round(s.score)}</span>${resPill(s)}${s.auto ? `<span class="pill up">traded</span>` : s.blk ? "" : `<span class="pill">alert</span>`}</div></div>`).join("")}</div>` : `<div class="empty">Signal zitaonekana hapa robot ikiziona. Zinakuja tu vigezo vikitimia — inaweza kuchukua masaa.</div>`}</div>`;
+}
+/* ---------------- pro layer: protection + statistics ---------------- */
+function why(x) {
+  return String(x || "").replace(/^news (next: )?/, "Habari kubwa: ").replace(/^spread (\d+)% of ATR/, "Spread ni $1% ya ATR (gharama kubwa)").replace(/^spread (\d+) pts/, "Spread kubwa ($1 points)")
+    .replace(/^dead market.*/, "Soko limelala (volatility ndogo)").replace(/^regime (\w+)/, "Hali ya soko ni $1").replace(/^kill switch/, "Kill switch").replace(/^drawdown ([\d.]+)% stop/, "Drawdown $1% — imesimama")
+    .replace(/^weekly loss limit/, "Kikomo cha hasara cha wiki kimefika").replace(/^daily loss limit/, "Kikomo cha hasara cha leo kimefika");
+}
+function meter(v, max, marks, col) { const w = Math.max(0, Math.min(100, max > 0 ? v / max * 100 : 0)); return `<div class="meter"><i style="width:${w}%;background:${col}"></i>${(marks || []).filter((m) => m > 0 && m < max).map((m) => `<b style="left:${m / max * 100}%"></b>`).join("")}</div>`; }
+function guardsCard() {
+  const st = S.st || {}, g = st.guards;
+  if (!g) return `<div class="card"><h3>Ulinzi wa Pro</h3><div class="empty sm">Weka EA <b>v1.40</b> kuona ulinzi wa kiwango cha fund: habari, spread, drawdown, kikomo cha wiki na kill switch.</div></div>`;
+  const ddCol = g.ddStop || (g.ddStopAt && g.dd >= g.ddStopAt) ? "var(--dn)" : g.ddReduceAt && g.dd >= g.ddReduceAt ? "var(--gold)" : "var(--up)";
+  const wl = Math.max(0, -(g.weekPct || 0)), cut = g.riskEff < (st.risk || 0) - 1e-9;
+  return `<div class="card"><h3>Ulinzi wa Pro ${g.account ? `<span class="pill dn">trade mpya zimezuiwa</span>` : g.market ? `<span class="pill gold">soko si zuri</span>` : `<span class="pill up">yote sawa</span>`}</h3>
+    ${g.account ? `<div class="sm dn"><b>Robot haitafungua trade mpya:</b> ${esc(why(g.account))}${g.kill || g.ddStop ? ". Kagua, kisha bonyeza <b>Reset</b> kwenye Udhibiti." : ""}</div>` : ""}
+    ${g.market ? `<div class="sm gold">Signal zinarekodiwa tu, hazitradiwi: ${esc(why(g.market))}</div>` : ""}
+    <div class="gr"><div class="row"><span class="sm">📰 Habari</span><span class="v ${g.newsBlock ? "dn" : ""}">${!g.newsOn ? "imezimwa" : g.newsBlock ? "SASA" : "sawa"}</span></div><span class="xs mu">${esc(!g.news ? "Hakuna habari kubwa ndani ya saa 12" : g.newsBlock ? "Sasa: " + g.news : g.news.replace(/^next: /, "Inayofuata: "))}</span></div>
+    <div class="gr"><div class="row"><span class="sm">🌊 Hali ya soko</span><span class="v">${esc(g.regime || "—")} · ER ${(g.er || 0).toFixed(2)}</span></div><span class="xs mu">Volatility: ${Math.round(g.atrPct || 0)}/100 · Spread ${((g.spreadAtr || 0) * 100).toFixed(0)}% ya ATR (max ${((g.spreadAtrMax || 0) * 100).toFixed(0)}%)${g.regimeMode ? ` · inatrade ${g.regimeMode === 1 ? "TREND" : "RANGE"} tu` : " · inarekodi tu"}</span></div>
+    <div class="gr"><div class="row"><span class="sm">📉 Drawdown kutoka kilele</span><span class="v" style="color:${ddCol}">${(g.dd || 0).toFixed(2)}%</span></div>${meter(g.dd || 0, g.ddStopAt || 10, [g.ddReduceAt], ddCol)}<span class="xs mu">Risk inapunguzwa kwa ${g.ddReduceAt}% · inasimama kwa ${g.ddStopAt}% · kilele ${money(g.peak)}</span></div>
+    <div class="gr"><div class="row"><span class="sm">⚖️ Risk halisi kwa trade</span><span class="v ${cut ? "gold" : ""}">${(g.riskEff || 0).toFixed(2)}%</span></div>${cut ? `<span class="xs gold">Imepunguzwa kutoka ${(st.risk || 0).toFixed(2)}% kwa sababu ya drawdown</span>` : ""}</div>
+    <div class="gr"><div class="row"><span class="sm">📅 Wiki hii</span><span class="v ${(g.week || 0) >= 0 ? "up" : "dn"}">${money(g.week, true)} (${(g.weekPct || 0) >= 0 ? "+" : ""}${(g.weekPct || 0).toFixed(2)}%)</span></div>${meter(wl, g.weekMax || 6, [], wl >= (g.weekMax || 6) ? "var(--dn)" : "var(--gold)")}<span class="xs mu">Kikomo cha hasara: ${g.weekMax}% kwa wiki</span></div>
+    <div class="gr"><div class="row"><span class="sm">🛑 Kill switch</span><span class="v ${g.kill ? "dn" : (g.killAvg || 0) >= 0 ? "up" : "gold"}">${g.kill ? "IMEWAKA" : ((g.killAvg || 0) >= 0 ? "+" : "") + (g.killAvg || 0).toFixed(2) + "R"}</span></div><span class="xs mu">Wastani wa signal ${g.killN}/${g.killNeed} za mwisho. Ukishuka chini ya ${g.killAt}R, auto-trading inasimama yenyewe.</span></div></div>`;
+}
+const FEAT = [["htf", "H1 bias"], ["ms", "BOS / CHoCH"], ["pd", "Discount / Premium"], ["ote", "OTE 62–79%"], ["poi", "OB / FVG"], ["conf", "OB + FVG pamoja"], ["liq", "Liquidity sweep"], ["kz", "Killzone"]];
+function rstats(L) {
+  const n = L.length, w = L.filter((s) => s.r > 0).length, sum = L.reduce((a, s) => a + (s.r || 0), 0);
+  const gp = L.filter((s) => s.r > 0).reduce((a, s) => a + s.r, 0), gl = -L.filter((s) => s.r <= 0).reduce((a, s) => a + s.r, 0);
+  let streak = 0, worst = 0; [...L].sort((a, b) => a.t - b.t).forEach((s) => { streak = s.r <= 0 ? streak + 1 : 0; worst = Math.max(worst, streak); });
+  return { n, win: n ? w / n * 100 : 0, avg: n ? sum / n : 0, sum, pf: gl ? gp / gl : gp ? Infinity : 0, worst };
+}
+const rfmt = (v) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2);
+function sigStats() {
+  const done = S.signals.filter((s) => s.result && s.feat);
+  if (!done.length) return `<div class="card"><h3>Takwimu za strategy</h3><div class="empty sm">Robot (v1.40) inafuatilia kila signal mpaka TP au SL — hata zisizotradiwa. Matokeo yakianza kuingia, hapa utaona win rate, wastani wa R, na <b>kigezo kipi kinasaidia kweli</b>. Takwimu zinaanza kuaminika kuanzia signal ~100.</div></div>`;
+  const take = done.filter((s) => !s.blk), skip = done.filter((s) => s.blk), A = rstats(take), B = rstats(skip);
+  const row = (label, L) => { const a = rstats(L.filter((x) => x.on)), b = rstats(L.filter((x) => !x.on)), d = a.n && b.n ? a.avg - b.avg : null;
+    return `<tr><td>${label}</td><td>${a.n}</td><td class="${a.avg >= 0 ? "up" : "dn"}">${a.n ? rfmt(a.avg) : "—"}</td><td>${b.n}</td><td class="${b.avg >= 0 ? "up" : "dn"}">${b.n ? rfmt(b.avg) : "—"}</td><td class="${d == null ? "mu" : d >= 0 ? "up" : "dn"}">${d == null ? "—" : rfmt(d)}</td></tr>`; };
+  const rows = FEAT.map(([k, l]) => row(l, take.map((s) => ({ on: !!(s.feat || {})[k], r: s.r, t: s.t })))).join("")
+    + row("Regime TREND", take.map((s) => ({ on: s.regime === "TREND", r: s.r, t: s.t })));
+  return `<div class="card"><h3>Takwimu za strategy <span class="pill">${A.n} signal</span></h3>
+    <div class="kv"><div><span>Win rate</span><b>${A.n ? Math.round(A.win) + "%" : "—"}</b></div><div><span>Wastani (expectancy)</span><b class="${A.avg >= 0 ? "up" : "dn"}">${A.n ? rfmt(A.avg) + "R" : "—"}</b></div><div><span>Profit factor</span><b>${A.pf === Infinity ? "∞" : A.pf.toFixed(2)}</b></div>
+      <div><span>Jumla</span><b class="${A.sum >= 0 ? "up" : "dn"}">${rfmt(A.sum)}R</b></div><div><span>Hasara mfululizo</span><b>${A.worst}</b></div><div><span>Zilizozuiwa</span><b class="${B.n ? (B.avg >= 0 ? "up" : "dn") : ""}">${B.n ? B.n + " · " + rfmt(B.avg) + "R" : "0"}</b></div></div>
+    <p class="xs mu" style="margin:0">Matokeo ni ya mpango halisi (Entry/SL/TP pamoja na spread), bila break-even/partial. ${B.n ? (B.avg < A.avg ? "✅ Signal zilizozuiwa na filters zina matokeo mabaya kuliko zinazotradiwa — filters zinasaidia." : "⚠️ Signal zilizozuiwa hazina matokeo mabaya zaidi — huenda filter fulani inazuia trade nzuri.") : ""}</p>
+    ${A.n < 100 ? `<p class="xs gold" style="margin:0">Data bado ni ndogo (${A.n}/100). Usibadilishe settings kwa takwimu hizi bado.</p>` : ""}</div>
+  <div class="card"><h3>Kigezo kipi kinasaidia?</h3>
+    <table class="ft"><thead><tr><th>Kigezo</th><th>Kipo</th><th>R</th><th>Hakipo</th><th>R</th><th>Tofauti</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="xs mu" style="margin:0">"Tofauti" chanya = signal zenye kigezo hicho zinafanya vizuri zaidi. Hivi ndivyo fund wanavyopima: uzito wa kila kigezo unabadilishwa kwa ushahidi, si kwa hisia.</p></div>`;
+}
+function resetSheet() {
+  sheet(`<b style="font-size:17px">Reset ulinzi?</b><p class="mu" style="margin:0">Kilele cha equity kitawekwa kuwa equity ya sasa, na kill switch itazimwa. Fanya hivi <b>baada</b> ya kukagua kwa nini robot ilisimama.</p>
+    <div class="row"><button class="btn" style="flex:1" onclick="sheet(null)">Hapana</button><button class="btn p" style="flex:1" onclick="sheet(null);setCtl({reset:Date.now()})">Ndiyo, reset</button></div>`);
 }
 function vControl() {
   const st = S.st || {}, c = S.ctl || {};
@@ -325,7 +388,11 @@ function vControl() {
     <button class="btn d full" onclick="closeAllSheet()" ${(st.positions || []).length ? "" : "disabled"}>Funga trade zote sasa</button>
     <p class="xs mu" style="margin:0">Amri zinafika robot ndani ya sekunde ~10, mradi MT5 iko wazi. Hali halisi ya robot sasa: ${st.paused ? "PAUSED" : st.auto ? "AUTO" : "SIGNALS"}, risk ${(st.risk || 0).toFixed(2)}%.</p></div>
   <div class="card"><h3>Ulinzi uliowekwa kwenye EA</h3><div class="kv"><div><span>Hasara/siku</span><b>${st.maxDailyLoss || 0}%</b></div><div><span>Trade/siku</span><b>${st.maxTrades || 0}</b></div><div><span>Alama min</span><b>${st.minScore || 0}</b></div></div>
-    <p class="xs mu" style="margin:0">Break-even, partial close na trailing vinabadilishwa kwenye Inputs za EA ndani ya MT5.</p></div>`;
+    <p class="xs mu" style="margin:0">Break-even, partial close na trailing vinabadilishwa kwenye Inputs za EA ndani ya MT5.</p></div>
+  ${st.guards ? `<div class="card"><h3>Ulinzi wa kiwango cha fund</h3><div class="kv"><div><span>Hasara/wiki</span><b>${st.guards.weekMax}%</b></div><div><span>Punguza risk DD</span><b>${st.guards.ddReduceAt}%</b></div><div><span>Simama DD</span><b>${st.guards.ddStopAt}%</b></div>
+      <div><span>Kill switch</span><b>${st.guards.killAt}R/${st.guards.killNeed}</b></div><div><span>News filter</span><b>${st.guards.newsOn ? "ON" : "OFF"}</b></div><div><span>Regime</span><b>${["Rekodi", "TREND", "RANGE"][st.guards.regimeMode || 0]}</b></div></div>
+    ${st.guards.kill || st.guards.ddStop ? `<div class="sm dn"><b>${st.guards.kill ? "Kill switch imewaka" : "Drawdown stop imewaka"}.</b> Robot haitafungua trade mpya mpaka ureset.</div>` : ""}
+    <button class="btn ${st.guards.kill || st.guards.ddStop ? "p" : ""} full" onclick="resetSheet()">↺ Reset ulinzi (kilele + kill switch)</button></div>` : ""}`;
 }
 function vAcct() {
   const nk = S.newKey && S.newKey.login === S.acct ? S.newKey.key : S.key;
@@ -334,7 +401,7 @@ function vAcct() {
   ${S.acct ? `<div class="card"><h3>Kuunganisha robot ya ${esc(S.acct)}</h3>
     <p class="sm" style="margin:0">Sync key ya akaunti hii:</p>${nk ? `<code class="k" id="keytxt">${esc(nk)}</code><button class="btn" onclick="copyKey()">📋 Nakili key</button>` : `<p class="mu sm" style="margin:0">Key haijatengenezwa. Bonyeza "＋ Ongeza" na uweke namba hii.</p>`}
     <ol class="steps"><li>MT5 (kompyuta): <b>Tools → Options → Expert Advisors</b> → weka ✓ <b>Allow WebRequest</b> na ongeza: <code class="num gold">https://firestore.googleapis.com</code></li>
-      <li>Weka EA <b>QuantVision_SMC_EA v1.30</b> kwenye chati ya XAUUSD M5.</li>
+      <li>Weka EA <b>QuantVision_SMC_EA v1.40</b> kwenye chati ya XAUUSD M5.</li>
       <li>Kwenye <b>Inputs</b>: <b>InpSyncKey</b> = key hiyo hapo juu.</li>
       <li>Ndani ya sekunde 10 hali itakuwa <span class="pill up live"><span class="dot"></span>Live</span>.</li></ol>
     <p class="xs mu" style="margin:0">MT5 lazima ibaki wazi na ina mtandao (kompyuta au VPS). App hii inaonyesha tu kile robot inatuma.</p></div>` : ""}
@@ -348,7 +415,7 @@ function vChart() {
   const c = S.chart, st = S.st;
   if (!st && !c) return noData();
   const top = !c || !c.bars || c.bars.length < 50
-    ? `<div class="card"><h3>Chati live</h3><div class="empty">Chati itaonekana robot ikituma data. Hakikisha umeweka <b>EA v1.30</b> kwenye MT5 — inatuma chati kila mshumaa mpya (dakika 5).</div></div>`
+    ? `<div class="card"><h3>Chati live</h3><div class="empty">Chati itaonekana robot ikituma data. Hakikisha umeweka <b>EA v1.40</b> kwenye MT5 — inatuma chati kila mshumaa mpya (dakika 5).</div></div>`
     : `<div class="card"><h3>${esc(c.symbol)} ${esc(c.tf)} <span class="pill">${c.plan && c.plan.live ? (c.plan.dir === 1 ? "▲ BUY setup" : "▼ SELL setup") : "inasubiri setup"}</span></h3>
       <div class="cv"><canvas id="cv" aria-label="Chati ya bei na zone za SMC"></canvas>
         <div class="zb"><button onclick="zoom(0.75)" aria-label="Kuza">＋</button><button onclick="zoom(1.33)" aria-label="Punguza">−</button><button onclick="S.cv.off=0;drawChart()" aria-label="Mshumaa wa mwisho">⇥</button></div></div>
@@ -454,6 +521,8 @@ function askPrompt(q, nb) {
   L.push(`Setup: ${st.live ? (st.dir === 1 ? "BUY" : "SELL") + ` LIVE entry ${f(st.entry)} SL ${f(st.sl)} TP ${f(st.tp)} RR 1:${(st.rr || 0).toFixed(1)}` : "hakuna"} | Alama ${Math.round(st.score || 0)}/${st.minScore || 70} upande ${st.dir === 1 ? "BUY" : "SELL"}${st.kz ? " | Killzone " + st.kz : ""}`);
   if ((st.checklist || []).length) L.push("Checklist: " + st.checklist.map((x) => (x.veto ? "✕" : x.ok ? "✓" : "○") + x.label).join("; "));
   L.push(`Akaunti: equity ${money(st.equity)} ${cur()} | leo ${money(st.today, true)} | mode ${st.paused ? "PAUSED" : st.auto ? "AUTO" : "SIGNALS"} | risk ${(st.risk || 0)}%`);
+  if (st.guards) { const g = st.guards; L.push(`Ulinzi: regime ${g.regime} (ER ${(g.er || 0).toFixed(2)}), volatility pct ${Math.round(g.atrPct || 0)}, drawdown ${(g.dd || 0).toFixed(1)}%, risk halisi ${(g.riskEff || 0).toFixed(2)}%, wiki ${(g.weekPct || 0).toFixed(2)}%, kill switch avg ${(g.killAvg || 0).toFixed(2)}R${g.news ? ", habari: " + g.news : ""}${g.market ? ", soko limezuiwa: " + g.market : ""}${g.account ? ", trade zimezuiwa: " + g.account : ""}`); }
+  const dn = S.signals.filter((x) => x.result && x.feat && !x.blk); if (dn.length) { const A = rstats(dn); L.push(`Takwimu za signal ${A.n}: win ${Math.round(A.win)}%, wastani ${A.avg.toFixed(2)}R, PF ${A.pf === Infinity ? "inf" : A.pf.toFixed(2)}`); }
   (st.positions || []).forEach((p) => L.push(`Trade wazi: ${p.side} ${p.vol} @ ${f(p.open)} SL ${f(p.sl)} TP ${f(p.tp)} P/L ${money(p.profit, true)} (${(p.r || 0).toFixed(2)}R)`));
   (c.zones || []).forEach((z) => L.push(`Zone: ${z.kind} ${z.dir === 1 ? "bullish" : "bearish"} ${f(z.bot)}-${f(z.top)}`));
   if (c.dr && c.dr.ok) L.push(`Dealing range ${f(c.dr.lo)}-${f(c.dr.hi)} (${c.dr.dir === 1 ? "bullish" : "bearish"}), EQ ${f((c.dr.lo + c.dr.hi) / 2)}`);
