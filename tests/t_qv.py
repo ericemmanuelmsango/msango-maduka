@@ -57,6 +57,23 @@ with sync_playwright() as pw:
     p.click("text=Funga trade zote sasa"); p.click("text=Ndiyo, funga zote"); p.wait_for_timeout(300); assert store(p)["qvctl/51234567"].get("closeAll")
     p.click("[aria-label=Akaunti]"); p.wait_for_timeout(200); p.click("text=＋ Ongeza"); p.fill("#ac-login", "60000001"); p.click("text=Tengeneza key"); p.wait_for_timeout(400)
     print("new key:", store(p).get("qvkeys/60000001")); shot(p, "qv-acct")
-    print("ERRS", p.errs); p.browser_.close()
+    print("ERRS", p.errs); assert not p.errs; p.browser_.close()
+    # --- v1.50: portfolio (two symbols) + Maabara + VPS guide
+    import copy, os
+    s2 = dict(store_); g = dict(st["guards"], openRisk=1.2, maxPortRisk=3, posAll=1, maxPosAll=4, weights="20,15,10,10,20,5,15,5")
+    x1 = dict(st, guards=g); x2 = dict(st, symbol="EURUSD", digits=5, live=False, positions=[], guards=dict(g, kill=True))
+    s2["qv/51234567/sym/XAUUSD"] = x1; s2["qv/51234567/sym/EURUSD"] = x2; s2["qv/51234567/chart/XAUUSD"] = CH
+    p = open_page(pw, "qv/index.html", s2, email=ADMIN, w=400, h=860, mobile=True); p.wait_for_timeout(800)
+    t = p.inner_text("main"); assert "PORTFOLIO" in t.upper() and "EURUSD" in t and "kill switch" in t, t[:500]; shot(p, "qv-portfolio")
+    p.select_option("header select[aria-label=Soko]", "EURUSD"); p.wait_for_timeout(200); assert "Inasubiri" in p.inner_text("main") or "Hakuna setup" in p.inner_text("main")
+    p.select_option("header select[aria-label=Soko]", "XAUUSD"); p.click("nav.tabs >> text=Chati"); p.wait_for_timeout(300); assert p.locator("#cv").count() == 1
+    p.click("nav.tabs >> text=Signal"); p.click("text=🧪 Maabara"); p.wait_for_timeout(200)
+    p.set_input_files("input[type=file]", os.environ.get("QV_JOURNAL") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "qv_journal_sample.csv")); p.wait_for_timeout(1500)
+    t = p.inner_text("main"); print(t[:900].replace("\n", " | "))
+    assert "Uamuzi" in t or "UAMUZI" in t.upper(); assert "Walk-forward" in t or "WALK-FORWARD" in t.upper(); assert "InpW_LIQ" in t
+    shot(p, "qv-lab"); p.click("text=Risk 2%"); p.wait_for_timeout(600); p.click("text=Jumuisha setup dhaifu"); p.wait_for_timeout(600)
+    p.click("text=📡 Tumia signal za live badala yake"); p.wait_for_timeout(300); assert "SIGNAL ZA LIVE" in p.inner_text("main").upper()
+    p.click("[aria-label=Akaunti]"); p.wait_for_timeout(200); assert "VPS" in p.inner_text("main")
+    print("ERRS", p.errs); assert not p.errs; p.browser_.close()
     p = open_page(pw, "qv/index.html", {}, email=None, w=400, h=860, mobile=True); p.wait_for_timeout(500); assert "Ingia" in p.inner_text("body"); shot(p, "qv-login")
     print("ERRS", p.errs)
