@@ -14,6 +14,9 @@
     if (seg[0] === "settings") return seg[1] === "public" && !write ? !em : !admin;
     if (seg[0] === "clients") return !admin;
     if (seg[0] === "errors") return write ? !em : !admin;
+    if (seg[0] === "qvkeys") return !admin;
+    if (seg[0] === "qvctl") return write ? !admin : false;
+    if (seg[0] === "qv") return !admin;
     if (seg[0] === "shops") {
       if (admin) return false;
       const shop = store["shops/" + seg[1]];

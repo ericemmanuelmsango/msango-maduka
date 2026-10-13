@@ -397,6 +397,18 @@ service cloud.firestore {
     match /clients/{id} {
       allow read, write: if isAdmin();
     }
+    // 📈 QuantVision Mobile: robot ya MT5 inaandika kwa sync key yake, msimamizi tu anasoma
+    function qvKeyOk(acct) { return exists(/databases/$(database)/documents/qvkeys/$(acct)) && request.resource.data.k == get(/databases/$(database)/documents/qvkeys/$(acct)).data.key; }
+    match /qvkeys/{acct} { allow read, write: if isAdmin(); }
+    match /qvctl/{acct} { allow read: if true; allow write: if isAdmin(); }
+    match /qv/{acct} {
+      allow read, delete: if isAdmin();
+      allow create, update: if qvKeyOk(acct);
+      match /{col}/{id} {
+        allow read, delete: if isAdmin();
+        allow create, update: if qvKeyOk(acct);
+      }
+    }
     // 🐞 hitilafu na ripoti za matatizo kutoka kwa mifumo ya wateja
     match /errors/{id} {
       allow create: if signedIn() && request.resource.data.keys().size() < 20 && request.resource.data.msg is string && request.resource.data.msg.size() < 2000;
