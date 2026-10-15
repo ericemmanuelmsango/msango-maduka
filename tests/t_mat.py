@@ -1,4 +1,4 @@
-"""Duka la spea (app.js): Matumizi (yanashirikiana na POS), faida halisi kwenye Reports, kutafuta mteja, na orodha mpya ya bidhaa ya Shemdar."""
+"""Duka la spea (app.js): Matumizi (yanashirikiana na POS), faida halisi kwenye Reports, kutafuta mteja, na na Shemdar haipati orodha ya Shem."""
 from h import *
 import time
 today = time.strftime("%Y-%m-%d")
@@ -13,10 +13,8 @@ with sync_playwright() as pw:
     p = open_page(pw, "index.html?duka=sp9", st); p.wait_for_timeout(1500)
     p.fill("#login-password", "1234"); p.click("button:has-text(\"Enter\")"); p.wait_for_timeout(400)
     s = store(p)
-    items = s["shops/sp9/data/products__0"]["items"]; print("products:", len(items), "flag:", s["shops/sp9/data/data"]["settings"].get("productImportId"))
-    assert len(items) == 1765 and s["shops/sp9/data/data"]["settings"].get("productImportId") == "2026-10-15-shem"
-    assert [i for i in items if i["name"] == "6001"][0]["price"] == 999          # existing name kept, not duplicated
-    assert any(i["name"] == "FOOT REST GOLD 2" and i["price"] == 15000 for i in items)
+    items = s["shops/sp9/data/products__0"]["items"]; print("products after second clear:", len(items), s["shops/sp9/data/data"]["settings"].get("productResetId"))
+    assert len(items) == 0 and s["shops/sp9/data/data"]["settings"].get("productResetId") == "2026-10-15b"   # Shem list is not loaded into Shemdar
     # expenses: POS expense shows, add one more from the main system
     assert "Matumizi" in p.inner_text(".menu"), p.inner_text(".menu")
     p.click(".menu li:has-text('Matumizi')"); p.wait_for_timeout(300); assert "Umeme" in p.inner_text("main")
