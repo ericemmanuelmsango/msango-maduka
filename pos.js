@@ -38,6 +38,18 @@ function dayLabel(ds) {
 }
 const clean = (o) => JSON.parse(JSON.stringify(o)); // Firestore rejects undefined values
 
+/* ---------- ONE-TIME: clear POS wholesale prices (owner's request, 2026-10-15) ----------
+   Products and stock were cleared in the main system; this removes the POS's own wholesale
+   price list so the new items start clean. Sales history is untouched. */
+const POS_RESET_ID = "2026-10-15";
+function oneTimePosPriceReset() {
+  if (!(typeof SHOP !== "undefined" && SHOP && /shemdar/i.test(SHOP.name || ""))) return;   // only the Shemdar shop (owner Emmanuel)
+  if (!D.pos || D.pos.posResetId === POS_RESET_ID || oneTimePosPriceReset.busy) return;
+  if (Date.now() > Date.parse("2026-10-25")) return;
+  oneTimePosPriceReset.busy = true;
+  colRef.doc(POS_DOC).update({ wholePrices: firebase.firestore.FieldValue.delete(), posResetId: POS_RESET_ID })
+    .catch(() => {}).then(() => { oneTimePosPriceReset.busy = false; });
+}
 /* ---------- live data from the cloud ---------- */
 const D = {
   loaded: false, err: "", sync: null,
@@ -91,6 +103,7 @@ function startListening() {
     D.sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: Date.now() };
     D.loaded = true;
     D.err = "";
+    if (!snap.metadata.fromCache) oneTimePosPriceReset();
     rebuildView();
     maybeTrimActivity();
     render();
