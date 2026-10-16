@@ -156,11 +156,22 @@ h3{font-size:14.5px;margin:0 0 10px}
 .ov-actions{display:flex;gap:8px;margin-top:12px}
 .ov-actions .btn{flex:1}
 @media print{
-  body *{visibility:hidden}
-  .print-area,.print-area *{visibility:visible}
-  .print-area{position:absolute;top:0;left:0;width:100%;max-width:none!important;max-height:none!important;overflow:visible!important;box-shadow:none;border-radius:0}
+  @page{margin:5mm}
+  html,body{height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
+  /* Print only the copy of the receipt in #print-root; hide the whole page behind it */
+  body.printing>*:not(#print-root){display:none!important}
+  body.printing #print-root{display:block!important}
+  #print-root .print-area{position:static!important;width:100%;max-width:none!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;border-radius:0!important;margin:0!important}
+  
+  #print-root tr{break-inside:avoid}
+  #print-root thead{display:table-header-group}
+  /* fallback for browsers without beforeprint */
+  body:not(.printing) *{visibility:hidden}
+  body:not(.printing) .print-area,body:not(.printing) .print-area *{visibility:visible}
+  body:not(.printing) .print-area{position:absolute;top:0;left:0;width:100%;max-height:none!important;overflow:visible!important;box-shadow:none}
   .no-print{display:none!important}
 }
+#print-root{display:none}
 .toast{position:fixed;bottom:calc(76px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;z-index:30;max-width:90vw;text-align:center}
 .loading{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mute)}
 .spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:sp 1s linear infinite}
@@ -185,6 +196,22 @@ h3{font-size:14.5px;margin:0 0 10px}
 <script src="pos.js?v=mm6"></script>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+<script>
+/* PRINT FIX: copy the open receipt to #print-root just before printing, so only it prints, once */
+(function () {
+  var root = document.createElement("div"); root.id = "print-root";
+  document.addEventListener("DOMContentLoaded", function () { document.body.appendChild(root); });
+  window.addEventListener("beforeprint", function () {
+    var all = document.querySelectorAll("body > :not(#print-root) .print-area");
+    var area = all[all.length - 1];
+    if (!area) return;
+    root.innerHTML = "";
+    root.appendChild(area.cloneNode(true));
+    document.body.classList.add("printing");
+  });
+  window.addEventListener("afterprint", function () { document.body.classList.remove("printing"); root.innerHTML = ""; });
+})();
 </script>
 </body>
 </html>

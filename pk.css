@@ -149,7 +149,24 @@ table.t tr.click{cursor:pointer} table.t tr.click:hover td{background:var(--sf2)
 .rc .c{text-align:center} .rc .b{font-weight:800} .rc hr{border:0;border-top:1px dashed #999;margin:4px 0;width:100%}
 .rc .ln{display:flex;justify-content:space-between;gap:8px}
 .rc.w58{font-size:11.5px;max-width:58mm;margin:0 auto}
-@media print{@page{margin:0} body *{visibility:hidden} .rc,.rc *{visibility:visible} .rc{position:fixed;left:0;top:0;width:76mm;padding:2mm;border:0;border-radius:0} .rc.w58{width:54mm;max-width:none;font-size:11px}}
+@media print{
+  @page{margin:0}
+  html,body{height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
+  /* Print only the copy of the receipt in #print-root; hide the whole page behind it */
+  body.printing>*:not(#print-root){display:none!important}
+  body.printing #print-root{display:block!important}
+  #print-root .rc{position:static!important;width:100%;max-width:none!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;border-radius:0!important;margin:0!important}
+  #print-root .rc{width:76mm;padding:2mm;border:0}
+  #print-root .rc.w58{width:54mm;font-size:11px}
+  #print-root tr{break-inside:avoid}
+  #print-root thead{display:table-header-group}
+  /* fallback for browsers without beforeprint */
+  body:not(.printing) *{visibility:hidden}
+  body:not(.printing) .rc,body:not(.printing) .rc *{visibility:visible}
+  body:not(.printing) .rc{position:absolute;top:0;left:0;width:100%;max-height:none!important;overflow:visible!important;box-shadow:none}
+  .no-print{display:none!important}
+}
+#print-root{display:none}
 .bars svg text{fill:var(--mu);font-size:11px;font-family:var(--fb)}
 @media (prefers-reduced-motion:no-preference){.tile,.prod{transition:border-color .15s}}
 .pk-side .pill.bd{background:#e5484d;color:#fff}

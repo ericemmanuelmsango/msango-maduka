@@ -20,5 +20,21 @@
 <script src="duka.js?v=9"></script>
 <script src="pk.js?v=3"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+<script>
+/* PRINT FIX: copy the open receipt to #print-root just before printing, so only it prints, once */
+(function () {
+  var root = document.createElement("div"); root.id = "print-root";
+  document.addEventListener("DOMContentLoaded", function () { document.body.appendChild(root); });
+  window.addEventListener("beforeprint", function () {
+    var all = document.querySelectorAll("body > :not(#print-root) .rc");
+    var area = all[all.length - 1];
+    if (!area) return;
+    root.innerHTML = "";
+    root.appendChild(area.cloneNode(true));
+    document.body.classList.add("printing");
+  });
+  window.addEventListener("afterprint", function () { document.body.classList.remove("printing"); root.innerHTML = ""; });
+})();
+</script>
 </body>
 </html>
