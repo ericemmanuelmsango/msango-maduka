@@ -127,7 +127,7 @@ const COMMON = [
   { id: "watu", label: "Watumiaji", icon: "👥", roles: ["meneja"], render: pageUsers },
   { id: "mipangilio", label: "Mipangilio", icon: "⚙️", roles: [], render: pageSettings },
 ];
-function pages() { return (PK.pack.pages || []).concat(COMMON); }
+function pages() { return (PK.pack.pages || []).concat(typeof has === "function" && has("ripotiMteja") ? [REP_PAGE] : [], COMMON); }
 function navPages() { return pages().filter((p) => roleOk(p.roles)); }
 function firstPage() { const n = navPages(); return (n.find((p) => p.id === PK.pack.home) || n[0] || {}).id; }
 function go(id) { PK.page = id; PK.q = ""; PK._noKeep = true; window.scrollTo(0, 0); render(); }
@@ -361,6 +361,145 @@ function pageMatumizi() {
       <div class="card"><h3>Matumizi kwa siku (siku 14)</h3>${bars(dailySeries(txList("exp"), 14, (e) => Number(e.amount) || 0))}</div></div>
     ${E.length ? `<div class="row between"><h3>Orodha</h3><button class="btn s" onclick="downloadCSV('matumizi-'+PK.range,[['Tarehe','Aina','Kiasi','Njia','Maelezo','Aliyeandika']].concat(txList('exp',e=>inRange(e.day)).map(e=>[e.day,e.cat,e.amount,methodName(e.method),e.note,e.by])))">⬇️ CSV</button></div>
       <div class="tw"><table class="t"><tbody>${E.slice(0, 100).map((e) => `<tr class="click" onclick="expForm('${e.id}')"><td>${fdate(e.day)}</td><td><b>${esc(e.cat)}</b>${e.note ? `<br><small class="mu">${esc(e.note)}</small>` : ""}</td><td>${esc(methodName(e.method))}</td><td class="mu sm">${esc(e.by || "")}</td><td class="r num">${n0(e.amount)}</td></tr>`).join("")}</tbody></table></div>` : ""}`;
+}
+
+/* =====================================================================
+   RIPOTI YA MTEJA (pakiti zote) — kipengele cha kuchagua kwenye Kiwanda (ripotiMteja)
+   Mauzo kwa siku na kwa mteja, pamoja na faida; 🗄️ hamishia History mteja au tarehe
+   unayochagua (PK.settings.repArch["c:<jina>"|"d:<tarehe>"] = muda); PDF ya tarehe
+   unazochagua, kila mteja kwa jina lake na vitu vyake. Hakuna kinachofutwa.
+   ===================================================================== */
+const REP_PAGE = { id: "ripotiMteja", label: "Ripoti ya Mteja", icon: "👤", roles: ["meneja"], render: pageRipotiMteja };
+const RM = { view: "day", hist: false, open: null, keys: [], pdf: false, pFrom: "", pTo: "", pCust: "" };
+const rmCust = (v) => (v && String(v).trim()) || "Mteja wa kawaida";
+/* mistari ya mauzo ya muamala mmoja; jumla ikitofautiana na vitu (punguzo, huduma…), ongeza mstari wa marekebisho */
+function rmDocLines(d, items, target, cust, costOf) {
+  const at = d.time || d.closedAt || d.at || 0, out = [];
+  (items || []).forEach((l, i) => {
+    const qty = Number(l.qty) || 0, price = Number(l.price) || 0;
+    out.push({ id: d.id + "#" + i, day: d.day, at, cust: rmCust(cust), name: l.name || (get(l.item || l.id || l.prod) || {}).name || "Bidhaa", qty, price, total: qty * price, cost: costOf ? costOf(l) : qty * (Number(l.cost) || 0) });
+  });
+  const diff = Math.round((Number(target) || 0) - out.reduce((a, x) => a + x.total, 0));
+  if (diff) out.push({ id: d.id + "#adj", day: d.day, at, cust: rmCust(cust), name: diff < 0 ? "Punguzo" : "Huduma / ziada", qty: 1, price: diff, total: diff, cost: 0 });
+  return out;
+}
+const RM_LINES = {
+  supermarket: (inR) => txList("sale", (s) => inR(s.day)).flatMap((s) => rmDocLines(s, s.items, s.total, s.customer)),
+  famasia: (inR) => txList("sale", (s) => inR(s.day)).flatMap((s) => rmDocLines(s, s.items, s.total, s.customer))
+    .concat(txList("disp", (x) => inR(x.day)).map((x) => ({ id: x.id, day: x.day, at: x.at || 0, cust: "⚠️ Dawa zilizotupwa", name: x.name || "Dawa", qty: Number(x.qty) || 0, price: 0, total: 0, cost: Number(x.value) || 0 }))),
+  boutique: (inR) => txList("sale", (s) => inR(s.day)).flatMap((s) => rmDocLines(s, s.items, (Number(s.total) || 0) + (Number(s.creditUsed) || 0), s.custName || s.customer))
+    .concat(txList("ret", (r) => inR(r.day) && r.mode === "refund").map((r) => ({ id: r.id, day: r.day, at: r.at || 0, cust: rmCust((get(r.cust) || {}).name || r.custName), name: "Marejesho (risiti #" + (r.no || "") + ")", qty: 1, price: -(Number(r.amount) || 0), total: -(Number(r.amount) || 0), cost: 0 }))),
+  simu: (inR) => txList("sale", (s) => inR(s.day)).flatMap((s) => rmDocLines(s, s.items, s.total, s.customer))
+    .concat(txList("job", (j) => inR(j.day)).map((j) => ({ id: j.id, day: j.day, at: j.closedAt || j.at || 0, cust: rmCust(j.customer), name: "Matengenezo" + (j.device ? " · " + j.device : ""), qty: 1, price: Number(j.total) || 0, total: Number(j.total) || 0, cost: Number(j.partsCost) || 0 }))),
+  mgahawa: (inR) => txList("ord", (o) => inR(o.day)).flatMap((o) => rmDocLines(o, (o.items || []).filter((l) => !(o.voids || {})[l.lid]), o.total,
+    o.customer || (o.tableName ? (/^meza/i.test(o.tableName) ? o.tableName : "Meza " + o.tableName) : ""), (l) => (Number(l.qty) || 0) * ((get(l.item) || {}).cost || 0))),
+  saluni: (inR) => txList("visit", (v) => inR(v.day)).flatMap((v) => rmDocLines(v, v.items, v.total, v.client || v.customer,
+    (l) => (Number(l.comm) || 0) + (l.kind === "prod" ? (Number(l.qty) || 0) * ((get(l.id) || {}).cost || 0) : 0))),
+  hoteli: (inR) => txList("pay", (p) => inR(p.day)).map((p) => ({ id: p.id, day: p.day, at: p.at || 0, cust: rmCust(p.guest), name: (p.what || "Malipo") + (p.room ? " · chumba " + ((get(p.room) || {}).name || p.room) : ""), qty: 1, price: Number(p.amt) || 0, total: Number(p.amt) || 0, cost: 0 })),
+  msambazaji: (inR) => txList("ord", (o) => inR(o.day) && o.status === "imefikishwa").flatMap((o) => rmDocLines(o, o.items, o.total, o.custName)),
+};
+function rmLines(inR) { const f = RM_LINES[(SHOP && SHOP.industry) || ""]; try { return f ? f(inR) : []; } catch (e) { console.error(e); return []; } }
+function rmArchived(x) { const A = PK.settings.repArch || {}; return x.at <= (A["c:" + x.cust] || 0) || x.at <= (A["d:" + x.day] || 0); }
+function rmArchive(kind, i) {
+  const key = RM.keys[i]; if (key == null) return;
+  confirmBox("Hamishia History mauzo " + (kind === "c" ? "ya mteja " : "ya tarehe ") + key + "? Hayafutwi kabisa — mauzo mapya yataonekana kama kawaida.",
+    () => { saveSettings({ repArch: { ...(PK.settings.repArch || {}), [kind + ":" + key]: Date.now() } }); RM.open = null; toast("🗄️ Imehamia History"); }, "Hamishia");
+}
+function rmRestore(kind, i) {
+  const key = RM.keys[i]; if (key == null) return;
+  const A = { ...(PK.settings.repArch || {}) }; delete A[kind + ":" + key];
+  saveSettings({ repArch: A }); RM.open = null; toast("↩️ Imerudishwa kwenye ripoti");
+}
+function rmGroup(L, keyFn, newestFirst) {
+  const g = {};
+  L.forEach((x) => { const k = keyFn(x); (g[k] = g[k] || { k, list: [], total: 0, profit: 0 }); g[k].list.push(x); g[k].total += x.total; g[k].profit += x.total - x.cost; });
+  return Object.values(g).sort((a, b) => newestFirst ? (a.k < b.k ? 1 : -1) : b.total - a.total);
+}
+function pageRipotiMteja() {
+  ensureRange();
+  const all = rmLines(inRange), L = all.filter((x) => rmArchived(x) === RM.hist);
+  const rev = L.reduce((a, x) => a + x.total, 0), cost = L.reduce((a, x) => a + x.cost, 0);
+  const kind = RM.view === "day" ? "d" : "c", label = kind === "d" ? "Tarehe" : "Mteja";
+  const rows = rmGroup(L, kind === "d" ? (x) => x.day : (x) => x.cust, kind === "d");
+  RM.keys = rows.map((r) => r.k);
+  const money = (n) => `<b class="num" style="color:${n >= 0 ? "var(--ok,#0a8a5a)" : "#dc2626"}">${n < 0 ? "−" : ""}${n0(Math.abs(n))}</b>`;
+  const chip = (v, l) => `<button class="chip ${RM.view === v ? "on" : ""}" onclick="RM.view='${v}';RM.open=null;render()">${l}</button>`;
+  return `<div class="row between">${rangeChips()}<button class="btn p s" onclick="RM.pdf=!RM.pdf;render()">📄 PDF</button></div>
+    ${RM.pdf ? rmPdfPanel(all) : ""}
+    <div class="kpis">${kpi("Mauzo", tzs(rev), true)}${kpi("Gharama", tzs(cost))}${kpi("Faida", tzs(rev - cost))}</div>
+    <div class="row between"><div class="chips">${chip("day", "📅 Kwa Siku")}${chip("cust", "👤 Kwa Mteja")}</div>
+      ${RM.hist ? `<button class="btn s" onclick="RM.hist=false;RM.open=null;render()">← Ripoti ya sasa</button>` : `<button class="btn s" onclick="RM.hist=true;RM.open=null;render()">🗄️ History</button>`}</div>
+    ${RM.hist ? `<p class="sm" style="margin:0;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,#f59e0b 14%,var(--sf))">🗄️ <b>History</b> — wateja na tarehe ulizohamishia hapa. Bonyeza ↩️ kurudisha.</p>` : ""}
+    <div class="card" style="padding:0;overflow:auto">${rows.length ? `<table class="t"><thead><tr><th>${label}</th><th class="r">Mauzo</th><th class="r">Faida</th><th></th></tr></thead><tbody>
+      ${rows.map((r, i) => { const open = RM.open === kind + i; return `<tr class="click" onclick="RM.open=${open ? "null" : `'${kind}${i}'`};render()">
+        <td>${open ? "▾" : "▸"} <b>${esc(kind === "d" ? fdate(r.k) : r.k)}</b> <small class="mu">(${r.list.length})</small></td><td class="r num">${n0(r.total)}</td><td class="r">${money(r.profit)}</td>
+        <td class="r" style="white-space:nowrap"><button class="btn g s" title="${RM.hist ? "Rudisha" : "Hamishia History"}" onclick="event.stopPropagation();${RM.hist ? "rmRestore" : "rmArchive"}('${kind}',${i})">${RM.hist ? "↩️" : "🗄️"}</button></td></tr>
+        ${open ? r.list.map((x) => `<tr style="background:color-mix(in srgb,var(--ln) 35%,transparent)"><td class="sm" style="padding-left:28px">${esc(x.name)} × ${n0(x.qty)} <span class="mu">· ${esc(kind === "d" ? x.cust : fdate(x.day))}</span></td><td class="r num sm">${n0(x.total)}</td><td class="r sm">${money(x.total - x.cost)}</td><td></td></tr>`).join("") : ""}`; }).join("")}
+      </tbody><tfoot><tr><td><b>JUMLA</b></td><td class="r num"><b>${n0(rev)}</b></td><td class="r">${money(rev - cost)}</td><td></td></tr></tfoot></table>`
+      : `<p class="mu" style="padding:16px;margin:0">${RM.hist ? "Hakuna kitu kwenye History kwa kipindi hiki." : "Hakuna mauzo kwenye kipindi hiki."}</p>`}</div>`;
+}
+function rmPdfPanel(all) {
+  if (!RM.pFrom) RM.pFrom = rangeFrom(); if (!RM.pTo) RM.pTo = rangeTo();
+  const names = [...new Set(rmLines(() => true).concat(all).map((x) => x.cust))].sort((a, b) => a.localeCompare(b));
+  return `<div class="card flat"><b>📄 Pakua PDF — chagua tarehe</b>
+    <div class="row"><span class="sm">Kuanzia</span><input class="f" type="date" style="width:auto" value="${RM.pFrom}" onchange="RM.pFrom=this.value">
+      <span class="sm">hadi</span><input class="f" type="date" style="width:auto" value="${RM.pTo}" onchange="RM.pTo=this.value"></div>
+    <select class="f" style="max-width:320px" onchange="RM.pCust=this.value"><option value="">👥 Wateja wote</option>${names.map((n) => `<option value="${esc(n)}" ${RM.pCust === n ? "selected" : ""}>👤 ${esc(n)}</option>`).join("")}</select>
+    <div class="row"><button class="btn p s" onclick="rmPdf()">⬇️ Pakua PDF</button><button class="btn s" onclick="RM.pdf=false;render()">Funga</button></div></div>`;
+}
+function rmLoadScript(src) {
+  return new Promise((ok, bad) => { if (document.querySelector('script[src="' + src + '"]')) return ok(); const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = () => bad(new Error(src)); document.head.appendChild(el); });
+}
+async function rmPdf() {
+  const from = RM.pFrom || rangeFrom(), to = RM.pTo || rangeTo(), only = RM.pCust;
+  if (from > to) return toast("Tarehe ya kuanzia iko baada ya ya mwisho");
+  toast("⏳ Inaandaa PDF…");
+  try {
+    if (from < addDays(today(), -PK.TX_DAYS)) await loadRange(from, to);   // older than 31 days: fetch first
+    await rmLoadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    await rmLoadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+  } catch (e) { return toast("⚠️ Imeshindikana — angalia internet kisha jaribu tena"); }
+  const inR = (d) => !!d && d >= from && d <= to;
+  const L = rmLines(inR).filter((x) => !only || x.cust === only).sort((a, b) => (a.day === b.day ? a.at - b.at : a.day < b.day ? -1 : 1));
+  const exp = only ? 0 : txList("exp", (e) => inR(e.day)).reduce((a, e) => a + (Number(e.amount) || 0), 0);
+  const doc = new window.jspdf.jsPDF({ unit: "mm", format: "a4" });
+  const tz = (n) => "TSh " + Math.round(n).toLocaleString("en-US"), sg = (n) => (n < 0 ? "-" : "") + tz(Math.abs(n));
+  const head = { fillColor: [15, 31, 61], textColor: 255, fontStyle: "bold" }, foot = { fillColor: [235, 239, 245], textColor: 20, fontStyle: "bold" };
+  const right = (c) => Object.fromEntries(c.map((i) => [i, { halign: "right" }]));
+  const hr = (c) => (d) => { if ((d.section === "head" || d.section === "foot") && c.includes(d.column.index)) d.cell.styles.halign = "right"; };
+  const below = (g) => (doc.lastAutoTable ? doc.lastAutoTable.finalY : 30) + g;
+  const rev = L.reduce((a, x) => a + x.total, 0), cost = L.reduce((a, x) => a + x.cost, 0), pr = rev - cost;
+  const plain = (t) => String(t).replace(/[^\x20-\x7E]/g, "").trim();
+  doc.setFontSize(15); doc.text(plain(SHOP.name || "Ripoti"), 14, 16);
+  doc.setFontSize(11); doc.text("Ripoti ya Mauzo na Faida" + (only ? " - " + plain(only) : ""), 14, 23);
+  doc.setFontSize(9); doc.setTextColor(110); doc.text("Tarehe: " + from + " hadi " + to + "   |   Imetolewa: " + new Date().toLocaleString("en-GB"), 14, 29); doc.setTextColor(0);
+  const sum = [["Mauzo", tz(rev)], ["Gharama", tz(cost)], ["Faida ghafi", sg(pr)]]; if (!only) sum.push(["Matumizi", tz(exp)], ["FAIDA HALISI", sg(pr - exp)]);
+  doc.autoTable({ startY: 33, theme: "grid", headStyles: head, columnStyles: right([1]), head: [["Muhtasari", "Kiasi"]], body: sum,
+    didParseCell: (d) => { hr([1])(d); if (d.section === "body" && d.row.index === sum.length - 1) d.cell.styles.fontStyle = "bold"; } });
+  if (!L.length) { doc.setFontSize(11); doc.text("Hakuna mauzo kwenye tarehe hizi.", 14, below(10)); }
+  else {
+    const days = rmGroup(L, (x) => x.day, false).sort((a, b) => (a.k < b.k ? -1 : 1));
+    let y = below(10); if (y > 262) { doc.addPage(); y = 18; }
+    doc.setFontSize(12); doc.text("Mauzo kwa Siku", 14, y);
+    doc.autoTable({ startY: y + 3, theme: "striped", headStyles: head, footStyles: foot, columnStyles: right([1, 2, 3]), didParseCell: hr([1, 2, 3]),
+      head: [["Tarehe", "Vitu", "Mauzo", "Faida"]], body: days.map((d) => [d.k, d.list.length, tz(d.total), sg(d.profit)]), foot: [["JUMLA", L.length, tz(rev), sg(pr)]] });
+    let hy = below(12); if (hy > 262) { doc.addPage(); hy = 18; }
+    doc.setFontSize(12); doc.text("Mauzo kwa Mteja", 14, hy);
+    rmGroup(L, (x) => x.cust, false).forEach((c, i) => {
+      let cy = i === 0 ? hy + 9 : below(10); if (cy > 270) { doc.addPage(); cy = 18; }
+      doc.setFontSize(10.5); doc.setFont(undefined, "bold"); doc.text(plain(c.k) || "Mteja", 14, cy); doc.setFont(undefined, "normal");
+      doc.setFontSize(9); doc.setTextColor(90); doc.text("Mauzo " + tz(c.total) + "   |   Faida " + sg(c.profit), 196, cy, { align: "right" }); doc.setTextColor(0);
+      doc.autoTable({ startY: cy + 2, theme: "striped", headStyles: { ...head, fillColor: [60, 80, 110] }, footStyles: foot, styles: { fontSize: 8.5 }, columnStyles: right([2, 3, 4, 5]), didParseCell: hr([2, 3, 4, 5]),
+        head: [["Tarehe", "Bidhaa / Huduma", "Idadi", "Bei", "Jumla", "Faida"]],
+        body: c.list.map((x) => [x.day, plain(x.name), x.qty, tz(x.price), tz(x.total), sg(x.total - x.cost)]),
+        foot: [["", "Jumla ya " + (plain(c.k) || "mteja"), c.list.reduce((a, x) => a + x.qty, 0), "", tz(c.total), sg(c.profit)]] });
+    });
+  }
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text("Ukurasa " + i + " / " + n, 196, 290, { align: "right" }); }
+  const safe = (only || "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  doc.save("Ripoti-" + (safe ? safe + "-" : "") + from + "_" + to + ".pdf");
+  toast("✅ PDF imepakuliwa");
 }
 /* ---------- backup ---------- */
 async function backup() {
