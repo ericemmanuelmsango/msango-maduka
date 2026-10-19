@@ -34,6 +34,7 @@ const FEATURES = [
   ["godown", "Godown / stoo ya pili", "Wadai"],
   ["sales", "Mauzo (ndani ya Wadai)", "Wadai"],
   ["reports", "Ripoti", "Wadai"],
+  ["ripotiMteja", "Ripoti ya mteja — kwa siku, kwa mteja, History na PDF", "Wadai"],
   ["alerts", "Tahadhari (madeni + stock ndogo)", "Wadai"],
   ["pos", "POS ya mauzo", "POS"],
   ["jumla", "Bei za jumla kwenye POS", "POS"],
@@ -44,11 +45,12 @@ const FEATURES = [
   ["ripoti", "Ripoti za faida (POS)", "POS"],
 ];
 const BASE_F = ["owed", "owe", "products", "mainstore", "reports", "alerts"];
+const OPT_IN_F = ["ripotiMteja"];   // never switched on by an edition — the owner turns it on in Kiwanda for clients who want it
 const EDITIONS = {
   mali:  { name: "Mali Yangu", price: 15000, users: 1,   f: BASE_F },
   duka:  { name: "DukaSmart",  price: 30000, users: 3,   f: BASE_F.concat(["sales", "pos", "posMadeni", "matumizi", "funga", "whatsapp"]) },
   stoki: { name: "StokiPesa",  price: 45000, users: 6,   f: BASE_F.concat(["sales", "pos", "posMadeni", "matumizi", "funga", "whatsapp", "godown", "jumla"]) },
-  pro:   { name: "Hesabu Pro", price: 60000, users: 999, f: FEATURES.map((x) => x[0]) },
+  pro:   { name: "Hesabu Pro", price: 60000, users: 999, f: FEATURES.map((x) => x[0]).filter((k) => !OPT_IN_F.includes(k)) },
 };
 function presetFeatures(edition) { const e = EDITIONS[edition] || EDITIONS.duka; const o = {}; FEATURES.forEach(([k]) => (o[k] = e.f.includes(k))); return o; }
 

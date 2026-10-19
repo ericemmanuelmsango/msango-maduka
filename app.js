@@ -2866,9 +2866,11 @@ function renderReports() {
   const from = UI.plFrom || "0000-01-01";
   const to = UI.plTo || "9999-12-31";
   const cutAt = Number(STATE.settings.reportClearedAt) || 0;      // old "Futa zote" (before 2026-10-19 14:00); kept so nothing jumps back
-  const showHist = !!UI.plHistory;
+  const RP = typeof has === "function" ? has("ripotiMteja") : true;   // "Ripoti ya mteja" is chosen per client in Kiwanda
+  const PV = RP ? (UI.plView || "day") : "item";
+  const showHist = RP && !!UI.plHistory;
   const inView = (ts) => (showHist ? ts <= cutAt : ts > cutAt);
-  const salesInRange = reportLines().filter((s) => s.date >= from && s.date <= to && repArchived(s) === showHist).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const salesInRange = reportLines().filter((s) => s.date >= from && s.date <= to && (RP ? repArchived(s) === showHist : true)).sort((a, b) => (a.date < b.date ? 1 : -1));
   const revenue = salesInRange.reduce((s, x) => s + x.total, 0);
   const effBuy = (x) => (x.buyPrice != null ? x.buyPrice : buyPriceOf(itemById(x.itemId)));
   const cost = salesInRange.reduce((s, x) => { const b = effBuy(x); return s + (b != null ? b * x.qty : 0); }, 0);
@@ -2934,7 +2936,7 @@ function renderReports() {
   <div class="panel" id="sales-report-print" style="margin-top:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <h3 style="margin:0">💰 Sales Report &amp; Profit / Loss</h3>
-      <span class="no-print" style="display:flex;gap:6px"><button class="btn btn-sm btn-primary" onclick="UI.pdfOpen=!UI.pdfOpen;rerender();">📄 PDF</button><button class="btn btn-sm btn-ghost" onclick="printReport()">🖨️ Print</button></span>
+      <span class="no-print" style="display:flex;gap:6px">${RP ? `<button class="btn btn-sm btn-primary" onclick="UI.pdfOpen=!UI.pdfOpen;rerender();">📄 PDF</button>` : ""}<button class="btn btn-sm btn-ghost" onclick="printReport()">🖨️ Print</button></span>
     </div>
     <div class="discount-mode-toggle no-print" style="margin:10px 0">
       <button class="chip-btn" onclick="setPLPreset(1)">Today</button>
@@ -2956,10 +2958,10 @@ function renderReports() {
     </div>
     ${posRevenue > 0 ? `<p style="font-size:11.5px;color:#6b7280;margin:-6px 0 10px">POS sales in this range: <b>${fmt(posRevenue)}</b> (shown in the POS reports).</p>` : ""}
     ${unknownCostCount > 0 ? `<p style="font-size:11.5px;color:#b8862f;margin-bottom:10px">⚠️ ${unknownCostCount} sale(s) in this range have no known buying price (item was never received with a price in Main Store), so cost/profit may be understated.</p>` : ""}
-    ${UI.pdfOpen ? pdfPanel() : ""}
-    ${plViewTabs()}${plHistoryBar(showHist)}
-    ${(UI.plView || "day") === "day" ? plGroupTable(salesInRange, (x) => x.date, "Tarehe", effBuy, true, "d", showHist)
-      : UI.plView === "customer" ? plGroupTable(salesInRange, repCust, "Mteja", effBuy, false, "c", showHist)
+    ${RP && UI.pdfOpen ? pdfPanel() : ""}
+    ${RP ? plViewTabs() + plHistoryBar(showHist) : ""}
+    ${PV === "day" ? plGroupTable(salesInRange, (x) => x.date, "Tarehe", effBuy, true, "d", showHist)
+      : PV === "customer" ? plGroupTable(salesInRange, repCust, "Mteja", effBuy, false, "c", showHist)
       : `<table class="recent-table" style="width:100%">
       <thead><tr><th style="text-align:left;font-size:10.5px;color:#8290a4;padding:6px">Item</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Qty</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Sold @</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Bought @</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Profit</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Date</th></tr></thead>
       <tbody>
