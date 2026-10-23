@@ -148,6 +148,10 @@ table.t tr.click{cursor:pointer} table.t tr.click:hover td{background:var(--sf2)
 .rc{font-family:var(--fm);font-size:13px;background:#fff;color:#111;border-radius:10px;padding:14px;border:1px dashed #bbb;display:grid;gap:4px}
 .rc .c{text-align:center} .rc .b{font-weight:800} .rc hr{border:0;border-top:1px dashed #999;margin:4px 0;width:100%}
 .rc .ln{display:flex;justify-content:space-between;gap:8px}
+.rc table.ri{width:100%;border-collapse:collapse;font-size:12px}
+.rc table.ri th{font-weight:700;border-bottom:1px solid #999;padding:3px 2px;text-align:left}
+.rc table.ri td{padding:4px 2px;vertical-align:top}
+.rc table.ri .q{text-align:center;width:12%}.rc table.ri .n{text-align:right;white-space:nowrap;width:22%;padding-left:8px}
 .rc.w58{font-size:11.5px;max-width:58mm;margin:0 auto}
 @media print{
   @page{margin:0}

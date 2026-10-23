@@ -262,13 +262,15 @@ async function cameraScan(cb) {
 function biz() { return { name: (SHOP && SHOP.name) || "", phone: S("phone", (SHOP && SHOP.phone) || ""), address: S("address", (SHOP && SHOP.location) || ""), tin: S("tin", ""), footer: rcThanks(S("footer", "")) }; }
 // Ujumbe wa chini ya risiti: imani, upendo na kumvutia mteja arudi (ujumbe wa zamani wa default unabadilishwa)
 function rcThanks(f) { f = String(f || "").trim(); return !f || f === "Asante kwa kuja! Karibu tena." ? "Asante kwa kutuamini! 🙏\nBidhaa bora kwa bei nzuri.\nKaribu tena — tunakuthamini sana." : f; }
+// Safu ya idadi kwenye risiti: "Pcs" kwa bidhaa; "Idadi" kwa huduma (saluni, mgahawa, hoteli)
+function rcQtyLabel() { return ["saluni", "mgahawa", "hoteli"].includes((SHOP && SHOP.industry) || "") ? "Idadi" : "Pcs"; }
 function receiptText(r) {
   const b = biz(); const L = [];
   L.push("*" + b.name + "*"); if (b.phone) L.push("Simu: " + b.phone);
   L.push((r.title || "RISITI") + (r.no ? " #" + r.no : "")); L.push(fdate(today()) + " " + hm(Date.now()));
   if (r.customer) L.push("Mteja: " + r.customer);
   L.push("------------------------");
-  (r.items || []).forEach((i) => L.push(`${i.name} x${i.qty} = ${n0(i.qty * i.price)}`));
+  (r.items || []).forEach((i) => L.push(`${i.name}\n   ${rcQtyLabel()} ${i.qty} × ${n0(i.price)} = ${n0(i.qty * i.price)}`));
   L.push("------------------------");
   if (r.discount) L.push("Punguzo: -" + n0(r.discount));
   L.push("JUMLA: TSh " + n0(r.total));
@@ -283,7 +285,8 @@ function receipt(r) {
     <div class="c b">${esc(b.name)}</div>${b.address ? `<div class="c">${esc(b.address)}</div>` : ""}${b.phone ? `<div class="c">Simu: ${esc(b.phone)}</div>` : ""}
     <hr><div class="ln"><span>${esc(r.title || "RISITI")}${r.no ? " #" + esc(r.no) : ""}</span><span>${fdate(today())} ${hm(Date.now())}</span></div>
     ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>` : ""}<hr>
-    ${(r.items || []).map((i) => `<div class="ln"><span>${esc(i.name)} ×${i.qty}</span><span>${n0(i.qty * i.price)}</span></div>`).join("")}<hr>
+    ${(r.items || []).length ? `<table class="ri"><thead><tr><th>Bidhaa</th><th class="q">${rcQtyLabel()}</th><th class="n">Bei</th><th class="n">Jumla</th></tr></thead><tbody>
+    ${(r.items || []).map((i) => `<tr><td>${esc(i.name)}</td><td class="q">${i.qty}</td><td class="n">${n0(i.price)}</td><td class="n">${n0(i.qty * i.price)}</td></tr>`).join("")}</tbody></table>` : ""}<hr>
     ${r.discount ? `<div class="ln"><span>Punguzo</span><span>-${n0(r.discount)}</span></div>` : ""}
     <div class="ln b"><span>JUMLA</span><span>TSh ${n0(r.total)}</span></div>
     ${r.paid != null ? `<div class="ln"><span>Amelipa${r.method ? " (" + esc(r.method) + ")" : ""}</span><span>${n0(r.paid)}</span></div>` : ""}
