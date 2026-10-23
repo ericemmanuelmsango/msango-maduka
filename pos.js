@@ -105,7 +105,6 @@ function startListening() {
     D.payments = pick(PAY_PREFIX);
     D.closings = pick(CLOSE_PREFIX);
     D.pos = docs[POS_DOC] || null;
-    D.images = {}; Object.keys(docs).forEach((id) => { if (id.startsWith(IMG_PREFIX) && docs[id] && docs[id].data) D.images[docs[id].itemId || id.slice(IMG_PREFIX.length)] = docs[id].data; });
     D.sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: Date.now() };
     D.loaded = true;
     D.err = "";
@@ -147,7 +146,7 @@ function rebuildView() {
     return {
       id: it.id, name: it.name, key, category: it.category || "Other", store: it.store || "dukani",
       low: it.lowStockLimit != null && it.lowStockLimit !== "" ? Number(it.lowStockLimit) : 2,
-      qty: qty[it.id] || 0, buy, retail, image: (D.images && D.images[it.id]) || "", whole: wp != null && wp !== "" ? Number(wp) : retail, hasWhole: wp != null && wp !== "",
+      qty: qty[it.id] || 0, buy, retail, whole: wp != null && wp !== "" ? Number(wp) : retail, hasWhole: wp != null && wp !== "",
     };
   });
   V = { qty, items, byId: Object.fromEntries(items.map((i) => [i.id, i])) };
@@ -396,71 +395,6 @@ const lineUnit = (l) => { const it = itemById(l.itemId); return l.price != null 
 const cartTotal = () => U.cart.reduce((s, l) => s + lineUnit(l) * (Number(l.qty) || 0), 0);
 function categoriesOf(list) { return ["Zote", ...[...new Set(list.map((i) => i.category))].sort()]; }
 
-/* ---------- picha ndogo (thumbnail) ya kila bidhaa ----------
-   Kila bidhaa inapata alama (icon) kulingana na jina lake na rangi kulingana na aina yake,
-   ili muuzaji aitambue kwa haraka. Bidhaa ikiwa na picha yake (image), picha hiyo inatumika. */
-const THUMB_ICONS = [
-  [/bear|bering|beari/, "⚙️"], [/chain|cheni|sprocket|sproket|gia/, "⛓️"], [/plug|spark/, "⚡"],
-  [/brake|break|shoe|pad|disc|disk/, "🛑"], [/clutch|klachi/, "🔘"], [/tyre|tire|tairi|tube|tubu|rim|wheel/, "🛞"],
-  [/oil|mafuta|grease|grisi/, "🛢️"], [/bulb|light|taa|indicator|lamp/, "💡"], [/mirror|kioo/, "🪞"],
-  [/battery|betri/, "🔋"], [/cable|waya|wire/, "〰️"], [/filter|chujio/, "🧽"], [/bolt|nut|screw|nati|bolti/, "🔩"],
-  [/seat|kiti/, "💺"], [/horn|honi/, "📢"], [/carb|carburetor|kabureta/, "🧪"], [/piston|ring|cylinder|block/, "🔧"],
-  [/handle|grip|lever|throttle/, "🎛️"], [/shock|absorber|spring|fork/, "🌀"], [/helmet|kofia/, "⛑️"],
-];
-const THUMB_COLORS = ["#dbeafe", "#dcfce7", "#fef3c7", "#fce7f3", "#e0e7ff", "#ccfbf1", "#ffedd5", "#ede9fe", "#fee2e2", "#e2e8f0"];
-function thumbOf(it) {
-  const k = (it.key || it.name || "").toLowerCase();
-  const icon = (THUMB_ICONS.find(([re]) => re.test(k)) || [0, "🔧"])[1];
-  let h = 0; for (const ch of String(it.category || "x")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const ph = photoFor(it);
-  return `<span class="th" style="background:${THUMB_COLORS[h % THUMB_COLORS.length]}"><span class="ic">${icon}</span>${ph ? `<img class="ph" src="${esc(ph)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</span>`;
-}
-
-// Picha ya bidhaa: ile uliyoweka mwenyewe kwa 📷 tu (bila picha za mtandaoni)
-function photoFor(it) { return it.image || ""; }
-
-/* ---------- picha yako mwenyewe ya bidhaa (📷) ----------
-   Inapigwa/kupakiwa kwenye ukurasa wa Bidhaa, inapunguzwa ukubwa (≈20KB) na kuhifadhiwa
-   kwenye cloud (posimg_<id>) ili ionekane kwenye kila kifaa. */
-const IMG_PREFIX = "posimg_";
-function pickPhoto(id) {
-  const inp = document.createElement("input");
-  inp.type = "file"; inp.accept = "image/*"; inp.setAttribute("capture", "environment");
-  inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) savePhoto(id, f); };
-  inp.click();
-}
-function shrinkImage(file, W = 320, H = 240) {
-  return new Promise((ok, bad) => {
-    const url = URL.createObjectURL(file), img = new Image();
-    img.onload = () => {
-      const c = document.createElement("canvas"); c.width = W; c.height = H;
-      const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
-      const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
-      x.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
-      URL.revokeObjectURL(url);
-      let q = 0.75, data = c.toDataURL("image/jpeg", q);
-      while (data.length > 60000 && q > 0.35) { q -= 0.1; data = c.toDataURL("image/jpeg", q); }
-      ok(data);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Picha haisomeki")); };
-    img.src = url;
-  });
-}
-async function savePhoto(id, file) {
-  const it = itemById(id);
-  try {
-    toast("📷 Inahifadhi picha…");
-    const data = await shrinkImage(file);
-    await colRef.doc(IMG_PREFIX + id).set({ itemId: id, name: it ? it.name : "", data, at: Date.now(), by: U.user ? U.user.name : "" });
-    toast("✅ Picha imehifadhiwa");
-    logActivity("Ameweka picha ya bidhaa", it ? it.name : id);
-  } catch (e) { toast("⚠️ Picha haijahifadhiwa: " + e.message); }
-}
-function removePhoto(id) {
-  if (!confirm("Ondoa picha hii? Bidhaa itarudi kwenye picha ya aina yake.")) return;
-  colRef.doc(IMG_PREFIX + id).delete().then(() => toast("Picha imeondolewa")).catch(() => toast("⚠️ Haijaondolewa, angalia mtandao."));
-}
-
 function pagePOS() {
   const store = curStore();
   const all = storeItems(store);
@@ -484,11 +418,10 @@ function pagePOS() {
       const inCart = (U.cart.find((l) => l.itemId === i.id) || {}).qty || 0;
       const left = i.qty - inCart;
       const price = priceFor(i, U.mode);
-      return `<button class="prod" ${left <= 0 ? "disabled" : ""} onclick="addToCart('${i.id}')" title="${esc(i.name)} · ${esc(i.category)}">
-        ${thumbOf(i).replace(/<\/span>$/, `${inCart ? `<span class="qb cart">🛒 ${inCart}</span>` : ""}<span class="qb ${left <= i.low ? "low" : ""}">${i.qty <= 0 ? "Imeisha" : left <= 0 ? "0" : left}</span></span>`)}
-        <span class="bd"><span class="nm">${esc(i.name)}</span><span class="ct">${esc(i.category)}</span>
+      return `<button class="prod" ${left <= 0 ? "disabled" : ""} onclick="addToCart('${i.id}')">
+        <span class="nm">${esc(i.name)}</span><span class="ct">${esc(i.category)}</span>
         <span class="pr">${price > 0 ? fmt(price) : '<span style="color:var(--amber)">Bei haijawekwa</span>'}</span>
-        <span class="st ${left <= i.low ? "low" : ""}">${i.qty <= 0 ? "Imeisha" : left <= 0 ? "Zote ziko kikapuni" : (left <= i.low ? "⚠️ Zimebaki " : "Zipo: ") + left}</span></span></button>`;
+        <span class="st ${left <= i.low ? "low" : ""}">${i.qty <= 0 ? "Imeisha" : left <= 0 ? "Zote ziko kikapuni" : (left <= i.low ? "⚠️ " : "") + "Zipo: " + left}</span></button>`;
     }).join("") : `<div class="empty">${all.length ? "Hakuna spea inayolingana na utafutaji." : "Hakuna bidhaa kwenye stock ya " + storeLabel(store) + " bado. Ongeza bidhaa kwenye system ya kwanza (Pokea Mzigo)."}</div>`}</div>
     ${list.length > shown.length ? `<p class="hint">Zinaonyeshwa ${shown.length} kati ya ${list.length}. Andika jina zaidi ili kupunguza.</p>` : ""}
   </div>
@@ -694,16 +627,14 @@ function pageStock() {
     <div class="chips">${categoriesOf(all).map((c) => `<button class="chip ${U.stockCat === c ? "on" : ""}" onclick="U.stockCat='${esc(c)}';render()">${esc(c)}</button>`).join("")}</div>
     <div class="tbl-wrap"><table><thead><tr><th>Spea</th><th>Kundi</th>${isOwner() ? '<th class="r">Bei ya Kununua</th>' : ""}<th class="r">Rejareja</th><th class="r">Jumla</th><th class="r">Zipo</th>${isOwner() ? "<th></th>" : ""}</tr></thead><tbody>
     ${list.length ? list.map((i) => `<tr>
-      <td><div class="sname">${thumbOf(i).replace('class="th"', 'class="sthumb"')}<b>${esc(i.name)}</b></div></td><td style="color:var(--mute)">${esc(i.category)}</td>
+      <td><b>${esc(i.name)}</b></td><td style="color:var(--mute)">${esc(i.category)}</td>
       ${isOwner() ? `<td class="r">${i.buy != null ? num(i.buy) : "—"}</td>` : ""}
       <td class="r">${i.retail ? num(i.retail) : '<span class="badge am">hakuna</span>'}</td>
       <td class="r">${i.hasWhole ? num(i.whole) : `<span style="color:var(--mute)">${i.retail ? num(i.retail) : "—"}</span>`}</td>
       <td class="r"><span class="badge ${i.qty <= 0 ? "" : i.qty <= i.low ? "am" : "ok"}">${i.qty}</span></td>
-      ${isOwner() ? `<td class="r" style="white-space:nowrap"><button class="btn btn-g sm" title="Piga/weka picha ya bidhaa hii" onclick="pickPhoto('${i.id}')">📷</button>${i.image ? `<button class="btn btn-g sm" title="Ondoa picha" onclick="removePhoto('${i.id}')">🗑️</button>` : ""}
-        <button class="btn btn-g sm" onclick="U.editPrice={id:'${i.id}',retail:'${i.retail || ""}',whole:'${i.hasWhole ? i.whole : ""}'};render()">✏️</button></td>` : ""}
+      ${isOwner() ? `<td class="r"><button class="btn btn-g sm" onclick="U.editPrice={id:'${i.id}',retail:'${i.retail || ""}',whole:'${i.hasWhole ? i.whole : ""}'};render()">✏️</button></td>` : ""}
     </tr>`).join("") : `<tr><td colspan="7" class="empty">Hakuna spea inayolingana.</td></tr>`}
     </tbody></table></div>
-    <p class="hint">📷 Bonyeza 📷 kupiga au kuweka picha halisi ya bidhaa yako; itaonekana kwenye ukurasa wa Uza. Bidhaa zisizo na picha zinaonyesha alama ya aina yake.</p>
     <p class="hint">Stock hii inatoka moja kwa moja kwenye system ya kwanza. Mzigo mpya unapokelewa kule (📥 Pokea Mzigo), na unaonekana hapa papo hapo.</p>
   </div>`;
 }
