@@ -416,45 +416,9 @@ function thumbOf(it) {
   return `<span class="th" style="background:${THUMB_COLORS[h % THUMB_COLORS.length]}"><span class="ic">${icon}</span>${ph ? `<img class="ph" src="${esc(ph)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</span>`;
 }
 
-/* ---------- picha halisi za aina za spea (Wikimedia Commons, leseni huru CC) ----------
-   Kila bidhaa inapata picha ya aina yake kwa jina lake (mf. "CHAIN KITI T36" → picha ya chain).
-   Bidhaa yenye picha yake mwenyewe (📷 kwenye ukurasa wa Bidhaa) inatumia picha hiyo. */
-const PHOTO_TYPES = [
-  [/\bTUBE\b|\bTUBU\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/TPU_vs._butyl_inner_tubes_02.jpg/330px-TPU_vs._butyl_inner_tubes_02.jpg"],
-  [/TYRE|TAIRI|\bTIRE/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Motorcycle_tyre_stack.jpg/330px-Motorcycle_tyre_stack.jpg"],
-  [/SPORKET|SPROCKET|SPOKERT|SPROKET|\bJINO\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Flame_hardened_sprocket.jpg/330px-Flame_hardened_sprocket.jpg"],
-  [/CHAIN|CHENI/, "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/R1_Chain.jpg/330px-R1_Chain.jpg"],
-  [/PISTON|\bRING\b|PISTONI/, "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Piston_of_DAT_engine.jpg/330px-Piston_of_DAT_engine.jpg"],
-  [/\bPLUG\b|SPARK|SAPRESA/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/BERU_dynaflex_spark_plug.JPG/330px-BERU_dynaflex_spark_plug.JPG"],
-  [/BEARING|BERING|\bBB\b|GOLOLI|\bBALL\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Deep_Groove_Ball_Bearing.jpg/330px-Deep_Groove_Ball_Bearing.jpg"],
-  [/GASKET|GASCKET|PAKING/, "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Gaskets.jpg/330px-Gaskets.jpg"],
-  [/\bSEAL\b|\bSIL\b|O RING|ORING/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/O-rings.jpg/330px-O-rings.jpg"],
-  [/CLUCH|CLUTCH|KLACHI/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Clutch_discs.jpg/330px-Clutch_discs.jpg"],
-  [/BRAKE PAD|\bPAD\b|DISC/, "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Brake_pads.JPG/330px-Brake_pads.JPG"],
-  [/BRAKE|BREAK|\bSHOW\b|\bSHOE\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Brake_shoe.jpg/330px-Brake_shoe.jpg"],
-  [/HEADLIGHT|HEAD LIGHT|SPORT LIGHT|SPOT LIGHT|SPORTLIGHT/, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Scooter_headlights.jpg/330px-Scooter_headlights.jpg"],
-  [/INDICATOR|SIGNAL/, "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Turn_Signal.JPEG/330px-Turn_Signal.JPEG"],
-  [/TAIL ?LAMP|TAILAMP|TAIL LIGHT|\bTAIL\b|STOP LIGHT/, "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/TAIL_LAMP_-Royal_Enfield_Motorcycle_1961.jpg/330px-TAIL_LAMP_-Royal_Enfield_Motorcycle_1961.jpg"],
-  [/HANDLE|HANDEL/, "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Honda_VTR250_2009_Handlebar.JPG/330px-Honda_VTR250_2009_Handlebar.JPG"],
-  [/\bOIL\b|TOTAL|CASTROL|QUARTS|\bMAFUTA\b|SAL SEA/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Motor_oil.JPG/330px-Motor_oil.JPG"],
-  [/CRANK|KRANK/, "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Honda_NSR250R_MC18_CrankShaft.JPG/330px-Honda_NSR250R_MC18_CrankShaft.JPG"],
-  [/SHOKUP|SHOCK|SHOKAP|ABSORBER/, "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Shock_Absorbers_Detail.jpg/330px-Shock_Absorbers_Detail.jpg"],
-  [/BETTRY|BATTERY|BETRI|BATTRY/, "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Lead-acid_battery_for_motorcycle.jpg/330px-Lead-acid_battery_for_motorcycle.jpg"],
-  [/CARBURATOR|CARBURETOR|CABURETA|KABURETA|CARB\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Keihin_carburetor.jpg/330px-Keihin_carburetor.jpg"],
-  [/\bTANG\b|\bTANK\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/RTV_motorcycle_tank.jpg/330px-RTV_motorcycle_tank.jpg"],
-  [/MAGNETO|STATER|STATOR|\bCOIL\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Stator.JPG/330px-Stator.JPG"],
-  [/FRAWIL|FLYWHEEL|FLAWIL/, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Flywheel.JPG/330px-Flywheel.JPG"],
-  [/\bBOLT\b|\bNATI\b|\bNUT\b|\bSTAD\b|\bSTUD\b|SCREW/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Big_Bolt_and_Nut.jpg/330px-Big_Bolt_and_Nut.jpg"],
-  [/SPEED|DASHBOARD|\bDASH\b|METER/, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/2014_Honda_Supra_X_125R_FI_Speedometer.jpg/330px-2014_Honda_Supra_X_125R_FI_Speedometer.jpg"],
-  [/\bRIM\b|SPOKU|SPOKE/, "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Spokes.jpg/330px-Spokes.jpg"],
-  [/\bGEAR|PINION|BENDEX|GIA\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Spur_gear.JPG/330px-Spur_gear.JPG"],
-];
-function photoFor(it) {
-  if (it.image) return it.image;
-  const k = String(it.name || "").toUpperCase();
-  const r = PHOTO_TYPES.find(([re]) => re.test(k));
-  return r ? r[1] : "";
-}
+// Picha ya bidhaa: ile uliyoweka mwenyewe kwa 📷 tu (bila picha za mtandaoni)
+function photoFor(it) { return it.image || ""; }
+
 /* ---------- picha yako mwenyewe ya bidhaa (📷) ----------
    Inapigwa/kupakiwa kwenye ukurasa wa Bidhaa, inapunguzwa ukubwa (≈20KB) na kuhifadhiwa
    kwenye cloud (posimg_<id>) ili ionekane kwenye kila kifaa. */
@@ -739,7 +703,7 @@ function pageStock() {
         <button class="btn btn-g sm" onclick="U.editPrice={id:'${i.id}',retail:'${i.retail || ""}',whole:'${i.hasWhole ? i.whole : ""}'};render()">✏️</button></td>` : ""}
     </tr>`).join("") : `<tr><td colspan="7" class="empty">Hakuna spea inayolingana.</td></tr>`}
     </tbody></table></div>
-    <p class="hint">📷 Bonyeza 📷 kupiga au kuweka picha halisi ya bidhaa yako; itaonekana kwenye ukurasa wa Uza. Bidhaa zisizo na picha zinaonyesha picha ya mfano ya aina yake (Wikimedia Commons, leseni huru CC). <a href="picha.html" target="_blank" rel="noopener">Ona picha zote za aina</a>.</p>
+    <p class="hint">📷 Bonyeza 📷 kupiga au kuweka picha halisi ya bidhaa yako; itaonekana kwenye ukurasa wa Uza. Bidhaa zisizo na picha zinaonyesha alama ya aina yake.</p>
     <p class="hint">Stock hii inatoka moja kwa moja kwenye system ya kwanza. Mzigo mpya unapokelewa kule (📥 Pokea Mzigo), na unaonekana hapa papo hapo.</p>
   </div>`;
 }
