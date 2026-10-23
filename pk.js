@@ -259,7 +259,9 @@ async function cameraScan(cb) {
 }
 
 /* ---------- risiti ---------- */
-function biz() { return { name: (SHOP && SHOP.name) || "", phone: S("phone", (SHOP && SHOP.phone) || ""), address: S("address", (SHOP && SHOP.location) || ""), tin: S("tin", ""), footer: S("footer", "Asante kwa kuja! Karibu tena.") }; }
+function biz() { return { name: (SHOP && SHOP.name) || "", phone: S("phone", (SHOP && SHOP.phone) || ""), address: S("address", (SHOP && SHOP.location) || ""), tin: S("tin", ""), footer: rcThanks(S("footer", "")) }; }
+// Ujumbe wa chini ya risiti: imani, upendo na kumvutia mteja arudi (ujumbe wa zamani wa default unabadilishwa)
+function rcThanks(f) { f = String(f || "").trim(); return !f || f === "Asante kwa kuja! Karibu tena." ? "Asante kwa kutuamini! 🙏\nBidhaa bora kwa bei nzuri.\nKaribu tena — tunakuthamini sana." : f; }
 function receiptText(r) {
   const b = biz(); const L = [];
   L.push("*" + b.name + "*"); if (b.phone) L.push("Simu: " + b.phone);
@@ -278,16 +280,16 @@ function receiptText(r) {
 function receipt(r) {
   const b = biz();
   const html = `${mhead(r.title || "Risiti")}<div class="rc ${S("rcw", "80") === "58" ? "w58" : ""}">
-    <div class="c b">${esc(b.name)}</div>${b.address ? `<div class="c">${esc(b.address)}</div>` : ""}${b.phone ? `<div class="c">Simu: ${esc(b.phone)}</div>` : ""}${b.tin ? `<div class="c">TIN: ${esc(b.tin)}</div>` : ""}
+    <div class="c b">${esc(b.name)}</div>${b.address ? `<div class="c">${esc(b.address)}</div>` : ""}${b.phone ? `<div class="c">Simu: ${esc(b.phone)}</div>` : ""}
     <hr><div class="ln"><span>${esc(r.title || "RISITI")}${r.no ? " #" + esc(r.no) : ""}</span><span>${fdate(today())} ${hm(Date.now())}</span></div>
-    ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>` : ""}${r.by !== false && PK.user ? `<div>Mhudumu: ${esc(PK.user.name)}</div>` : ""}<hr>
+    ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>` : ""}<hr>
     ${(r.items || []).map((i) => `<div class="ln"><span>${esc(i.name)} ×${i.qty}</span><span>${n0(i.qty * i.price)}</span></div>`).join("")}<hr>
     ${r.discount ? `<div class="ln"><span>Punguzo</span><span>-${n0(r.discount)}</span></div>` : ""}
     <div class="ln b"><span>JUMLA</span><span>TSh ${n0(r.total)}</span></div>
     ${r.paid != null ? `<div class="ln"><span>Amelipa${r.method ? " (" + esc(r.method) + ")" : ""}</span><span>${n0(r.paid)}</span></div>` : ""}
     ${r.change ? `<div class="ln"><span>Chenji</span><span>${n0(r.change)}</span></div>` : ""}
     ${r.balance ? `<div class="ln b"><span>Deni</span><span>${n0(r.balance)}</span></div>` : ""}
-    ${(r.notes || []).map((x) => `<div>${esc(x)}</div>`).join("")}<hr><div class="c">${esc(b.footer)}</div></div>
+    ${(r.notes || []).map((x) => `<div>${esc(x)}</div>`).join("")}<hr><div class="c" style="white-space:pre-line">${esc(b.footer)}</div></div>
     <div class="row"><input id="rc-phone" class="f" style="flex:1;min-width:150px" inputmode="tel" placeholder="Simu ya mteja (WhatsApp)" value="${esc(r.phone || "")}">
       <button class="btn p" onclick="sendWA(val('rc-phone'))">📲 WhatsApp</button><button class="btn" onclick="window.print()">🖨️ Chapisha</button></div>`;
   PK._rc = r; modal(html);
@@ -520,7 +522,6 @@ function pageSettings() {
   return `<div class="card"><h3>Biashara (inaonekana kwenye risiti)</h3><div class="form">
       <label class="l">Simu<input id="st-phone" class="f" value="${esc(b.phone)}"></label>
       <label class="l">Anwani<input id="st-address" class="f" value="${esc(b.address)}"></label>
-      <label class="l">TIN<input id="st-tin" class="f" value="${esc(b.tin)}"></label>
       <label class="l">Ujumbe wa chini ya risiti<input id="st-footer" class="f" value="${esc(b.footer)}"></label></div></div>
     ${extra.length ? `<div class="card"><h3>${esc(PK.pack.name)}</h3><div class="form">${extra.map(fld).join("")}</div></div>` : ""}
     <div class="card"><h3>Risiti</h3><div class="form"><label class="l">Upana wa printer<select id="st-rcw" class="f">${opt([["80", "80mm (kubwa)"], ["58", "58mm (ndogo, Bluetooth)"]], S("rcw", "80"))}</select></label></div></div>
@@ -529,7 +530,7 @@ function pageSettings() {
     ${dukaSignOutButton().replace(/class="btn btn-ghost"/g, 'class="btn"').replace(/class="panel"/, 'class="card"')}`;
 }
 function settingsSave() {
-  const p = { phone: val("st-phone"), address: val("st-address"), tin: val("st-tin"), footer: val("st-footer"), rcw: val("st-rcw") || "80" };
+  const p = { phone: val("st-phone"), address: val("st-address"), footer: val("st-footer"), rcw: val("st-rcw") || "80" };
   (PK.pack.settings || []).forEach((s) => { const v = val("st-" + s.key); p[s.key] = s.type === "number" ? num(v) : v; });
   saveSettings(p).then(() => toast("✅ Mipangilio imehifadhiwa"));
 }

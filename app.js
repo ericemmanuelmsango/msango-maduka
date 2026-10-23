@@ -2838,6 +2838,7 @@ function renderCustomerReceiptModal() {
           </tbody>
         </table>
         <div class="receipt-total-row"><span>Grand Total</span><span>${fmt(total)}</span></div>
+        <p style="text-align:center;margin-top:12px;font-size:12px;color:#4b5563;line-height:1.5">Asante kwa kutuamini! 🙏<br>Bidhaa bora kwa bei nzuri.<br>Karibu tena — tunakuthamini sana.</p>
       </div>
       <div class="modal-actions no-print">
         <button class="btn btn-ghost" onclick="UI.customerReceipt=null;rerender();">Close</button>
@@ -4406,7 +4407,7 @@ function renderGrnModal() {
         <div style="text-align:center;margin-bottom:14px">
           <div style="display:flex;justify-content:center;margin-bottom:6px">${companyLogo(48)}</div>
           <h2 style="margin:0">${esc(bizName())}</h2>
-          <p style="font-size:11.5px;color:#6b7280;margin-top:4px">${SHOP ? esc(SHOP.phone ? "Simu: " + SHOP.phone : "") : "TIN NO: 118-065-771 &nbsp;·&nbsp; P.O. Box, Arusha"}</p>
+          <p style="font-size:11.5px;color:#6b7280;margin-top:4px">${SHOP ? esc(SHOP.phone ? "Simu: " + SHOP.phone : "") : "P.O. Box, Arusha"}</p>
           <p style="font-size:13px;font-weight:700;margin-top:8px;text-decoration:underline">GOODS RECEIVED NOTE</p>
         </div>
         <div class="receipt-meta" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 16px">
@@ -4532,7 +4533,7 @@ function renderDeliveryNoteModal() {
         <div style="text-align:center;margin-bottom:14px">
           <div style="display:flex;justify-content:center;margin-bottom:6px">${companyLogo(48)}</div>
           <h2 style="margin:0">${esc(bizName())}</h2>
-          <p style="font-size:11.5px;color:#6b7280;margin-top:4px">${SHOP ? esc(SHOP.phone ? "Simu: " + SHOP.phone : "") : "TIN NO: 118-065-771 &nbsp;·&nbsp; P.O. Box, Arusha"}</p>
+          <p style="font-size:11.5px;color:#6b7280;margin-top:4px">${SHOP ? esc(SHOP.phone ? "Simu: " + SHOP.phone : "") : "P.O. Box, Arusha"}</p>
           <p style="font-size:13px;font-weight:700;margin-top:8px;text-decoration:underline">DELIVERY NOTE</p>
         </div>
         <div class="receipt-meta">
@@ -4605,6 +4606,7 @@ function renderReceiptModal() {
         </table>
         <div class="receipt-total-row"><span>Grand Total</span><span>${fmt(charge.amount)}</span></div>
         ${charge.description ? `<p style="margin-top:10px;font-style:italic;color:#6b7280;font-size:12px">${esc(charge.description)}</p>` : ""}
+        <p style="text-align:center;margin-top:12px;font-size:12px;color:#4b5563;line-height:1.5">Asante kwa kutuamini! 🙏<br>Bidhaa bora kwa bei nzuri.<br>Karibu tena — tunakuthamini sana.</p>
       </div>
       <div class="modal-actions no-print">
         <button class="btn btn-ghost" onclick="UI.receiptEntryId=null;rerender();">Close</button>

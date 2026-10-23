@@ -57,20 +57,25 @@ const D = {
   sales: [], expenses: [], payments: [], closings: [], pos: null, needDeviceLogin: false,
   parts: {},            // shared field -> number of part documents
 };
+// Ujumbe wa chini ya risiti: imani, upendo na kumvutia mteja arudi
+const RECEIPT_THANKS = "Asante kwa kutuamini! 🙏\nBidhaa bora kwa bei nzuri.\nKaribu tena — tunakuthamini sana.";
+const OLD_FOOTERS = ["Asante kwa kununua! Karibu tena 🙏", "Asante kwa kununua! Karibu tena", ""];
 const POS_DEFAULTS = {
   users: [], wholePrices: {}, defaultStore: "dukani", allowPriceEdit: true, counter: 0, activity: [],
   shop: {
     name: "E.E.MSANGO COMPANY LIMITED",
     line: "SPEA ZA PIKIPIKI — JUMLA NA REJAREJA",
-    tin: "118-065-771",
+    tin: "",
     phone: "",
     address: "",
-    footer: "Asante kwa kununua! Karibu tena 🙏",
+    footer: RECEIPT_THANKS,
   },
 };
 function posCfg() {
   const p = D.pos || {};
-  return { ...POS_DEFAULTS, ...p, shop: { ...POS_DEFAULTS.shop, ...(p.shop || {}) }, wholePrices: p.wholePrices || {}, users: p.users || [], activity: p.activity || [] };
+  const shop = { ...POS_DEFAULTS.shop, ...(p.shop || {}) };
+  if (OLD_FOOTERS.includes(String(shop.footer || "").trim())) shop.footer = RECEIPT_THANKS;
+  return { ...POS_DEFAULTS, ...p, shop, wholePrices: p.wholePrices || {}, users: p.users || [], activity: p.activity || [] };
 }
 
 function startListening() {
@@ -945,7 +950,7 @@ function pageSettings() {
   const field = (k, label, ph) => `<label class="l">${label}</label><input id="sh-${k}" class="field" value="${esc(sh[k] || "")}" placeholder="${ph || ""}" onchange="saveShop('${k}',this.value)">`;
   return `<div class="split">
   <div class="panel"><h2>🧾 Maelezo ya risiti</h2>
-    ${field("name", "Jina la biashara")}${field("line", "Maelezo (chini ya jina)")}${field("tin", "TIN Number")}
+    ${field("name", "Jina la biashara")}${field("line", "Maelezo (chini ya jina)")}
     ${field("phone", "Namba ya simu", "mf. 0754 000 000")}${field("address", "Mahali / Sanduku la posta", "mf. Mwanza")}${field("footer", "Ujumbe wa chini ya risiti")}
     <p class="hint">Logo inatoka kwenye system ya kwanza (Settings → Logo). Mabadiliko yanahifadhiwa yenyewe.</p>
   </div>
@@ -989,13 +994,12 @@ function receiptModal(r) {
     <div class="lg">${logoHtml()}</div>
     <h3>${esc(sh.name)}</h3>
     <div class="c" style="font-weight:700">${esc(sh.line)}</div>
-    ${sh.tin ? `<div class="c">TIN: ${esc(sh.tin)}</div>` : ""}
     ${sh.phone ? `<div class="c">Simu: ${esc(sh.phone)}</div>` : ""}
     ${sh.address ? `<div class="c">${esc(sh.address)}</div>` : ""}
     <div class="dl"></div>
-    <div class="rr"><span>Risiti: <b>${esc(r.no)}</b></span><span>${dateTimeStr(r.createdAt)}</span></div>
-    <div class="rr"><span>Muuzaji: ${esc(r.userName)}</span><span>${r.mode === "jumla" ? "JUMLA" : "REJAREJA"}</span></div>
-    ${r.customer ? `<div class="rr"><span>Mteja: ${esc(r.customer)}</span><span>${esc(r.phone || "")}</span></div>` : ""}
+    <div class="rr"><span>Risiti: <b>${esc(r.no)}</b></span><span>${r.mode === "jumla" ? "JUMLA" : "REJAREJA"}</span></div>
+    <div>${dateTimeStr(r.createdAt)}</div>
+    ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>${r.phone ? `<div>Simu: ${esc(r.phone)}</div>` : ""}` : ""}
     <div class="dl"></div>
     ${r.items.map((i) => `<div>${esc(i.name)}</div><div class="rr"><span>&nbsp;${i.qty} × ${num(i.price)}</span><span>${num(i.lineTotal)}</span></div>`).join("")}
     <div class="dl"></div>
@@ -1004,7 +1008,7 @@ function receiptModal(r) {
     ${r.pay === "Cash" ? `<div class="rr"><span>Ametoa</span><span>${fmt(r.paid)}</span></div><div class="rr"><span>Chenji</span><span>${fmt(change)}</span></div>` : ""}
     ${r.pay === "Mkopo" ? `<div class="c" style="margin-top:4px">*** MKOPO — imeandikwa kwenye deni ***</div>` : ""}
     ${r.deleted ? `<div class="c" style="color:#c00;font-weight:800;margin-top:4px">*** IMEFUTWA ***</div>` : ""}
-    <div class="dl"></div><div class="c">${esc(sh.footer)}</div>
+    <div class="dl"></div><div class="c" style="white-space:pre-line">${esc(sh.footer)}</div>
   </div>
   <div class="ov-actions no-print"><button class="btn btn-g" onclick="U.receipt=null;render()">Funga</button>
     ${has("whatsapp") ? `<button class="btn btn-a" onclick="sendWhatsApp(U.receipt.phone, saleText(U.receipt))">📲 WhatsApp</button>` : ""}
@@ -1015,7 +1019,7 @@ function printListModal() {
   return `<div class="ov"><div style="width:100%;max-width:780px">
   <div class="rcpt wide print-area">
     <div class="lg">${logoHtml()}</div>
-    <h3>${esc(sh.name)}</h3><div class="c">${esc(sh.line)}${sh.tin ? " · TIN " + esc(sh.tin) : ""}</div>
+    <h3>${esc(sh.name)}</h3><div class="c">${esc(sh.line)}</div>
     <div class="dl"></div>
     <h3 style="text-align:left">${esc(p.title)}</h3><div style="font-size:11.5px;color:#555;margin-bottom:8px">${esc(p.sub)}</div>
     <table><thead><tr>${p.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>
@@ -1046,7 +1050,7 @@ auth.onAuthStateChanged(async (u) => {
   if (shopBlocked()) { D.loaded = true; D.blocked = true; render(); return; }
   if (adminHome()) { D.loaded = true; D.adminHome = true; render(); return; }
   colRef = dataCollection();
-  if (SHOP) POS_DEFAULTS.shop = { name: SHOP.name, line: (SHOP.brand && SHOP.brand.tagline) || "", tin: "", phone: SHOP.phone || "", address: SHOP.location || "", footer: "Asante kwa kununua! Karibu tena 🙏" };
+  if (SHOP) POS_DEFAULTS.shop = { name: SHOP.name, line: (SHOP.brand && SHOP.brand.tagline) || "", tin: "", phone: SHOP.phone || "", address: SHOP.location || "", footer: RECEIPT_THANKS };
   startListening();
 });
 // keep the session across a page refresh on this device (still needs PIN after closing the app)
@@ -1112,7 +1116,7 @@ function sendWhatsApp(phone, text) {
 }
 function shopHeaderText() {
   const sh = posCfg().shop;
-  return `*${sh.name}*\n${sh.line}${sh.tin ? "\nTIN: " + sh.tin : ""}${sh.phone ? "\nSimu: " + sh.phone : ""}`;
+  return `*${sh.name}*\n${sh.line}${sh.phone ? "\nSimu: " + sh.phone : ""}`;
 }
 function saleText(r) {
   return `${shopHeaderText()}\n\n🧾 Risiti: *${r.no}*\n📅 ${dateTimeStr(r.createdAt)}\n${r.customer ? "👤 " + r.customer + "\n" : ""}\n` +
@@ -1206,7 +1210,7 @@ function payReceiptModal(r) {
   <div class="rcpt print-area">
     <div class="lg">${logoHtml()}</div>
     <h3>${esc(sh.name)}</h3><div class="c" style="font-weight:700">${esc(sh.line)}</div>
-    ${sh.tin ? `<div class="c">TIN: ${esc(sh.tin)}</div>` : ""}${sh.phone ? `<div class="c">Simu: ${esc(sh.phone)}</div>` : ""}
+    ${sh.phone ? `<div class="c">Simu: ${esc(sh.phone)}</div>` : ""}
     <div class="dl"></div>
     <div class="c" style="font-weight:800;color:#111">RISITI YA MALIPO YA DENI</div>
     <div class="dl"></div>
@@ -1219,7 +1223,7 @@ function payReceiptModal(r) {
     <div class="rr"><span>Njia</span><span>${esc(r.via)}</span></div>
     <div class="rr" style="font-weight:700"><span>Deni lililobaki</span><span>${fmt(Math.max(0, r.balanceAfter))}</span></div>
     ${r.note ? `<div class="rr"><span>Maelezo</span><span>${esc(r.note)}</span></div>` : ""}
-    <div class="dl"></div><div class="c">${esc(sh.footer)}</div>
+    <div class="dl"></div><div class="c" style="white-space:pre-line">${esc(sh.footer)}</div>
   </div>
   <div class="ov-actions no-print"><button class="btn btn-g" onclick="U.payReceipt=null;render()">Funga</button>
     ${has("whatsapp") ? `<button class="btn btn-a" onclick="sendWhatsApp(U.payReceipt.phone, payText(U.payReceipt))">📲 WhatsApp</button>` : ""}

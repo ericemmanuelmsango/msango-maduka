@@ -317,7 +317,7 @@ async function adminCreateShop(o) {
   shop.clientId = clientId;
   await ref.set(shop);
   await db.collection("brands").doc(code).set(shopPublic(shop));
-  await ref.collection("data").doc("pos_settings").set({ shop: { name, line: shop.brand.tagline || "", tin: "", phone: shop.phone, address: shop.location, footer: "Asante kwa kununua! Karibu tena 🙏" } }, { merge: true });
+  await ref.collection("data").doc("pos_settings").set({ shop: { name, line: shop.brand.tagline || "", tin: "", phone: shop.phone, address: shop.location, footer: "Asante kwa kutuamini! 🙏\nBidhaa bora kwa bei nzuri.\nKaribu tena — tunakuthamini sana." } }, { merge: true });
   const cref = db.collection("clients").doc(clientId);
   const cdoc = await cref.get();
   const crmPatch = { shopCode: code, edition: shop.edition, updatedAt: now };
