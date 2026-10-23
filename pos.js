@@ -997,7 +997,7 @@ function receiptModal(r) {
     ${sh.phone ? `<div class="c">Simu: ${esc(sh.phone)}</div>` : ""}
     ${sh.address ? `<div class="c">${esc(sh.address)}</div>` : ""}
     <div class="dl"></div>
-    <div class="rr"><span>Risiti: <b>${esc(r.no)}</b></span><span>${r.mode === "jumla" ? "JUMLA" : "REJAREJA"}</span></div>
+    <div>Risiti: <b>${esc(r.no)}</b></div>
     <div>${dateTimeStr(r.createdAt)}</div>
     ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>${r.phone ? `<div>Simu: ${esc(r.phone)}</div>` : ""}` : ""}
     <div class="dl"></div>
