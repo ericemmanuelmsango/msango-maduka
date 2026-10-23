@@ -1001,7 +1001,9 @@ function receiptModal(r) {
     <div>${dateTimeStr(r.createdAt)}</div>
     ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>${r.phone ? `<div>Simu: ${esc(r.phone)}</div>` : ""}` : ""}
     <div class="dl"></div>
-    ${r.items.map((i) => `<div>${esc(i.name)}</div><div class="rr"><span>&nbsp;${i.qty} pcs × ${num(i.price)}</span><span>${num(i.lineTotal)}</span></div>`).join("")}
+    <table class="ri"><thead><tr><th>Bidhaa</th><th class="q">Pcs</th><th class="n">Bei</th><th class="n">Jumla</th></tr></thead><tbody>
+    ${r.items.map((i) => `<tr><td>${esc(i.name)}</td><td class="q">${i.qty}</td><td class="n">${num(i.price)}</td><td class="n">${num(i.lineTotal)}</td></tr>`).join("")}
+    </tbody></table>
     <div class="dl"></div>
     <div class="rr" style="font-weight:800;font-size:14px"><span>JUMLA</span><span>${fmt(r.total)}</span></div>
     <div class="rr"><span>Malipo</span><span>${r.pay === "M-Pesa" ? "Simu/Benki" : esc(r.pay)}</span></div>
@@ -1120,7 +1122,7 @@ function shopHeaderText() {
 }
 function saleText(r) {
   return `${shopHeaderText()}\n\n🧾 Risiti: *${r.no}*\n📅 ${dateTimeStr(r.createdAt)}\n${r.customer ? "👤 " + r.customer + "\n" : ""}\n` +
-    r.items.map((i) => `• ${i.name}\n   ${i.qty} pcs × ${num(i.price)} = ${num(i.lineTotal)}`).join("\n") +
+    r.items.map((i) => `• ${i.name}\n   Pcs ${i.qty} × ${num(i.price)} = ${num(i.lineTotal)}`).join("\n") +
     `\n\n*JUMLA: ${fmt(r.total)}*\nMalipo: ${r.pay === "M-Pesa" ? "Simu/Benki" : r.pay}${r.pay === "Mkopo" ? " (deni)" : ""}\n\n${posCfg().shop.footer}`;
 }
 
