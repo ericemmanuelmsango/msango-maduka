@@ -101,6 +101,10 @@ main{padding:14px;width:100%}
 .prod .qb{position:absolute;top:6px;right:6px;background:rgba(15,23,42,.78);color:#fff;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px}
 .prod .qb.low{background:#dc2626}
 .prod .qb.cart{left:6px;right:auto;background:#0f766e}
+.prod .th img.ph,.sthumb img.ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}
+.sthumb{position:relative;display:inline-flex;align-items:center;justify-content:center;width:46px;height:36px;border-radius:8px;overflow:hidden;vertical-align:middle;margin-right:8px;flex:none}
+.sthumb .ic{font-size:20px}
+.sname{display:flex;align-items:center}
 .prod:disabled{opacity:.55}.prod:disabled .th{filter:grayscale(1)}
 
 .prod .nm{font-weight:700;font-size:12.5px;line-height:1.25}
@@ -216,7 +220,7 @@ h3{font-size:14.5px;margin:0 0 10px}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="duka.js?v=11"></script>
-<script src="pos.js?v=mm11"></script>
+<script src="pos.js?v=mm12"></script>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>

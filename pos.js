@@ -105,6 +105,7 @@ function startListening() {
     D.payments = pick(PAY_PREFIX);
     D.closings = pick(CLOSE_PREFIX);
     D.pos = docs[POS_DOC] || null;
+    D.images = {}; Object.keys(docs).forEach((id) => { if (id.startsWith(IMG_PREFIX) && docs[id] && docs[id].data) D.images[docs[id].itemId || id.slice(IMG_PREFIX.length)] = docs[id].data; });
     D.sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: Date.now() };
     D.loaded = true;
     D.err = "";
@@ -146,7 +147,7 @@ function rebuildView() {
     return {
       id: it.id, name: it.name, key, category: it.category || "Other", store: it.store || "dukani",
       low: it.lowStockLimit != null && it.lowStockLimit !== "" ? Number(it.lowStockLimit) : 2,
-      qty: qty[it.id] || 0, buy, retail, whole: wp != null && wp !== "" ? Number(wp) : retail, hasWhole: wp != null && wp !== "",
+      qty: qty[it.id] || 0, buy, retail, image: (D.images && D.images[it.id]) || "", whole: wp != null && wp !== "" ? Number(wp) : retail, hasWhole: wp != null && wp !== "",
     };
   });
   V = { qty, items, byId: Object.fromEntries(items.map((i) => [i.id, i])) };
@@ -408,11 +409,92 @@ const THUMB_ICONS = [
 ];
 const THUMB_COLORS = ["#dbeafe", "#dcfce7", "#fef3c7", "#fce7f3", "#e0e7ff", "#ccfbf1", "#ffedd5", "#ede9fe", "#fee2e2", "#e2e8f0"];
 function thumbOf(it) {
-  if (it.image) return `<span class="th"><img src="${esc(it.image)}" alt="" loading="lazy"></span>`;
   const k = (it.key || it.name || "").toLowerCase();
   const icon = (THUMB_ICONS.find(([re]) => re.test(k)) || [0, "🔧"])[1];
   let h = 0; for (const ch of String(it.category || "x")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return `<span class="th" style="background:${THUMB_COLORS[h % THUMB_COLORS.length]}"><span class="ic">${icon}</span></span>`;
+  const ph = photoFor(it);
+  return `<span class="th" style="background:${THUMB_COLORS[h % THUMB_COLORS.length]}"><span class="ic">${icon}</span>${ph ? `<img class="ph" src="${esc(ph)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</span>`;
+}
+
+/* ---------- picha halisi za aina za spea (Wikimedia Commons, leseni huru CC) ----------
+   Kila bidhaa inapata picha ya aina yake kwa jina lake (mf. "CHAIN KITI T36" → picha ya chain).
+   Bidhaa yenye picha yake mwenyewe (📷 kwenye ukurasa wa Bidhaa) inatumia picha hiyo. */
+const PHOTO_TYPES = [
+  [/\bTUBE\b|\bTUBU\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/TPU_vs._butyl_inner_tubes_02.jpg/330px-TPU_vs._butyl_inner_tubes_02.jpg"],
+  [/TYRE|TAIRI|\bTIRE/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Motorcycle_tyre_stack.jpg/330px-Motorcycle_tyre_stack.jpg"],
+  [/SPORKET|SPROCKET|SPOKERT|SPROKET|\bJINO\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Flame_hardened_sprocket.jpg/330px-Flame_hardened_sprocket.jpg"],
+  [/CHAIN|CHENI/, "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/R1_Chain.jpg/330px-R1_Chain.jpg"],
+  [/PISTON|\bRING\b|PISTONI/, "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Piston_of_DAT_engine.jpg/330px-Piston_of_DAT_engine.jpg"],
+  [/\bPLUG\b|SPARK|SAPRESA/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/BERU_dynaflex_spark_plug.JPG/330px-BERU_dynaflex_spark_plug.JPG"],
+  [/BEARING|BERING|\bBB\b|GOLOLI|\bBALL\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Deep_Groove_Ball_Bearing.jpg/330px-Deep_Groove_Ball_Bearing.jpg"],
+  [/GASKET|GASCKET|PAKING/, "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Gaskets.jpg/330px-Gaskets.jpg"],
+  [/\bSEAL\b|\bSIL\b|O RING|ORING/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/O-rings.jpg/330px-O-rings.jpg"],
+  [/CLUCH|CLUTCH|KLACHI/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Clutch_discs.jpg/330px-Clutch_discs.jpg"],
+  [/BRAKE PAD|\bPAD\b|DISC/, "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Brake_pads.JPG/330px-Brake_pads.JPG"],
+  [/BRAKE|BREAK|\bSHOW\b|\bSHOE\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Brake_shoe.jpg/330px-Brake_shoe.jpg"],
+  [/HEADLIGHT|HEAD LIGHT|SPORT LIGHT|SPOT LIGHT|SPORTLIGHT/, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Scooter_headlights.jpg/330px-Scooter_headlights.jpg"],
+  [/INDICATOR|SIGNAL/, "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Turn_Signal.JPEG/330px-Turn_Signal.JPEG"],
+  [/TAIL ?LAMP|TAILAMP|TAIL LIGHT|\bTAIL\b|STOP LIGHT/, "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/TAIL_LAMP_-Royal_Enfield_Motorcycle_1961.jpg/330px-TAIL_LAMP_-Royal_Enfield_Motorcycle_1961.jpg"],
+  [/HANDLE|HANDEL/, "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Honda_VTR250_2009_Handlebar.JPG/330px-Honda_VTR250_2009_Handlebar.JPG"],
+  [/\bOIL\b|TOTAL|CASTROL|QUARTS|\bMAFUTA\b|SAL SEA/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Motor_oil.JPG/330px-Motor_oil.JPG"],
+  [/CRANK|KRANK/, "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Honda_NSR250R_MC18_CrankShaft.JPG/330px-Honda_NSR250R_MC18_CrankShaft.JPG"],
+  [/SHOKUP|SHOCK|SHOKAP|ABSORBER/, "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Shock_Absorbers_Detail.jpg/330px-Shock_Absorbers_Detail.jpg"],
+  [/BETTRY|BATTERY|BETRI|BATTRY/, "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Lead-acid_battery_for_motorcycle.jpg/330px-Lead-acid_battery_for_motorcycle.jpg"],
+  [/CARBURATOR|CARBURETOR|CABURETA|KABURETA|CARB\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Keihin_carburetor.jpg/330px-Keihin_carburetor.jpg"],
+  [/\bTANG\b|\bTANK\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/RTV_motorcycle_tank.jpg/330px-RTV_motorcycle_tank.jpg"],
+  [/MAGNETO|STATER|STATOR|\bCOIL\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Stator.JPG/330px-Stator.JPG"],
+  [/FRAWIL|FLYWHEEL|FLAWIL/, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Flywheel.JPG/330px-Flywheel.JPG"],
+  [/\bBOLT\b|\bNATI\b|\bNUT\b|\bSTAD\b|\bSTUD\b|SCREW/, "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Big_Bolt_and_Nut.jpg/330px-Big_Bolt_and_Nut.jpg"],
+  [/SPEED|DASHBOARD|\bDASH\b|METER/, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/2014_Honda_Supra_X_125R_FI_Speedometer.jpg/330px-2014_Honda_Supra_X_125R_FI_Speedometer.jpg"],
+  [/\bRIM\b|SPOKU|SPOKE/, "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Spokes.jpg/330px-Spokes.jpg"],
+  [/\bGEAR|PINION|BENDEX|GIA\b/, "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Spur_gear.JPG/330px-Spur_gear.JPG"],
+];
+function photoFor(it) {
+  if (it.image) return it.image;
+  const k = String(it.name || "").toUpperCase();
+  const r = PHOTO_TYPES.find(([re]) => re.test(k));
+  return r ? r[1] : "";
+}
+/* ---------- picha yako mwenyewe ya bidhaa (📷) ----------
+   Inapigwa/kupakiwa kwenye ukurasa wa Bidhaa, inapunguzwa ukubwa (≈20KB) na kuhifadhiwa
+   kwenye cloud (posimg_<id>) ili ionekane kwenye kila kifaa. */
+const IMG_PREFIX = "posimg_";
+function pickPhoto(id) {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "image/*"; inp.setAttribute("capture", "environment");
+  inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) savePhoto(id, f); };
+  inp.click();
+}
+function shrinkImage(file, W = 320, H = 240) {
+  return new Promise((ok, bad) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas"); c.width = W; c.height = H;
+      const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
+      const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+      x.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+      URL.revokeObjectURL(url);
+      let q = 0.75, data = c.toDataURL("image/jpeg", q);
+      while (data.length > 60000 && q > 0.35) { q -= 0.1; data = c.toDataURL("image/jpeg", q); }
+      ok(data);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Picha haisomeki")); };
+    img.src = url;
+  });
+}
+async function savePhoto(id, file) {
+  const it = itemById(id);
+  try {
+    toast("📷 Inahifadhi picha…");
+    const data = await shrinkImage(file);
+    await colRef.doc(IMG_PREFIX + id).set({ itemId: id, name: it ? it.name : "", data, at: Date.now(), by: U.user ? U.user.name : "" });
+    toast("✅ Picha imehifadhiwa");
+    logActivity("Ameweka picha ya bidhaa", it ? it.name : id);
+  } catch (e) { toast("⚠️ Picha haijahifadhiwa: " + e.message); }
+}
+function removePhoto(id) {
+  if (!confirm("Ondoa picha hii? Bidhaa itarudi kwenye picha ya aina yake.")) return;
+  colRef.doc(IMG_PREFIX + id).delete().then(() => toast("Picha imeondolewa")).catch(() => toast("⚠️ Haijaondolewa, angalia mtandao."));
 }
 
 function pagePOS() {
@@ -648,14 +730,16 @@ function pageStock() {
     <div class="chips">${categoriesOf(all).map((c) => `<button class="chip ${U.stockCat === c ? "on" : ""}" onclick="U.stockCat='${esc(c)}';render()">${esc(c)}</button>`).join("")}</div>
     <div class="tbl-wrap"><table><thead><tr><th>Spea</th><th>Kundi</th>${isOwner() ? '<th class="r">Bei ya Kununua</th>' : ""}<th class="r">Rejareja</th><th class="r">Jumla</th><th class="r">Zipo</th>${isOwner() ? "<th></th>" : ""}</tr></thead><tbody>
     ${list.length ? list.map((i) => `<tr>
-      <td><b>${esc(i.name)}</b></td><td style="color:var(--mute)">${esc(i.category)}</td>
+      <td><div class="sname">${thumbOf(i).replace('class="th"', 'class="sthumb"')}<b>${esc(i.name)}</b></div></td><td style="color:var(--mute)">${esc(i.category)}</td>
       ${isOwner() ? `<td class="r">${i.buy != null ? num(i.buy) : "—"}</td>` : ""}
       <td class="r">${i.retail ? num(i.retail) : '<span class="badge am">hakuna</span>'}</td>
       <td class="r">${i.hasWhole ? num(i.whole) : `<span style="color:var(--mute)">${i.retail ? num(i.retail) : "—"}</span>`}</td>
       <td class="r"><span class="badge ${i.qty <= 0 ? "" : i.qty <= i.low ? "am" : "ok"}">${i.qty}</span></td>
-      ${isOwner() ? `<td class="r"><button class="btn btn-g sm" onclick="U.editPrice={id:'${i.id}',retail:'${i.retail || ""}',whole:'${i.hasWhole ? i.whole : ""}'};render()">✏️</button></td>` : ""}
+      ${isOwner() ? `<td class="r" style="white-space:nowrap"><button class="btn btn-g sm" title="Piga/weka picha ya bidhaa hii" onclick="pickPhoto('${i.id}')">📷</button>${i.image ? `<button class="btn btn-g sm" title="Ondoa picha" onclick="removePhoto('${i.id}')">🗑️</button>` : ""}
+        <button class="btn btn-g sm" onclick="U.editPrice={id:'${i.id}',retail:'${i.retail || ""}',whole:'${i.hasWhole ? i.whole : ""}'};render()">✏️</button></td>` : ""}
     </tr>`).join("") : `<tr><td colspan="7" class="empty">Hakuna spea inayolingana.</td></tr>`}
     </tbody></table></div>
+    <p class="hint">📷 Bonyeza 📷 kupiga au kuweka picha halisi ya bidhaa yako; itaonekana kwenye ukurasa wa Uza. Bidhaa zisizo na picha zinaonyesha picha ya mfano ya aina yake (Wikimedia Commons, leseni huru CC). <a href="picha.html" target="_blank" rel="noopener">Ona picha zote za aina</a>.</p>
     <p class="hint">Stock hii inatoka moja kwa moja kwenye system ya kwanza. Mzigo mpya unapokelewa kule (📥 Pokea Mzigo), na unaonekana hapa papo hapo.</p>
   </div>`;
 }
