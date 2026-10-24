@@ -267,7 +267,10 @@ function recommend(n){
 }
 function suggestSetup(n){ n=n||{}; const p=+n.products||0; let f=30000;
   if(p>300) f+=10000; if(p>1000||(+n.branches||1)>1||(+n.stores||1)>1) f+=10000; return Math.min(f,50000) }
-function monthlyOf(c){ const sh=c.shopCode&&SHOPS[c.shopCode]; if(sh&&sh.monthly) return sh.monthly; if(!c.edition) return 0; const base=ED[c.edition].price;
+function monthlyOf(c){ const sh=c.shopCode&&SHOPS[c.shopCode];
+  // huduma za kipekee za kila mwezi (kutoka Kiwanda → 🚀) zinaongezwa juu ya bei ya mfumo
+  const svcM=(c.addons||[]).filter(a=>a.svc&&a.kind==="month").reduce((s,a)=>s+(+a.price||0),0);
+  if(sh&&sh.monthly) return sh.monthly+svcM; if(!c.edition) return 0; const base=ED[c.edition].price;
   const add=(c.addons||[]).filter(a=>a.kind==="month").reduce((s,a)=>s+(+a.price||0),0);
   return Math.max(0,base+add-(+c.discount||0)) }
 function oneOffOf(c){ return (+c.setupFee||0)+(c.addons||[]).filter(a=>a.kind!=="month").reduce((s,a)=>s+(+a.price||0),0) }
