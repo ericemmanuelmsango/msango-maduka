@@ -636,7 +636,9 @@ function vHuduma(s) {
     <div><h4>Huduma za kipekee kwa ${esc(s.name)}</h4><span class="note">Ukiongeza, inaingia kwenye pendekezo na mkataba wa Ofisi. 🤖 Claude inanakili maelekezo yenye taarifa za duka hili, kisha inafungua Claude — bandika na tuma.</span></div>
     <div>${rows}</div>
     <div class="box"><b>💬 Ujumbe wa WhatsApp kwa mteja</b><span class="note">Unafunguka WhatsApp ukiwa umeandikwa tayari — wewe ndiye unayetuma.</span>
-      <div class="row"><button class="sm" onclick="waTo('${s.code}','karibu')">👋 Karibu</button><button class="sm" onclick="waTo('${s.code}','malipo')">⏳ Kumbusho la malipo</button><button class="sm" onclick="waTo('${s.code}','huduma')">🚀 Tangaza huduma mpya</button></div></div>`;
+      <div class="row"><button class="sm" onclick="waTo('${s.code}','karibu')">👋 Karibu</button><button class="sm" onclick="waTo('${s.code}','malipo')">⏳ Kumbusho la malipo</button><button class="sm" onclick="waTo('${s.code}','huduma')">🚀 Tangaza huduma mpya</button>
+      ${tutorialUrl(s) ? `<button class="sm" onclick="waTo('${s.code}','mafunzo')">🎬 Video ya mafunzo</button>` : ""}</div>
+      ${tutorialUrl(s) ? `<span class="note">🎬 Video ya mafunzo (dk 1): <a href="${tutorialUrl(s)}" target="_blank" rel="noopener">tazama ↗</a></span>` : `<span class="note">🎬 Video ya mafunzo ya ${esc((INDUSTRIES[s.industry] || {}).name || "")} inaandaliwa.</span>`}</div>`;
 }
 /* mfumo wa zamani bila rekodi ya Ofisi → itengeneze na uiunganishe (data ya mfumo haiguswi) */
 async function linkClient(code) {
@@ -685,13 +687,17 @@ function claudeAsk(key, target) {
   const go = () => window.open("https://claude.ai/new", "_blank", "noopener");
   (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { toast("📋 Maelekezo yamenakiliwa — bandika kwenye Claude"); go(); }).catch(() => { prompt("Nakili maelekezo haya, kisha bandika kwenye Claude:", text); go(); });
 }
+/* video ya mafunzo ya kutumia mfumo (iko kwenye video/ ya tovuti hii) */
+const TUTORIALS = { spea: "video/mafunzo-spea.mp4" };
+function tutorialUrl(s) { const f = s && TUTORIALS[s.industry || "spea"]; return f ? baseUrl() + f : ""; }
 function waTo(code, kind) {
   const x = shopCtx(code), d = String(x.phone || "").replace(/\D/g, ""), num = d.startsWith("0") ? "255" + d.slice(1) : d;
   if (num.length < 9) return toast("Weka namba ya simu ya duka kwanza (Chapa → Simu)");
-  const hi = "Habari" + (x.owner ? " " + x.owner : "") + ",";
+  const hi = "Habari" + (x.owner ? " " + x.owner : "") + ",", tut = tutorialUrl(K.shops.find((y) => y.code === code));
   const T = {
-    karibu: `${hi} karibu kwenye mfumo wa ${x.name}! 🎉\nLink yako: ${x.link}\nUkihitaji msaada wowote niko hapa. Asante kwa kutuamini.\n— Eric, Msango Maduka`,
+    karibu: `${hi} karibu kwenye mfumo wa ${x.name}! 🎉\nLink yako: ${x.link}${tut ? "\n🎬 Video fupi ya jinsi ya kuutumia: " + tut : ""}\nUkihitaji msaada wowote niko hapa. Asante kwa kutuamini.\n— Eric, Msango Maduka`,
     malipo: `${hi} mfumo wa ${x.name} unafikia mwisho wa muda tarehe ${fmtDate(x.paidUntil)}. Malipo ya mwezi ni ${tzs(x.monthly)}. Ukishalipa, nitumie ujumbe niongeze muda. Asante!\n— Eric, Msango Maduka`,
+    mafunzo: `${hi} hii hapa video fupi (dakika 1) ya jinsi ya kutumia mfumo wa ${x.name}:\n🎬 ${tut}\nIngia, uza, toa risiti, ona stock na ripoti, kisha funga siku. Ukikwama popote niulize.\n— Eric, Msango Maduka`,
     huduma: `${hi} sasa Msango Maduka tunatoa pia:\n🎨 Logo na brand kit ya duka lako\n📸 Picha za bidhaa za kitaalamu\n🤖 Msaidizi wa AI anayekutumia ripoti ya mauzo kwa SMS kila asubuhi\nUkipenda kimoja, nijibu hapa.\n— Eric`,
   };
   window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(T[kind]), "_blank", "noopener");

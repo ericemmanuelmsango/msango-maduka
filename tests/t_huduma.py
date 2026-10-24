@@ -50,3 +50,10 @@ with sync_playwright() as pw:
     s = store(p); cid = s["shops/shemdar"]["clientId"]; print("linked:", cid, s["clients/" + cid]["name"], s["clients/" + cid]["stage"])
     assert p.locator(".svc").count() == 8
     print("ERRS", p.errs); p.browser_.close()
+# video ya mafunzo kwa spea kupitia WhatsApp
+with sync_playwright() as pw:
+    p = open_page(pw, "kiwanda.html#kirumba", ST, email=ADMIN); p.wait_for_timeout(600)
+    p.click("button:has-text('🚀 Huduma za kipekee')"); p.wait_for_timeout(200)
+    p.evaluate("window.open=(u)=>{window.__opened=u;return null}"); p.click("button:has-text('🎬 Video ya mafunzo')"); p.wait_for_timeout(200)
+    u = p.evaluate("decodeURIComponent(window.__opened)"); print("mafunzo:", u[:40], "…", "video/mafunzo-spea.mp4" in u); assert "video/mafunzo-spea.mp4" in u
+    print("ERRS", p.errs); p.browser_.close()
