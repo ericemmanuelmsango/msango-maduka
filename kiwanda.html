@@ -588,7 +588,9 @@ function sysChips(s) {
 }
 function vHuduma(s) {
   const c = s.clientId && K.clients[s.clientId];
-  if (!c) return `<div class="msg wn">Mfumo huu hauna rekodi ya Ofisi bado. Huduma zinahifadhiwa kwenye rekodi ya mteja — fungua <a href="ofisi.html">Ofisi</a> umuunganishe kwanza.</div>`;
+  if (!c) return `<div class="box"><b>🔗 Unganisha ${esc(s.name)} na Ofisi</b>
+    <span class="note">Mfumo huu ulitengenezwa kabla ya Ofisi, hivyo hauna rekodi ya mteja bado. Bonyeza hapa mara moja — rekodi inatengenezwa kwa taarifa zake (jina, simu, eneo, mpango), kisha huduma zote zinafunguka.</span>
+    <div class="row"><button class="pri" ${K.busy ? "disabled" : ""} onclick="linkClient('${s.code}')">🔗 Unganisha sasa</button></div></div>`;
   const done = DUKA_SOP_KEYS.filter((k) => c.onboard && c.onboard[k] && c.onboard[k].done).length;
   const rows = SERVICES.map(([key, name, kind, price, skill]) => {
     const a = svcOf(c, key);
@@ -604,6 +606,23 @@ function vHuduma(s) {
     <div>${rows}</div>
     <div class="box"><b>💬 Ujumbe wa WhatsApp kwa mteja</b><span class="note">Unafunguka WhatsApp ukiwa umeandikwa tayari — wewe ndiye unayetuma.</span>
       <div class="row"><button class="sm" onclick="waTo('${s.code}','karibu')">👋 Karibu</button><button class="sm" onclick="waTo('${s.code}','malipo')">⏳ Kumbusho la malipo</button><button class="sm" onclick="waTo('${s.code}','huduma')">🚀 Tangaza huduma mpya</button></div></div>`;
+}
+/* mfumo wa zamani bila rekodi ya Ofisi → itengeneze na uiunganishe (data ya mfumo haiguswi) */
+async function linkClient(code) {
+  const s = K.shops.find((x) => x.code === code); if (!s) return;
+  K.busy = true; render();
+  try {
+    const id = s.clientId || "c" + Date.now().toString(36), ref = db.collection("clients").doc(id), d = await ref.get();
+    const paid = s.paidUntil > Date.now() && !(s.trialEnds && s.paidUntil <= s.trialEnds);
+    const day = new Date(s.createdAt || Date.now()).toISOString().slice(0, 10);
+    if (!d.exists) await ref.set({ id, name: s.name, owner: "", phone: s.phone || "", location: s.location || "", type: (INDUSTRIES[s.industry] || INDUSTRIES.spea).name, helper: "",
+      stage: paid ? "paid" : "trial", createdAt: day, demoAt: day, trialAt: day, needs: {}, addons: [], payments: [], onboard: {}, setupFee: null, discount: 0,
+      notes: s.notes || "", shopCode: code, edition: s.edition || "duka", updatedAt: Date.now() });
+    else await ref.set({ shopCode: code, updatedAt: Date.now() }, { merge: true });
+    if (s.clientId !== id) await adminUpdateShop(code, { clientId: id });
+    toast("✅ " + s.name + " imeunganishwa na Ofisi");
+  } catch (e) { toast("Haikuunganishwa: " + (e.message || "")); }
+  K.busy = false; render();
 }
 async function svcSave(code, fn) {
   const s = K.shops.find((x) => x.code === code), c = s && K.clients[s.clientId]; if (!c) return;

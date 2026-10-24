@@ -41,3 +41,12 @@ with sync_playwright() as pw:
     p.wait_for_timeout(800)
     mk = p.evaluate("(document.querySelector('.logo .mk')||{}).innerHTML||''"); print("pos mark (no logo):", mk[:120]); assert ">EE<" not in mk and ">KS<" in mk
     print("ERRS", p.errs); p.browser_.close()
+# mfumo wa zamani bila rekodi ya Ofisi → kitufe cha kuunganisha
+with sync_playwright() as pw:
+    old = {**SHOP, "name": "Shemdar", "clientId": ""}
+    p = open_page(pw, "kiwanda.html#shemdar", {"shops/shemdar": old, "brands/shemdar": {"name": "Shemdar"}}, email=ADMIN)
+    p.wait_for_timeout(600); p.click("button:has-text('🚀 Huduma za kipekee')"); p.wait_for_timeout(200)
+    p.click("button:has-text('🔗 Unganisha sasa')"); p.wait_for_timeout(700)
+    s = store(p); cid = s["shops/shemdar"]["clientId"]; print("linked:", cid, s["clients/" + cid]["name"], s["clients/" + cid]["stage"])
+    assert p.locator(".svc").count() == 8
+    print("ERRS", p.errs); p.browser_.close()
