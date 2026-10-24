@@ -86,6 +86,15 @@ details summary{cursor:pointer;font-weight:700}
 .th[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .th:focus-visible{outline:2px solid var(--accent)}
 .th .sw{display:flex;height:22px;border-radius:5px;overflow:hidden}.th .sw i{flex:1}
+.lgbox{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.lgprev{width:72px;height:72px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;background:var(--surface);overflow:hidden}
+.lgprev img,.lgprev svg{width:64px;height:64px;object-fit:contain}
+.swl{width:36px;height:36px;border-radius:8px;overflow:hidden;display:grid;place-items:center;background:var(--sunk)}.swl img,.swl svg{width:36px;height:36px;object-fit:contain}
+.svc{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.svc:first-child{border-top:0}.svc .t{font-weight:600;font-size:14px}.svc .p{font-size:12.5px;color:var(--muted)}
+.svc .a{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.svc select{width:auto;font-size:13px;padding:5px 8px}
+.bar{height:8px;background:var(--sunk);border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--ink)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
 </style>
 </head>
@@ -104,7 +113,7 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=11"></script>
+<script src="duka.js?v=12"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -115,11 +124,11 @@ const tzs = (n) => "TZS " + Math.round(+n || 0).toLocaleString("en-US");
 function toast(m) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2800); }
 
 const K = { user: null, shops: [], loaded: false, open: location.hash.slice(1) || null, tab: {}, edit: {}, creds: {}, created: null, msg: "", ok: true, busy: false,
-  showNew: false, form: null, pub: {}, login: { email: "", pw: "", msg: "" } };
+  showNew: false, form: null, pub: {}, clients: {}, login: { email: "", pw: "", msg: "" } };
 function blankForm() {
   return { name: "", code: "", _codeTouched: false, email: "", pw: genPw(), phone: "", location: "", owner: "", edition: "duka",
     features: presetFeatures("duka"), users: EDITIONS.duka.users, monthly: EDITIONS.duka.price, color: "#0d6a5b", tagline: "",
-    theme: "asili", industry: "spea", addons: [],
+    theme: "asili", industry: "spea", addons: [], logo: "",
     trialDays: (K.pub && K.pub.trialDays) || 14, notes: "", clientId: "" };
 }
 function genPw() { const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for (let i = 0; i < 8; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
@@ -146,6 +155,7 @@ function listen() {
     render();
   }, (e) => { K.loaded = true; K.denied = e && e.code === "permission-denied"; render(); });
   db.collection("settings").doc("public").onSnapshot((d) => { K.pub = (d.exists && d.data()) || {}; render(); }, () => {});
+  db.collection("clients").onSnapshot((snap) => { const m = {}; snap.forEach((d) => (m[d.id] = { id: d.id, ...d.data() })); K.clients = m; render(); }, () => {});
 }
 
 /* ---------- views ---------- */
@@ -171,7 +181,7 @@ function vStats() {
     <div class="stat"><span>Majaribio</span><b style="color:var(--info)">${n("p-trial")}</b></div>
     <div class="stat"><span>Inaisha ≤ siku 5</span><b style="color:var(--warn)">${n("p-soon")}</b></div>
     <div class="stat"><span>Imeisha / imesimamishwa</span><b style="color:var(--bad)">${n("p-exp") + n("p-off")}</b></div>
-  </div><div class="note">Mapato ya mwezi kutoka mifumo iliyolipiwa: <b class="num">${tzs(mrr)}</b></div>`;
+  </div><div class="note">Mapato ya mwezi kutoka mifumo iliyolipiwa: <b class="num">${tzs(mrr)}</b>${svcTotals()}</div>`;
 }
 
 function featBoxes(features, onchange) {
@@ -224,6 +234,7 @@ function vNew() {
       ${f.theme === "asili" ? `<label class="f">Rangi kuu<input id="nf-color" type="color" value="${esc(f.color)}" oninput="nf('color',this.value)"></label>` : ""}
       <label class="f">Maneno chini ya jina (risiti, kuingia)<input id="nf-tagline" value="${esc(f.tagline)}" oninput="nf('tagline',this.value)" placeholder="mf. Spea za pikipiki — jumla na rejareja"></label>
     </div>
+    ${logoField(f.logo, "new", f.name, f.color, f.theme)}
     <h4>5. Muda</h4>
     <div class="form">
       <label class="f">Siku za majaribio bure<input id="nf-trial" type="number" min="0" value="${f.trialDays}" oninput="nf('trialDays',+this.value)"></label>
@@ -245,7 +256,7 @@ function nfTheme(k) { K.form.theme = k; render(); }
 async function createShop() {
   const f = K.form; K.busy = true; K.msg = "Inatengeneza…"; K.ok = true; render();
   try {
-    const r = await adminCreateShop({ ...f, brand: { color: f.color, tagline: f.tagline, theme: f.theme } });
+    const r = await adminCreateShop({ ...f, brand: { color: f.color, tagline: f.tagline, theme: f.theme, logo: f.logo || "" } });
     K.created = r; K.form = null; K.showNew = false; K.msg = ""; K.open = r.code; location.hash = r.code;
     toast("✅ Mfumo wa " + r.name + " umetengenezwa");
   } catch (e) {
@@ -304,11 +315,12 @@ function vSys(s) {
   const color = (s.brand && s.brand.theme && THEMES[s.brand.theme] && s.brand.theme !== "asili" ? THEMES[s.brand.theme].side : (s.brand && s.brand.color)) || "var(--sunk)";
   return `<div class="sys" id="sys-${s.code}">
     <div class="top">
-      <span class="sw" style="background:${esc(color)}"></span>
+      ${s.brand && s.brand.logo ? `<span class="swl">${logoImg(s.brand.logo)}</span>` : `<span class="sw" style="background:${esc(color)}"></span>`}
       <div style="min-width:0"><div class="n">${esc(s.name)}</div>
         <div class="m">${esc(s.code)} · ${esc((INDUSTRIES[s.industry] || INDUSTRIES.spea).name)} · ${esc(E.name)}${s.brand && s.brand.theme && s.brand.theme !== "asili" ? " · 💎 " + esc((THEMES[s.brand.theme] || {}).name || "") : ""}${s.features ? " (imebadilishwa)" : ""} · ${tzs(s.monthly || E.price)}/mwezi · hadi ${fmtDate(s.paidUntil)}</div></div>
       <span class="pill ${cls}">${label}</span>
     </div>
+    ${sysChips(s)}
     <div class="row">
       <a class="btn sm" href="${systemLink(s)}" target="_blank" rel="noopener">↗ Fungua</a>
       ${!isPackShop(s) && ({ ...presetFeatures(s.edition), ...(s.features || {}) }).pos ? `<a class="btn sm" href="${shopLink(s.code, "pos.html")}" target="_blank" rel="noopener">↗ POS</a>` : ""}
@@ -335,8 +347,8 @@ function vEditor(s) {
     edition: s.edition, features: { ...presetFeatures(s.edition), ...(s.features || {}) }, users: s.users || (EDITIONS[s.edition] || EDITIONS.duka).users,
     monthly: s.monthly || (EDITIONS[s.edition] || EDITIONS.duka).price, name: s.name, color: (s.brand && s.brand.color) || "#0d6a5b",
     tagline: (s.brand && s.brand.tagline) || "", phone: s.phone || "", location: s.location || "", notes: s.notes || "",
-    theme: (s.brand && s.brand.theme) || "asili", industry: s.industry || "spea" });
-  const tabs = [["vipengele", "🧩 Vipengele"], ["chapa", "🎨 Chapa"], ["muda", "⏳ Muda & malipo"], ["kuingia", "🔑 Kuingia"], ["hatari", "⚠️ Hatari"]];
+    theme: (s.brand && s.brand.theme) || "asili", industry: s.industry || "spea", logo: (s.brand && s.brand.logo) || "" });
+  const tabs = [["vipengele", "🧩 Vipengele"], ["chapa", "🎨 Chapa"], ["huduma", "🚀 Huduma za kipekee"], ["muda", "⏳ Muda & malipo"], ["kuingia", "🔑 Kuingia"], ["hatari", "⚠️ Hatari"]];
   let body = "";
   if (t === "vipengele") body = `
     <div class="form">
@@ -357,7 +369,9 @@ function vEditor(s) {
       <label class="f">Simu (risiti)<input value="${esc(E.phone)}" oninput="K.edit['${s.code}'].phone=this.value"></label>
       <label class="f">Eneo (risiti)<input value="${esc(E.location)}" oninput="K.edit['${s.code}'].location=this.value"></label>
     </div>
-    <div class="row"><button class="pri" onclick="saveBrand('${s.code}')">💾 Hifadhi chapa</button><span class="note">Logo, mteja anaweka mwenyewe kwenye Settings ya mfumo wake.</span></div>`;
+    ${logoField(E.logo, s.code, E.name, E.color, E.theme)}
+    <div class="row"><button class="pri" onclick="saveBrand('${s.code}')">💾 Hifadhi chapa</button><span class="note">Logo inaonekana kwenye kuingia, POS, Wadai na risiti za mteja. Bila logo, herufi za jina lake zinatumika — kamwe si nembo ya E.E.MSANGO.</span></div>`;
+  if (t === "huduma") body = vHuduma(s);
   if (t === "muda") {
     const dl = daysLeft(s);
     body = `<div class="box">
@@ -398,7 +412,7 @@ async function saveFeatures(code) {
 }
 async function saveBrand(code) {
   const E = K.edit[code];
-  try { await adminUpdateShop(code, { name: E.name, brand: { color: E.color, tagline: E.tagline, theme: E.theme }, industry: E.industry, phone: E.phone, location: E.location }); toast("✅ Muundo na chapa vimehifadhiwa — mteja ataona akifungua upya"); }
+  try { await adminUpdateShop(code, { name: E.name, brand: { color: E.color, tagline: E.tagline, theme: E.theme, logo: E.logo || "" }, industry: E.industry, phone: E.phone, location: E.location }); toast("✅ Muundo na chapa vimehifadhiwa — mteja ataona akifungua upya"); }
   catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
 }
 async function setActive(code, on) {
@@ -536,6 +550,101 @@ function vSettings() {
 function savePub() {
   const d = { lipaMethod: $("#ps-method").value.trim(), lipaNumber: $("#ps-number").value.trim(), lipaName: $("#ps-name").value.trim(), phone: $("#ps-phone").value.trim(), trialDays: +$("#ps-trial").value || 14 };
   db.collection("settings").doc("public").set(d, { merge: true }).then(() => toast("✅ Imehifadhiwa")).catch((e) => toast("Haikuhifadhika: " + (e.message || "")));
+}
+
+/* ---------- 🎨 logo ya mteja ---------- */
+function logoImg(src) { return /^data:image\/(png|jpeg|webp);base64,/.test(src || "") ? `<img src="${src}" alt="">` : ""; }
+function logoField(cur, target, name, color, theme) {
+  const prev = cur ? logoImg(cur) : dukaLogoHtml(0, { name: name || "?", brand: { color, theme } });
+  return `<div class="box"><b>Logo ya mteja</b>
+    <div class="lgbox"><div class="lgprev">${prev}</div>
+      <div class="row"><label class="btn sm">📷 Weka logo<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="onLogo('${target}',this)"></label>
+      ${cur ? `<button class="sm danger" onclick="setLogo('${target}','')">Ondoa</button>` : ""}
+      <button class="sm" onclick="claudeAsk('brandkit','${target}')">🤖 Mtengenezee logo na Claude</button></div></div>
+    <span class="note">PNG yenye uwazi ni bora. Inapunguzwa yenyewe (256px). ${cur ? "" : "Sasa hivi: herufi za jina kwa rangi ya duka."}</span></div>`;
+}
+function setLogo(target, v) { if (target === "new") K.form.logo = v; else K.edit[target].logo = v; render(); if (target !== "new" && v === "") toast("Bonyeza 💾 Hifadhi chapa kuthibitisha"); }
+async function onLogo(target, input) {
+  try { const d = await dukaShrinkLogo(input.files && input.files[0]); setLogo(target, d); toast(target === "new" ? "✅ Logo imewekwa kwenye fomu" : "✅ Logo tayari — bonyeza 💾 Hifadhi chapa"); }
+  catch (e) { toast(e.message || "Logo haikuwekwa"); }
+}
+
+/* ---------- 🚀 huduma za kipekee (AI + chapa) — zinahifadhiwa kwenye rekodi ya Ofisi ya mteja (addons) ---------- */
+const DUKA_SOP_KEYS = ["contract", "setupPaid", "productList", "entered", "accounts", "trainOwner", "trainSellers", "call2", "visit7"];
+const SVC_STATES = [["imeombwa", "Imeombwa"], ["inaendelea", "Inaendelea"], ["imekamilika", "Imekamilika"], ["imelipwa", "Imelipwa ✓"]];
+const svcOf = (c, key) => ((c && c.addons) || []).find((a) => a.svc === key);
+function svcTotals() {
+  let once = 0, oncePaid = 0, month = 0;
+  Object.values(K.clients || {}).forEach((c) => (c.addons || []).filter((a) => a.svc).forEach((a) => {
+    if (a.kind === "month") month += +a.price || 0; else { once += +a.price || 0; if (a.status === "imelipwa") oncePaid += +a.price || 0; }
+  }));
+  return once || month ? ` · Huduma za kipekee: mara moja <b class="num">${tzs(once)}</b> (imelipwa ${tzs(oncePaid)}) · kila mwezi <b class="num">${tzs(month)}</b>` : "";
+}
+function sysChips(s) {
+  const c = s.clientId && K.clients[s.clientId]; if (!c) return "";
+  const done = DUKA_SOP_KEYS.filter((k) => c.onboard && c.onboard[k] && c.onboard[k].done).length;
+  const sv = (c.addons || []).filter((a) => a.svc);
+  return `<div class="chips"><span class="chip">🧭 Hatua ${done}/${DUKA_SOP_KEYS.length}</span>${sv.map((a) => `<span class="chip">${esc((SERVICES.find((x) => x[0] === a.svc) || [, a.name])[1].split(":")[0])} · ${esc((SVC_STATES.find((x) => x[0] === a.status) || [, ""])[1])}</span>`).join("")}</div>`;
+}
+function vHuduma(s) {
+  const c = s.clientId && K.clients[s.clientId];
+  if (!c) return `<div class="msg wn">Mfumo huu hauna rekodi ya Ofisi bado. Huduma zinahifadhiwa kwenye rekodi ya mteja — fungua <a href="ofisi.html">Ofisi</a> umuunganishe kwanza.</div>`;
+  const done = DUKA_SOP_KEYS.filter((k) => c.onboard && c.onboard[k] && c.onboard[k].done).length;
+  const rows = SERVICES.map(([key, name, kind, price, skill]) => {
+    const a = svcOf(c, key);
+    return `<div class="svc"><div><div class="t">${esc(name)}</div><div class="p">${tzs(a ? a.price : price)} ${kind === "month" ? "kila mwezi" : "mara moja"}${skill ? " · skill: " + esc(skill) : ""}</div></div>
+      <div class="a">${a ? `<select aria-label="Hali ya ${esc(name)}" onchange="svcSet('${s.code}','${key}',this.value)">${SVC_STATES.map(([k, l]) => `<option value="${k}" ${a.status === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+        <button class="sm danger" onclick="svcRemove('${s.code}','${key}')" aria-label="Ondoa ${esc(name)}">✕</button>` : `<button class="sm" onclick="svcAdd('${s.code}','${key}')">＋ Ongeza</button>`}
+        <button class="sm" onclick="claudeAsk('${key}','${s.code}')">🤖 Claude</button></div></div>`;
+  }).join("");
+  return `<div class="box"><div class="row" style="justify-content:space-between"><b>🧭 Hatua za kumweka mteja</b><span class="num">${done}/${DUKA_SOP_KEYS.length}</span></div>
+      <div class="bar"><i style="width:${(done / DUKA_SOP_KEYS.length) * 100}%"></i></div>
+      <span class="note">Mkataba, malipo ya setup, bidhaa, mafunzo na ufuatiliaji (siku 2 na 7) — tiki kwenye <a href="ofisi.html" target="_blank" rel="noopener">Ofisi ↗</a>.</span></div>
+    <div><h4>Huduma za kipekee kwa ${esc(s.name)}</h4><span class="note">Ukiongeza, inaingia kwenye pendekezo na mkataba wa Ofisi. 🤖 Claude inanakili maelekezo yenye taarifa za duka hili, kisha inafungua Claude — bandika na tuma.</span></div>
+    <div>${rows}</div>
+    <div class="box"><b>💬 Ujumbe wa WhatsApp kwa mteja</b><span class="note">Unafunguka WhatsApp ukiwa umeandikwa tayari — wewe ndiye unayetuma.</span>
+      <div class="row"><button class="sm" onclick="waTo('${s.code}','karibu')">👋 Karibu</button><button class="sm" onclick="waTo('${s.code}','malipo')">⏳ Kumbusho la malipo</button><button class="sm" onclick="waTo('${s.code}','huduma')">🚀 Tangaza huduma mpya</button></div></div>`;
+}
+async function svcSave(code, fn) {
+  const s = K.shops.find((x) => x.code === code), c = s && K.clients[s.clientId]; if (!c) return;
+  const addons = JSON.parse(JSON.stringify(c.addons || [])); fn(addons);
+  try { await db.collection("clients").doc(c.id).set({ addons, updatedAt: Date.now() }, { merge: true }); } catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
+}
+function svcAdd(code, key) { const [k, name, kind, price] = SERVICES.find((x) => x[0] === key); svcSave(code, (a) => a.push({ svc: k, name: name.replace(/^\S+\s/, ""), kind, price, status: "imeombwa", at: new Date().toISOString().slice(0, 10) })); toast("＋ Imeongezwa kwenye mkataba wa mteja"); }
+function svcSet(code, key, st) { svcSave(code, (a) => { const x = a.find((y) => y.svc === key); if (x) { x.status = st; if (st === "imelipwa") x.paidAt = new Date().toISOString().slice(0, 10); } }); }
+function svcRemove(code, key) { if (confirm("Ondoa huduma hii kwa mteja huyu?")) svcSave(code, (a) => { const i = a.findIndex((y) => y.svc === key); if (i >= 0) a.splice(i, 1); }); }
+function shopCtx(target) {
+  if (target === "new") { const f = K.form || {}; return { name: f.name, code: f.code, phone: f.phone, location: f.location, owner: f.owner, industry: f.industry, color: f.color, tagline: f.tagline, monthly: f.monthly }; }
+  const s = K.shops.find((x) => x.code === target) || {}, c = (s.clientId && K.clients[s.clientId]) || {};
+  return { name: s.name, code: s.code, phone: s.phone, location: s.location, owner: c.owner || "", industry: s.industry, color: s.brand && s.brand.color, tagline: s.brand && s.brand.tagline, monthly: s.monthly, paidUntil: s.paidUntil, link: s.code ? systemLink(s) : "" };
+}
+function claudeAsk(key, target) {
+  const x = shopCtx(target), ind = (INDUSTRIES[x.industry] || INDUSTRIES.spea).name;
+  const info = `Duka: ${x.name || "[JINA]"}\nBiashara: ${ind}\nEneo: ${x.location || "[ENEO]"}\nMwenye duka: ${x.owner || "[JINA]"}\nManeno ya chapa: ${x.tagline || "-"}\nRangi ya sasa: ${x.color || "-"}`;
+  const P = {
+    brandkit: `/brand-kit-duka\n${info}\n\nNitengenezee majina 6 (kama anataka jina jipya) na logo 6 za kuchagua, kisha brand kit. Logo ya mwisho nitaiweka Kiwanda → Chapa.`,
+    picha: `/studio-picha-bidhaa\n${info}\n\nNitakutumia picha za simu za bidhaa 20 za duka hili. Zigeuze ziwe picha safi za katalogi, bila kubadilisha bidhaa yenyewe.`,
+    video: `Tengeneza video ya tangazo (sekunde 45, wima 9:16, Kiswahili) kwa ajili ya duka hili, kwa script za marketing/ kwenye repo ya msaidizi--agent.\n${info}\nNamba ya mawasiliano: ${x.phone || "[SIMU]"}`,
+    msaidiziSetup: `/msaidizi-deploy\n${info}\nCode ya mfumo: ${x.code || "-"}\nSimu ya mmiliki: ${x.phone || "[SIMU]"}\n\nNiongoze hatua kwa hatua kumwekea duka hili Msaidizi wake.`,
+    msaidiziSms: `/msaidizi-deploy\n${info}\nCode ya mfumo: ${x.code || "-"}\n\nKifurushi: Msaidizi wa SMS (ripoti ya asubuhi, kumbusho la madeni). Niongoze kukiwasha.`,
+    msaidiziKamili: `/msaidizi-deploy\n${info}\nCode ya mfumo: ${x.code || "-"}\n\nKifurushi: Msaidizi Kamili (SMS + simu za sauti + oda kwa msambazaji kwa NDIYO). Niongoze kukiwasha.`,
+    matangazo: `/studio-picha-bidhaa\n${info}\n\nAndaa mpango wa matangazo ya mitandao: reels 2 kwa wiki kwa mwezi mmoja, kwa bidhaa zake zinazouzika.`,
+    mafunzo: `/warsha-ai-mwanza\n${info}\n\nAndaa mafunzo ya saa 1 kwa wafanyakazi wa duka hili kuhusu mfumo wao (POS, risiti, madeni, stock).`,
+  };
+  const text = P[key] || info;
+  const go = () => window.open("https://claude.ai/new", "_blank", "noopener");
+  (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { toast("📋 Maelekezo yamenakiliwa — bandika kwenye Claude"); go(); }).catch(() => { prompt("Nakili maelekezo haya, kisha bandika kwenye Claude:", text); go(); });
+}
+function waTo(code, kind) {
+  const x = shopCtx(code), d = String(x.phone || "").replace(/\D/g, ""), num = d.startsWith("0") ? "255" + d.slice(1) : d;
+  if (num.length < 9) return toast("Weka namba ya simu ya duka kwanza (Chapa → Simu)");
+  const hi = "Habari" + (x.owner ? " " + x.owner : "") + ",";
+  const T = {
+    karibu: `${hi} karibu kwenye mfumo wa ${x.name}! 🎉\nLink yako: ${x.link}\nUkihitaji msaada wowote niko hapa. Asante kwa kutuamini.\n— Eric, Msango Maduka`,
+    malipo: `${hi} mfumo wa ${x.name} unafikia mwisho wa muda tarehe ${fmtDate(x.paidUntil)}. Malipo ya mwezi ni ${tzs(x.monthly)}. Ukishalipa, nitumie ujumbe niongeze muda. Asante!\n— Eric, Msango Maduka`,
+    huduma: `${hi} sasa Msango Maduka tunatoa pia:\n🎨 Logo na brand kit ya duka lako\n📸 Picha za bidhaa za kitaalamu\n🤖 Msaidizi wa AI anayekutumia ripoti ya mauzo kwa SMS kila asubuhi\nUkipenda kimoja, nijibu hapa.\n— Eric`,
+  };
+  window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(T[kind]), "_blank", "noopener");
 }
 
 /* ---------- render ---------- */

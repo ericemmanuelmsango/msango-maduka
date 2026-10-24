@@ -256,6 +256,8 @@ function toast(m) { U.toast = m; render(); clearTimeout(toast.t); toast.t = setT
 
 function logoHtml() {
   if (D.settings && D.settings.logoBase64) return `<img src="${D.settings.logoBase64}" alt="">`;
+  const shopLogo = typeof dukaLogoHtml === "function" ? dukaLogoHtml() : "";
+  if (shopLogo) return shopLogo;
   return `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#0e2a3f"/><text x="50" y="62" font-family="Georgia,serif" font-size="34" font-weight="700" fill="#fff" text-anchor="middle">EE</text></svg>`;
 }
 

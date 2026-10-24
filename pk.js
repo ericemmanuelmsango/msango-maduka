@@ -282,7 +282,7 @@ function receiptText(r) {
 function receipt(r) {
   const b = biz();
   const html = `${mhead(r.title || "Risiti")}<div class="rc ${S("rcw", "80") === "58" ? "w58" : ""}">
-    <div class="c b">${esc(b.name)}</div>${b.address ? `<div class="c">${esc(b.address)}</div>` : ""}${b.phone ? `<div class="c">Simu: ${esc(b.phone)}</div>` : ""}
+    ${SHOP && SHOP.brand && SHOP.brand.logo ? `<div class="c rc-lg">${dukaLogoHtml(54)}</div>` : ""}<div class="c b">${esc(b.name)}</div>${b.address ? `<div class="c">${esc(b.address)}</div>` : ""}${b.phone ? `<div class="c">Simu: ${esc(b.phone)}</div>` : ""}
     <hr><div class="ln"><span>${esc(r.title || "RISITI")}${r.no ? " #" + esc(r.no) : ""}</span><span>${fdate(today())} ${hm(Date.now())}</span></div>
     ${r.customer ? `<div>Mteja: ${esc(r.customer)}</div>` : ""}<hr>
     ${(r.items || []).length ? `<table class="ri"><thead><tr><th>Bidhaa</th><th class="q">${rcQtyLabel()}</th><th class="n">Bei</th><th class="n">Jumla</th></tr></thead><tbody>
@@ -581,7 +581,7 @@ function vShell() {
   const bot = N.slice(0, 4), more = N.slice(4);
   let body = ""; try { body = P.render(); } catch (e) { console.error(e); dukaLogError("error", "Ukurasa " + P.id + ": " + e.message, { stack: String(e.stack || "").slice(0, 1500) }); body = `<div class="card err">Hitilafu kwenye ukurasa huu: ${esc(e.message)} — imeripotiwa kwa E.E.Msango.</div>`; }
   return `${dukaAdminBanner()}${dukaExpiryBanner()}<div class="pk">
-    <aside class="pk-side"><div class="pk-brand"><small>${esc(PK.pack.name)}</small><b>${esc(SHOP.name)}</b></div>
+    <aside class="pk-side"><div class="pk-brand">${SHOP.brand && SHOP.brand.logo ? `<span class="pk-logo">${dukaLogoHtml(44)}</span>` : ""}<small>${esc(PK.pack.name)}</small><b>${esc(SHOP.name)}</b></div>
       ${N.map((p) => `<button class="pk-nav ${p.id === PK.page ? "on" : ""}" onclick="go('${p.id}')"><i>${p.icon || "•"}</i>${esc(p.label)}${(() => { const x = p.badge && p.badge(); return x ? ` <span class="pill bd" style="margin-left:auto">${x}</span>` : ""; })()}</button>`).join("")}
       <div class="sp"></div><button class="pk-nav" onclick="dukaReport()"><i>🆘</i>Ripoti tatizo</button><div class="xs" style="opacity:.6;padding:8px">Msango Maduka</div></aside>
     <main class="pk-main"><header class="pk-top"><h2>${esc(P.label)}</h2>${P.actions ? P.actions() : ""}

@@ -133,6 +133,19 @@ const ADDONS = [
   ["ai", "Msaidizi wa AI — uchambuzi wa mauzo kwa Kiswahili", "enterprise", 25000, "inajengwa"],
 ];
 
+/* ---------- 🚀 HUDUMA ZA KIPEKEE (AI + chapa) — zinauzwa kutoka Kiwanda, bei ni mapendekezo ----------
+   [key, jina, aina ("once" = mara moja | "month" = kila mwezi), bei, skill ya Claude inayoifanya] */
+const SERVICES = [
+  ["brandkit", "🎨 Brand kit: majina, logo 6 za kuchagua, rangi, kadi ya biashara", "once", 100000, "brand-kit-duka"],
+  ["picha", "📸 Picha za bidhaa za kitaalamu (bidhaa 20)", "once", 40000, "studio-picha-bidhaa"],
+  ["video", "🎬 Video ya tangazo la duka (sek 45, wima, Kiswahili)", "once", 25000, ""],
+  ["msaidiziSetup", "🤖 Kuweka Msaidizi wa AI (seva, SMS, simu, dashboard)", "once", 150000, "msaidizi-deploy"],
+  ["msaidiziSms", "💬 Msaidizi wa SMS: ripoti ya asubuhi, kumbusho la madeni", "month", 20000, "msaidizi-deploy"],
+  ["msaidiziKamili", "📞 Msaidizi Kamili: + simu za sauti, oda kwa msambazaji", "month", 70000, "msaidizi-deploy"],
+  ["matangazo", "📣 Matangazo ya mitandao kila wiki (reels 2)", "month", 30000, "studio-picha-bidhaa"],
+  ["mafunzo", "🎓 Mafunzo ya ziada ya wafanyakazi (saa 1)", "once", 20000, "warsha-ai-mwanza"],
+];
+
 /* ---------- hali ya ukurasa huu ---------- */
 let SHOP = null;            // mfumo unaofanyiwa kazi
 let IS_ADMIN = false;
@@ -183,6 +196,34 @@ function applyBrand(b) {
   }
   const name = (b && b.name) || (SHOP && SHOP.name);
   if (name && DUKA_HOOK.titleSuffix != null) document.title = name + DUKA_HOOK.titleSuffix;
+}
+/* Logo ya mteja: aliyoweka Kiwanda (brand.logo); bila hiyo, herufi za mwanzo za jina lake kwa rangi yake.
+   Haionyeshi kamwe nembo ya E.E.MSANGO kwenye mfumo wa mteja. "" = hakuna duka (mfumo wa Eric mwenyewe). */
+function dukaLogoHtml(size, src) {
+  const b = src ? src.brand || {} : (SHOP && SHOP.brand) || PRE_BRAND || null, name = src ? src.name || "" : (SHOP && SHOP.name) || (PRE_BRAND && PRE_BRAND.name) || "";
+  if (!b && !name) return "";
+  const sz = size ? `width:${size}px;height:${size}px;` : "";
+  const logo = (b && (b.logo || "")) || "";
+  if (/^data:image\/(png|jpeg|webp);base64,/.test(logo)) return `<img src="${logo}" alt="" style="${sz}object-fit:contain">`;
+  const ini = name.replace(/[^\p{L}\p{N} ]/gu, " ").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "•";
+  const t = b && b.theme && b.theme !== "asili" && THEMES[b.theme];
+  const col = (t && t.side) || (b && /^#[0-9a-f]{6}$/i.test(b.color || "") ? b.color : "#0d6a5b");
+  return `<svg viewBox="0 0 100 100" style="${sz}" role="img" aria-label="${dukaEsc(name)}"><circle cx="50" cy="50" r="48" fill="${col}"/><text x="50" y="${ini.length > 1 ? 61 : 64}" font-family="Arial,Helvetica,sans-serif" font-size="${ini.length > 1 ? 34 : 44}" font-weight="700" fill="#fff" text-anchor="middle">${dukaEsc(ini)}</text></svg>`;
+}
+/* Picha ya logo → data URL ndogo (upande mrefu 256px). PNG inabaki na uwazi; ikiwa kubwa sana → JPEG juu ya nyeupe. */
+function dukaShrinkLogo(file) {
+  return new Promise((ok, bad) => {
+    if (!file || !/^image\//.test(file.type)) return bad(new Error("Chagua picha (PNG au JPG)."));
+    const r = new FileReader();
+    r.onerror = () => bad(new Error("Picha haisomeki"));
+    r.onload = () => { const im = new Image(); im.onerror = () => bad(new Error("Picha haisomeki")); im.onload = () => {
+      const k = Math.min(1, 256 / Math.max(im.width, im.height)), w = Math.max(1, Math.round(im.width * k)), h = Math.max(1, Math.round(im.height * k));
+      const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d"); x.drawImage(im, 0, 0, w, h);
+      let out = c.toDataURL("image/png");
+      if (out.length > 150000) { x.globalCompositeOperation = "destination-over"; x.fillStyle = "#fff"; x.fillRect(0, 0, w, h); out = c.toDataURL("image/jpeg", 0.88); }
+      ok(out); }; im.src = r.result; };
+    r.readAsDataURL(file);
+  });
 }
 function brandName() { return (SHOP && SHOP.name) || (PRE_BRAND && PRE_BRAND.name) || "Msango Maduka"; }
 
@@ -285,7 +326,7 @@ function dukaForgot(email) {
    ADMIN API — inatumiwa na Kiwanda na Ofisi (msimamizi tu; rules zinalinda)
    ===================================================================== */
 function dukaApp(name) { return firebase.apps.find((a) => a.name === name) || firebase.initializeApp(firebaseConfig, name); }
-function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "", theme: (s.brand && s.brand.theme) || "", industry: s.industry || "spea" }; }
+function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "", theme: (s.brand && s.brand.theme) || "", logo: (s.brand && s.brand.logo) || "", industry: s.industry || "spea" }; }
 /* Tengeneza mfumo mpya. opts: {name, code, edition, features, users, monthly, brand:{color,tagline}, email, pw, phone, location, trialDays, notes, clientId} */
 async function adminCreateShop(o) {
   const name = (o.name || "").trim(), code = dukaSlug(o.code || o.name), email = (o.email || "").trim().toLowerCase(), pw = o.pw || "";
@@ -305,7 +346,7 @@ async function adminCreateShop(o) {
     name, edition: o.edition || "duka", features: o.features || presetFeatures(o.edition || "duka"),
     users: Number(o.users) || (EDITIONS[o.edition] || EDITIONS.duka).users,
     monthly: Number(o.monthly) || (EDITIONS[o.edition] || EDITIONS.duka).price,
-    brand: { color: (o.brand && o.brand.color) || "", tagline: (o.brand && o.brand.tagline) || "", theme: (o.brand && o.brand.theme) || "" },
+    brand: { color: (o.brand && o.brand.color) || "", tagline: (o.brand && o.brand.tagline) || "", theme: (o.brand && o.brand.theme) || "", logo: (o.brand && o.brand.logo) || "" },
     industry: o.industry || "spea", addons: o.addons || [],
     members: [email], ownerEmail: email, phone: (o.phone || "").trim(), location: (o.location || "").trim(),
     active: true, paidUntil: now + trial * DAY, trialEnds: now + trial * DAY, createdAt: now,

@@ -177,6 +177,8 @@ function companyLogo(size) {
   if (STATE.settings && STATE.settings.logoBase64) {
     return `<img src="${STATE.settings.logoBase64}" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:${Math.round(size * 0.2)}px">`;
   }
+  const shopLogo = typeof dukaLogoHtml === "function" ? dukaLogoHtml(size) : "";
+  if (shopLogo) return shopLogo;
   return logoSvg(size);
 }
 function handleLogoUpload(input) {
