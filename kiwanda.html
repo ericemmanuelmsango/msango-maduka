@@ -94,6 +94,10 @@ details summary{cursor:pointer;font-weight:700}
 .svc:first-child{border-top:0}.svc .t{font-weight:600;font-size:14px}.svc .p{font-size:12.5px;color:var(--muted)}
 .svc .a{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.svc select{width:auto;font-size:13px;padding:5px 8px}
 .bar{height:8px;background:var(--sunk);border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.lgen{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,104px),1fr))}
+.lgen button{all:unset;cursor:pointer;border:2px solid var(--line);border-radius:12px;background:#fff;padding:4px;display:grid;place-items:center;aspect-ratio:1}
+.lgen button:hover{border-color:var(--muted)}.lgen button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.lgen button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.lgen svg{width:100%;height:auto;display:block}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--ink)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
 </style>
@@ -114,6 +118,7 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="duka.js?v=12"></script>
+<script src="logo-gen.js?v=1"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -560,8 +565,34 @@ function logoField(cur, target, name, color, theme) {
     <div class="lgbox"><div class="lgprev">${prev}</div>
       <div class="row"><label class="btn sm">📷 Weka logo<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="onLogo('${target}',this)"></label>
       ${cur ? `<button class="sm danger" onclick="setLogo('${target}','')">Ondoa</button>` : ""}
-      <button class="sm" onclick="claudeAsk('brandkit','${target}')">🤖 Mtengenezee logo na Claude</button></div></div>
-    <span class="note">PNG yenye uwazi ni bora. Inapunguzwa yenyewe (256px). ${cur ? "" : "Sasa hivi: herufi za jina kwa rangi ya duka."}</span></div>`;
+      <button class="sm pri" onclick="genOpen('${target}')">✨ Logo 30 moja kwa moja</button>
+      <button class="sm" onclick="claudeAsk('brandkit','${target}')">🤖 Logo maalum na Claude</button></div></div>
+    <span class="note">PNG yenye uwazi ni bora. Inapunguzwa yenyewe (256px). ${cur ? "" : "Sasa hivi: herufi za jina kwa rangi ya duka."}</span>
+    ${K.gen && K.gen.target === target ? vLogoGen(target) : ""}</div>`;
+}
+/* ✨ logo 30 za kuchagua, kulingana na jina na aina ya biashara */
+function genCtx(target) {
+  if (target === "new") { const f = K.form || {}; return { name: f.name, industry: f.industry, color: f.theme === "asili" ? f.color : (THEMES[f.theme] || {}).side }; }
+  const E = K.edit[target] || {}; return { name: E.name, industry: E.industry, color: E.theme === "asili" ? E.color : (THEMES[E.theme] || {}).side };
+}
+function genOpen(target) {
+  const x = genCtx(target);
+  if (!String(x.name || "").trim()) return toast("Andika jina la duka kwanza");
+  K.gen = { target, seed: 0, picked: null }; render();
+  setTimeout(() => { const el = document.getElementById("lgen-" + target); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
+}
+function vLogoGen(target) {
+  const x = genCtx(target), ideas = logoIdeas(x.name, x.industry, x.color, K.gen.seed, 30); K.gen.ideas = ideas;
+  return `<div id="lgen-${target}" style="display:grid;gap:10px;margin-top:6px">
+    <div class="row" style="justify-content:space-between"><b>✨ Logo 30 za ${esc(x.name)} · ${esc((INDUSTRIES[x.industry] || INDUSTRIES.spea).name)}</b>
+      <div class="row"><button class="sm" onclick="K.gen.seed++;K.gen.picked=null;render()">🔄 Nyingine 30</button><button class="sm" onclick="K.gen=null;render()">Funga</button></div></div>
+    <span class="note">Mwonyeshe mteja, achague anayoipenda — bonyeza logo, inawekwa papo hapo.</span>
+    <div class="lgen">${ideas.map((d, i) => `<button aria-label="Logo namba ${i + 1}" aria-pressed="${K.gen.picked === i}" onclick="genPick(${i})">${d.svg}</button>`).join("")}</div></div>`;
+}
+async function genPick(i) {
+  const g = K.gen; if (!g || !g.ideas || !g.ideas[i]) return;
+  try { const png = await logoToPng(g.ideas[i].svg); g.picked = i; setLogo(g.target, png); toast(g.target === "new" ? "✅ Logo namba " + (i + 1) + " imechaguliwa" : "✅ Logo namba " + (i + 1) + " — bonyeza 💾 Hifadhi chapa"); }
+  catch (e) { toast(e.message || "Haikuwezekana"); }
 }
 function setLogo(target, v) { if (target === "new") K.form.logo = v; else K.edit[target].logo = v; render(); if (target !== "new" && v === "") toast("Bonyeza 💾 Hifadhi chapa kuthibitisha"); }
 async function onLogo(target, input) {
