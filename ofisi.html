@@ -182,7 +182,7 @@ table.t td.r,table.t th.r{text-align:right}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=13"></script>
+<script src="duka.js?v=14"></script>
 <script>
 /* ---------- Blueprint data (from E.E.Msango Company Blueprint) ---------- */
 const ED = {
@@ -664,6 +664,8 @@ function contractHTML(c){
 
 /* ---------- render ---------- */
 function render(){
+  if(FB_USER&&IS_STAFF){ document.querySelector("nav.tabs").hidden=true; $("#sheet").hidden=true; $("#mode").textContent="Mfanyakazi";
+    $("#app").innerHTML=`<div class="login"><div class="panel" style="max-width:380px"><h3>Ofisi ni ya mmiliki tu</h3><p class="note">Malipo na mikataba yanashughulikiwa na Eric. Wewe tumia Kiwanda kutengeneza na kusaidia mifumo ya wateja.</p><a class="btnl pri" href="kiwanda.html">🏭 Nenda Kiwanda</a></div></div>`; return; }
   if(!FB_USER||!IS_ADMIN||!LOADED){
     document.querySelector("nav.tabs").hidden=true; $("#sheet").hidden=true;
     $("#mode").textContent=FB_USER?(IS_ADMIN?"Inapakia…":"Si msimamizi"):"Hujaingia";
@@ -755,7 +757,7 @@ function doLogin(){ auth.signInWithEmailAndPassword(LOGIN.email.trim(),LOGIN.pw)
 let _started=false;
 auth.onAuthStateChanged(async u=>{
   FB_USER=u; if(u) await resolveShop(u); render();
-  if(!u||!IS_ADMIN||_started) return; _started=true;
+  if(!u||!IS_ADMIN||IS_STAFF||_started) return; _started=true;
   let got=0; const ready=()=>{ if(++got>=2){ LOADED=true; const h=location.hash.slice(1); if(h&&S.clients[h]&&!openId){ openId=h; sub="mfumo"; tab="wateja" } } render() };
   db.collection("clients").onSnapshot(s=>{ const m={}; s.docs.forEach(x=>{ const v=x.data(); if(v) m[x.id]={...v,id:x.id} }); S.clients=m; if(!LOADED) ready(); else render() },
     e=>{ toast(e&&e.code==="permission-denied"?"Firebase imekataa — weka rules mpya (Kiwanda → Mipangilio).":"Imeshindwa kusoma wateja."); LOADED=true; render() });

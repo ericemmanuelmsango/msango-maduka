@@ -190,6 +190,7 @@ const SERVICES = [
 /* ---------- hali ya ukurasa huu ---------- */
 let SHOP = null;            // mfumo unaofanyiwa kazi
 let IS_ADMIN = false;
+let IS_STAFF = false;       // mfanyakazi wa Kiwanda (settings/staff): anaona na kutengeneza, hagusi bei, muda wala kufuta
 let SHOP_VIA_ADMIN = false; // msimamizi anaangalia mfumo wa mteja (tab yake)
 let SHOP_MISSING = false;
 let PUBLIC = {};            // settings/public (namba ya malipo…)
@@ -277,12 +278,16 @@ function brandName() { return (SHOP && SHOP.name) || (PRE_BRAND && PRE_BRAND.nam
 
 /* ---------- mfumo huu ni wa duka gani? ---------- */
 async function resolveShop(user) {
-  SHOP = null; IS_ADMIN = false; SHOP_VIA_ADMIN = false; SHOP_MISSING = false;
+  SHOP = null; IS_ADMIN = false; IS_STAFF = false; SHOP_VIA_ADMIN = false; SHOP_MISSING = false;
   if (!user || user.isAnonymous) return null;
   const email = (user.email || "").toLowerCase();
   db.collection("settings").doc("public").get().then((d) => { PUBLIC = (d.exists && d.data()) || {}; }).catch(() => {});
-  if (email === ADMIN_EMAIL.toLowerCase()) {
-    IS_ADMIN = true;
+  let staff = false;
+  if (email !== ADMIN_EMAIL.toLowerCase()) {
+    try { const sd = await db.collection("settings").doc("staff").get(); staff = sd.exists && ((sd.data() || {}).emails || []).map((x) => String(x).toLowerCase()).includes(email); } catch (e) {}
+  }
+  if (email === ADMIN_EMAIL.toLowerCase() || staff) {
+    IS_ADMIN = true; IS_STAFF = staff;
     if (URL_SHOP) {
       try { const d = await db.collection("shops").doc(URL_SHOP).get(); if (d.exists) { SHOP = { code: URL_SHOP, ...d.data() }; SHOP_VIA_ADMIN = true; } } catch (e) {}
     }
@@ -398,7 +403,7 @@ async function adminCreateShop(o) {
     industry: o.industry || "spea", addons: o.addons || [],
     members: [email], ownerEmail: email, phone: (o.phone || "").trim(), location: (o.location || "").trim(),
     active: true, paidUntil: now + trial * DAY, trialEnds: now + trial * DAY, createdAt: now,
-    loginPw: existed ? "" : pw, notes: o.notes || "", clientId: o.clientId || "",
+    loginPw: existed ? "" : pw, notes: o.notes || "", clientId: o.clientId || "", referredBy: o.referredBy || "",
   };
   // Ofisi: rekodi ya mteja inajitengeneza (au inaunganishwa kama imetoka Ofisi)
   let clientId = o.clientId;
@@ -463,38 +468,66 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null && request.auth.token.email != null; }
     function isAdmin() { return signedIn() && request.auth.token.email == "${adminEmail || ADMIN_EMAIL}"; }
+    // 🧑‍💼 wafanyakazi wa Kiwanda (orodha iko settings/staff) — wanaona na kutengeneza, hawagusi bei, muda wala kufuta
+    function isStaff() { return signedIn() && exists(/databases/$(database)/documents/settings/staff)
+      && request.auth.token.email in get(/databases/$(database)/documents/settings/staff).data.emails; }
     function shop(code) { return get(/databases/$(database)/documents/shops/$(code)).data; }
     function member(code) { return signedIn() && request.auth.token.email in shop(code).members; }
     // mfumo unafunguka tu ukiwa hai NA umelipiwa (muda unakaguliwa na seva, si simu)
     function paid(code) { return shop(code).active == true && shop(code).paidUntil > request.time.toMillis(); }
+    function isDemo(code) { return shop(code).get('demo', false) == true; }
 
     match /shops/{code} {
-      allow list, get: if isAdmin() || (signedIn() && request.auth.token.email in resource.data.members);
-      allow write: if isAdmin();
+      allow list, get: if isAdmin() || isStaff() || (signedIn() && request.auth.token.email in resource.data.members);
+      allow create: if isAdmin() || (isStaff() && request.resource.data.get('demo', false) == false
+        && request.resource.data.paidUntil <= request.time.toMillis() + 2678400000);
+      allow update: if isAdmin() || (isStaff() && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name', 'brand', 'phone', 'location', 'industry', 'notes', 'members', 'loginPw', 'clientId', 'referredBy']));
+      allow delete: if isAdmin();
       match /data/{docId} {
-        allow read, write: if isAdmin() || (member(code) && paid(code));
+        allow read: if isAdmin() || isStaff() || (member(code) && paid(code));
+        allow write: if isAdmin() || (member(code) && paid(code)) || (isStaff() && (docId == 'pos_settings' || isDemo(code)));
       }
     }
     match /brands/{code} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isStaff();
     }
     match /settings/public {
       allow read: if signedIn();
+    }
+    match /settings/staff {
+      allow read: if signedIn() && request.auth.token.email in resource.data.emails;
     }
     match /settings/{doc} {
       allow read, write: if isAdmin();
     }
     match /clients/{id} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() || isStaff();
     }
     // 🐞 hitilafu na ripoti za matatizo kutoka kwa mifumo ya wateja
     match /errors/{id} {
       allow create: if signedIn() && request.resource.data.keys().size() < 20 && request.resource.data.msg is string && request.resource.data.msg.size() < 2000;
-      allow read, delete: if isAdmin();
+      allow read: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
     }
   }
 }`;
+}
+/* ---------- 💓 dalili za uhai: Kiwanda kinaona mteja alifungua mfumo / kuuza lini (data/_hai) ---------- */
+function dukaToday() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function dukaPing(kind) {
+  try {
+    if (!SHOP || IS_ADMIN || SHOP_VIA_ADMIN || SHOP.demo || shopBlocked()) return;
+    const now = Date.now(), user = firebase.auth().currentUser, d = { seen: now, who: (user && user.email) || "" };
+    if (kind === "sale") { d.sale = now; d["s_" + dukaToday()] = firebase.firestore.FieldValue.increment(1); }
+    else {
+      const key = "duka_hai_" + SHOP.code; let last = 0;
+      try { last = +localStorage.getItem(key) || 0; localStorage.setItem(key, String(now)); } catch (e) {}
+      if (now - last < 30 * 60e3) return;   // mara moja kila dakika 30 inatosha
+    }
+    dataCollection().doc("_hai").set(d, { merge: true }).catch(() => {});
+  } catch (e) {}
 }
 /* ---------- 🐞 kumbukumbu za hitilafu (zinaonekana Kiwanda → Hitilafu) ---------- */
 const DUKA_VER = "v7.2";

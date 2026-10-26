@@ -570,7 +570,7 @@ async function checkout() {
     items, total, paid: U.pay === "Cash" ? (Number(U.paid) || total) : total,
     deleted: false,
   });
-  SYNCING.add(id);
+  SYNCING.add(id); dukaPing("sale");
   colRef.doc(SALE_PREFIX + id).set(sale).then(() => { SYNCING.delete(id); if (U.receipt && U.receipt.id === id) render(); })
     .catch(() => toast("⚠️ Mauzo hayajafika cloud bado — yatatumwa mtandao ukirudi."));
   if (sale.pay === "Mkopo") addToDebtors(sale);
@@ -1058,7 +1058,7 @@ auth.onAuthStateChanged(async (u) => {
   if (!shopBlocked() && packRedirect()) return;
   if (shopBlocked()) { D.loaded = true; D.blocked = true; render(); return; }
   if (adminHome()) { D.loaded = true; D.adminHome = true; render(); return; }
-  colRef = dataCollection();
+  colRef = dataCollection(); dukaPing();
   if (SHOP) POS_DEFAULTS.shop = { name: SHOP.name, line: (SHOP.brand && SHOP.brand.tagline) || "", tin: "", phone: SHOP.phone || "", address: SHOP.location || "", footer: RECEIPT_THANKS };
   startListening();
 });

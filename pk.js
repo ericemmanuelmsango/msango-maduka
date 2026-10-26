@@ -43,7 +43,7 @@ function S(key, def) { const v = PK.settings[key]; return v == null || v === "" 
 async function save(doc) {
   if (!doc.id || !doc.t) throw new Error("doc needs id + t");
   doc = clean({ k: "cfg", ...doc, at: Date.now(), by: PK.user ? PK.user.name : "" });
-  if (doc.k === "tx") { if (!doc.day) doc.day = today(); PK.tx[doc.id] = doc; delete PK.cfg[doc.id]; } else { PK.cfg[doc.id] = doc; delete PK.tx[doc.id]; }
+  if (doc.k === "tx") { if (!doc.day) doc.day = today(); PK.tx[doc.id] = doc; delete PK.cfg[doc.id]; if (typeof dukaPing === "function") dukaPing("sale"); } else { PK.cfg[doc.id] = doc; delete PK.tx[doc.id]; }
   render();
   return col().doc(doc.id).set(doc).catch(saveErr);
 }
@@ -658,7 +658,7 @@ DUKA_HOOK.pri = "btn p"; DUKA_HOOK.ghost = "btn"; DUKA_HOOK.panel = "card";
     setTheme();
     try { await loadPack(ind); } catch (e) { PK.msg = e.message; render(); return; }
     try { const sid = sessionStorage.getItem("pk_sess"); if (sid) PK._restore = sid; } catch (e) {}
-    listen();
+    listen(); dukaPing();
     const iv = setInterval(() => { if (!PK.ready) return; clearInterval(iv); if (PK._restore && !PK.user) { const u2 = users().find((x) => x.id === PK._restore && x.active !== false); if (u2) { PK.user = u2; PK.page = firstPage(); render(); } } }, 150);
   });
 })();

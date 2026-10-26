@@ -10,16 +10,19 @@
     const em = SCEN.user && SCEN.user.email;
     if ((SCEN.rules || "open") === "open") return false;
     const admin = em === SCEN.admin, seg = path.split("/");
-    if (seg[0] === "brands") return write && !admin;
+    const sd = store["settings/staff"], staff = !!(em && sd && (sd.emails || []).includes(em));
+    if (seg[0] === "brands") return write && !admin && !staff;
+    if (seg[0] === "settings" && seg[1] === "staff" && !write) return !(admin || staff);
     if (seg[0] === "settings") return seg[1] === "public" && !write ? !em : !admin;
-    if (seg[0] === "clients") return !admin;
-    if (seg[0] === "errors") return write ? !em : !admin;
+    if (seg[0] === "clients") return !admin && !staff;
+    if (seg[0] === "errors") return write ? !em : !admin && !staff;
     if (seg[0] === "qvkeys") return !admin;
     if (seg[0] === "qvctl") return write ? !admin : false;
     if (seg[0] === "qv") return !admin;
     if (seg[0] === "shops") {
       if (admin) return false;
       const shop = store["shops/" + seg[1]];
+      if (staff) { if (seg.length === 2) return write === "delete"; return write ? !(seg[3] === "pos_settings" || (shop && shop.demo)) : false; }
       if (seg.length === 2) return write || !(shop && (shop.members || []).includes(em));
       return !(shop && (shop.members || []).includes(em) && shop.active && shop.paidUntil > Date.now());
     }
@@ -30,9 +33,11 @@
     return {
       id: path.split("/").pop(), path,
       get: async () => { log.push("get " + path); if (denied(path)) throw err(); return snapDoc(path); },
-      set: async (data, opt) => { log.push("set " + path); if (denied(path, true)) throw err(); store[path] = opt && opt.merge ? { ...(store[path] || {}), ...data } : data; notify(); },
+      set: async (data, opt) => { log.push("set " + path); if (denied(path, true)) throw err(); const cur = store[path] || {};
+        const fix = (v, old) => v && v.__inc != null ? (Number(old) || 0) + v.__inc : v && v.__union ? (old || []).concat(v.__union) : v;
+        if (opt && opt.merge) { const m = { ...cur }; Object.entries(data).forEach(([k, v]) => { if (v === undefined) delete m[k]; else m[k] = fix(v, cur[k]); }); store[path] = m; } else store[path] = data; notify(); },
       update: async (data) => { log.push("update " + path); if (denied(path, true)) throw err(); const cur = { ...(store[path] || {}) }; Object.entries(data).forEach(([k, v]) => { const ks = k.split("."); let o = cur; ks.slice(0, -1).forEach((x) => { o[x] = o[x] && typeof o[x] === "object" ? { ...o[x] } : {}; o = o[x]; }); const key = ks[ks.length - 1]; o[key] = v && v.__inc != null ? (Number(o[key]) || 0) + v.__inc : v && v.__union ? (o[key] || []).concat(v.__union.filter((y) => !(o[key] || []).some((z) => JSON.stringify(z) === JSON.stringify(y)))) : v; }); store[path] = cur; notify(); },
-      delete: async () => { delete store[path]; notify(); },
+      delete: async () => { if (denied(path, "delete")) throw err(); delete store[path]; notify(); },
       onSnapshot: (opt, next, error) => { if (typeof opt === "function") { error = next; next = opt; } const f = () => { if (denied(path)) return error && error(err()); next(snapDoc(path)); }; setTimeout(f, 0); subs.push(f); return () => {}; },
       collection: (c) => colRef(path + "/" + c),
     };
@@ -46,7 +51,8 @@
       path, doc: (id) => docRef(path + "/" + (id || Math.random().toString(36).slice(2))),
       add: async (d) => { const r = docRef(path + "/" + Math.random().toString(36).slice(2)); await r.set(d); return r; },
       where: (f, op, v) => colRef(path, filters.concat([[f, op, v]])), limit: function () { return this; }, orderBy: function () { return this; },
-      get: async () => { log.push("query " + path + JSON.stringify(filters)); if (path === "shops" && SCEN.rules !== "open" && (!SCEN.user || SCEN.user.email !== SCEN.admin) && !filters.length) throw err();
+      get: async () => { log.push("query " + path + JSON.stringify(filters)); const sd = store["settings/staff"], stf = SCEN.user && sd && (sd.emails || []).includes(SCEN.user.email);
+        if (path === "shops" && SCEN.rules !== "open" && (!SCEN.user || SCEN.user.email !== SCEN.admin) && !stf && !filters.length) throw err();
         if (denied(path + "/x") && !(path === "shops" && filters.length)) throw err(); return qs(); },
       onSnapshot: (opt, next, error) => { if (typeof opt === "function") { error = next; next = opt; } const f = () => { if (denied(path + "/x")) return error && error(err()); next(qs()); }; setTimeout(f, 0); subs.push(f); return () => {}; },
     };

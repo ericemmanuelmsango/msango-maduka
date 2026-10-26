@@ -247,7 +247,7 @@ function loadState() {
     if (!shopBlocked() && packRedirect()) return;
     if (shopBlocked() || adminHome()) { STATE_LOADED = true; rerender(); return; }
     if (!has(UI.page) && !["dashboard", "settings", "expenses"].includes(UI.page)) UI.page = "dashboard";
-    colRef = dataCollection();
+    colRef = dataCollection(); dukaPing();
     docRef = colRef.doc("data");
     docRef._unsub = startSplitListener();
     rerender();
@@ -554,7 +554,7 @@ function saveEntries() { saveField("entries"); }
 function saveProducts() { return saveField("products"); }
 function saveStockItems() { saveField("stockItems"); }
 function saveStockMovements() { invalidateStock(); saveField("stockMovements"); }
-function saveSales() { saveField("sales"); }
+function saveSales() { saveField("sales"); dukaPing("sale"); }
 function saveDeliveries() { saveField("deliveries"); }
 function saveSettings() { if (docRef) docRef.set({ settings: STATE.settings }, { merge: true }).then(onSaveSuccess).catch(onSaveError); }
 

@@ -107,6 +107,20 @@ details summary{cursor:pointer;font-weight:700}
 .pal-none{align-items:center;justify-content:center;color:var(--muted)}
 .pal-dots{display:flex;gap:4px}.pal-dots i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--ink)}
+.leo{border-width:2px;border-color:var(--accent)}
+.leo-k{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:720px){.leo-k{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.leo-k div{background:var(--sunk);border-radius:8px;padding:10px 12px;display:grid;gap:2px}
+.leo-k b{font-family:var(--f-mono);font-size:19px;font-weight:500}.leo-k span{font-size:12px;color:var(--muted)}
+.lsec{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.lsec h4{padding:8px 12px;background:var(--sunk);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.lrow{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
+.lrow .n{font-weight:600;font-size:14px;overflow-wrap:anywhere}.lrow .m{font-size:12.5px;color:var(--muted)}
+.lrow .a{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:560px){.lrow{grid-template-columns:1fr}.lrow .a{justify-content:flex-start}}
+.hai{font-size:12px;color:var(--muted)}.hai.bad{color:var(--bad)}.hai.good{color:var(--good)}
+.demo-g{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr))}
+.demo-g .box{align-content:start}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
 </style>
 </head>
@@ -125,8 +139,9 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=13"></script>
+<script src="duka.js?v=14"></script>
 <script src="logo-gen.js?v=2"></script>
+<script src="demo.js?v=1"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -137,12 +152,14 @@ const tzs = (n) => "TZS " + Math.round(+n || 0).toLocaleString("en-US");
 function toast(m) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 2800); }
 
 const K = { user: null, shops: [], loaded: false, open: location.hash.slice(1) || null, tab: {}, edit: {}, creds: {}, created: null, msg: "", ok: true, busy: false,
-  showNew: false, form: null, pub: {}, clients: {}, login: { email: "", pw: "", msg: "" } };
+  showNew: false, form: null, pub: {}, clients: {}, login: { email: "", pw: "", msg: "" }, hai: {}, haiAt: 0, staff: null };
+const OWNER = () => IS_ADMIN && !IS_STAFF;          // mmiliki (Eric) — bei, muda, kufuta, mipangilio
+const realShops = () => K.shops.filter((s) => !s.demo);
 function blankForm() {
   return { name: "", code: "", _codeTouched: false, email: "", pw: genPw(), phone: "", location: "", owner: "", edition: "duka",
     features: presetFeatures("duka"), users: EDITIONS.duka.users, monthly: EDITIONS.duka.price, color: "#0d6a5b", tagline: "",
     theme: "asili", industry: "spea", addons: [], logo: "",
-    trialDays: (K.pub && K.pub.trialDays) || 14, notes: "", clientId: "" };
+    trialDays: (K.pub && K.pub.trialDays) || 14, notes: "", clientId: "", referredBy: "" };
 }
 function genPw() { const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for (let i = 0; i < 8; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
 
@@ -162,12 +179,14 @@ function listen() {
   if (unsub) return;
   unsub = db.collection("shops").onSnapshot((snap) => {
     K.shops = snap.docs.map((d) => ({ code: d.id, ...d.data() })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    K.loaded = true; K.denied = false;
+    const first = !K.loaded; K.loaded = true; K.denied = false;
+    if (first) loadHai();
     // mifumo ya zamani isiyo na muda wa malipo → ipe siku 14 za majaribio
-    K.shops.filter((s) => !s.paidUntil).forEach((s) => db.collection("shops").doc(s.code).update({ paidUntil: Date.now() + 14 * DAY, trialEnds: Date.now() + 14 * DAY }).catch(() => {}));
+    if (OWNER()) K.shops.filter((s) => !s.paidUntil).forEach((s) => db.collection("shops").doc(s.code).update({ paidUntil: Date.now() + 14 * DAY, trialEnds: Date.now() + 14 * DAY }).catch(() => {}));
     render();
   }, (e) => { K.loaded = true; K.denied = e && e.code === "permission-denied"; render(); });
   db.collection("settings").doc("public").onSnapshot((d) => { K.pub = (d.exists && d.data()) || {}; render(); }, () => {});
+  if (OWNER()) db.collection("settings").doc("staff").onSnapshot((d) => { K.staff = (d.exists && d.data()) || { emails: [], names: {} }; render(); }, () => {});
   db.collection("clients").onSnapshot((snap) => { const m = {}; snap.forEach((d) => (m[d.id] = { id: d.id, ...d.data() })); K.clients = m; render(); }, () => {});
 }
 
@@ -185,7 +204,7 @@ function vLogin() {
 function doLogin() { auth.signInWithEmailAndPassword(K.login.email.trim(), K.login.pw).catch((e) => { K.login.msg = /wrong|invalid|not-found/.test(e.code || "") ? "Email au password si sahihi." : (e.message || "Imeshindikana"); render(); }); }
 
 function vStats() {
-  const S = K.shops, st = S.map(status);
+  const S = realShops(), st = S.map(status);
   const n = (c) => st.filter(([k]) => k === c).length;
   const mrr = S.filter((s, i) => st[i][0] === "p-paid" || st[i][0] === "p-soon").reduce((a, s) => a + (s.monthly || 0), 0);
   return `<div class="stats">
@@ -246,7 +265,7 @@ function vNew() {
     <div class="form">
       <label class="f">Anza na mpango<select id="nf-edition" onchange="nfEdition(this.value)">${editionOpts}</select></label>
       <label class="f">Watumiaji wa POS (idadi)<input id="nf-users" type="number" min="1" value="${f.users}" oninput="nf('users',+this.value)"></label>
-      <label class="f">Bei kwa mwezi (TZS)<input id="nf-monthly" type="number" step="1000" value="${f.monthly}" oninput="nf('monthly',+this.value)"></label>
+      <label class="f">Bei kwa mwezi (TZS)<input id="nf-monthly" type="number" step="1000" value="${f.monthly}" ${OWNER() ? "" : "readonly title=\"Bei inawekwa na mmiliki\""} oninput="nf('monthly',+this.value)"></label>
     </div>
     ${featBoxes(f.features, "nfFeat")}
     <h4>4. Muundo na chapa</h4>
@@ -261,7 +280,8 @@ function vNew() {
     ${logoField(f.logo, "new", f.name, f.color, f.theme)}
     <h4>5. Muda</h4>
     <div class="form">
-      <label class="f">Siku za majaribio bure<input id="nf-trial" type="number" min="0" value="${f.trialDays}" oninput="nf('trialDays',+this.value)"></label>
+      <label class="f">Siku za majaribio bure<input id="nf-trial" type="number" min="0" max="${OWNER() ? 365 : 30}" value="${f.trialDays}" oninput="nf('trialDays',Math.min(+this.value,${OWNER() ? 365 : 30}))"></label>
+      <label class="f">🎁 Ameletwa na (rufaa)${refSelect(f.referredBy, "nf('referredBy',this.value)", "")}</label>
       <label class="f">Maombi maalum ya mteja<textarea id="nf-notes" oninput="nf('notes',this.value)" placeholder="mf. anataka ripoti ya kila fundi, nembo kwenye risiti…">${esc(f.notes)}</textarea></label>
     </div>
     <button class="pri" ${K.busy ? "disabled" : ""} onclick="createShop()">${K.busy ? "Inatengeneza…" : "🏭 Tengeneza mfumo"}</button>
@@ -331,8 +351,8 @@ function copy(id) { const el = $("#" + id); (navigator.clipboard ? navigator.cli
 function vList() {
   if (!K.loaded) return `<div class="panel"><p class="muted">Inapakia mifumo…</p></div>`;
   if (K.denied) return `<div class="panel"><div class="msg err">Firebase imekataa kusoma mifumo. Weka rules mpya kwenye Mipangilio hapa chini, kisha refresh.</div></div>`;
-  if (!K.shops.length) return `<div class="panel" style="text-align:center"><p class="muted">Bado hakuna mfumo. Bonyeza <b>＋ Mfumo mpya</b> kumtengenezea mteja wa kwanza.</p></div>`;
-  return `<div class="list">${K.shops.map(vSys).join("")}</div>`;
+  if (!realShops().length) return `<div class="panel" style="text-align:center"><p class="muted">Bado hakuna mfumo. Bonyeza <b>＋ Mfumo mpya</b> kumtengenezea mteja wa kwanza.</p></div>`;
+  return `<div class="list">${realShops().map(vSys).join("")}</div>`;
 }
 function vSys(s) {
   const [cls, label] = status(s), open = K.open === s.code;
@@ -343,7 +363,7 @@ function vSys(s) {
     <div class="top">
       ${s.brand && s.brand.logo ? `<span class="swl">${logoImg(s.brand.logo)}</span>` : `<span class="sw" style="background:${esc(color)}"></span>`}
       <div style="min-width:0"><div class="n">${esc(s.name)}</div>
-        <div class="m">${esc(s.code)} · ${esc((INDUSTRIES[s.industry] || INDUSTRIES.spea).name)} · ${esc(E.name)}${s.brand && s.brand.theme && s.brand.theme !== "asili" ? " · 💎 " + esc((THEMES[s.brand.theme] || {}).name || "") : ""}${s.features ? " (imebadilishwa)" : ""} · ${tzs(s.monthly || E.price)}/mwezi · hadi ${fmtDate(s.paidUntil)}</div></div>
+        <div class="m">${esc(s.code)} · ${esc((INDUSTRIES[s.industry] || INDUSTRIES.spea).name)} · ${esc(E.name)}${s.brand && s.brand.theme && s.brand.theme !== "asili" ? " · 💎 " + esc((THEMES[s.brand.theme] || {}).name || "") : ""}${s.features ? " (imebadilishwa)" : ""} · ${tzs(s.monthly || E.price)}/mwezi · hadi ${fmtDate(s.paidUntil)}</div>${haiLine(s)}</div>
       <span class="pill ${cls}">${label}</span>
     </div>
     ${sysChips(s)}
@@ -351,7 +371,7 @@ function vSys(s) {
       <a class="btn sm" href="${systemLink(s)}" target="_blank" rel="noopener">↗ Fungua</a>
       ${!isPackShop(s) && ({ ...presetFeatures(s.edition), ...(s.features || {}) }).pos ? `<a class="btn sm" href="${shopLink(s.code, "pos.html")}" target="_blank" rel="noopener">↗ POS</a>` : ""}
       <button class="sm" onclick="copyLink('${s.code}')">🔗 Link</button>
-      <button class="sm" onclick="extend('${s.code}',30)">＋ Mwezi 1</button>
+      ${OWNER() ? `<button class="sm" onclick="extend('${s.code}',30)">＋ Mwezi 1</button>` : ""}
       <button class="sm ${open ? "pri" : ""}" onclick="toggle('${s.code}')">⚙️ ${open ? "Funga" : "Badilisha"}</button>
     </div>
     ${open ? vEditor(s) : ""}
@@ -374,7 +394,7 @@ function vEditor(s) {
     monthly: s.monthly || (EDITIONS[s.edition] || EDITIONS.duka).price, name: s.name, color: (s.brand && s.brand.color) || "#0d6a5b",
     tagline: (s.brand && s.brand.tagline) || "", phone: s.phone || "", location: s.location || "", notes: s.notes || "",
     theme: (s.brand && s.brand.theme) || "asili", industry: s.industry || "spea", logo: (s.brand && s.brand.logo) || "", palette: (s.brand && s.brand.palette) || "" });
-  const tabs = [["vipengele", "🧩 Vipengele"], ["chapa", "🎨 Chapa"], ["huduma", "🚀 Huduma za kipekee"], ["muda", "⏳ Muda & malipo"], ["kuingia", "🔑 Kuingia"], ["hatari", "⚠️ Hatari"]];
+  const tabs = [["vipengele", "🧩 Vipengele"], ["chapa", "🎨 Chapa"], ["huduma", "🚀 Huduma za kipekee"], ["muda", "⏳ Muda & rufaa"], ["kuingia", "🔑 Kuingia"], ["backup", "💾 Backup"]].concat(OWNER() ? [["hatari", "⚠️ Hatari"]] : []);
   let body = "";
   if (t === "vipengele") body = `
     <div class="form">
@@ -384,7 +404,7 @@ function vEditor(s) {
     </div>
     ${featBoxes(E.features, "edFeat_" + s.code.replace(/-/g, "_"))}
     <label class="f">Maombi maalum ya mteja<textarea oninput="K.edit['${s.code}'].notes=this.value">${esc(E.notes)}</textarea></label>
-    <div class="row"><button class="pri" onclick="saveFeatures('${s.code}')">💾 Hifadhi vipengele</button><span class="note">Mteja anaona mabadiliko akifungua mfumo upya.</span></div>`;
+    ${OWNER() ? `<div class="row"><button class="pri" onclick="saveFeatures('${s.code}')">💾 Hifadhi vipengele</button><span class="note">Mteja anaona mabadiliko akifungua mfumo upya.</span></div>` : `<div class="msg wn">Vipengele na bei vinabadilishwa na mmiliki (Eric) tu. Mteja akitaka kipengele, mwambie Eric.</div>`}`;
   if (t === "chapa") body = `
     <label class="f">Aina ya biashara${industrySelect(E.industry, "K.edit['" + s.code + "'].industry=this.value")}</label>
     ${themePicker(E.theme, "edTheme_" + s.code.replace(/-/g, "_"))}
@@ -406,18 +426,20 @@ function vEditor(s) {
       <div class="kv"><span>Umelipiwa hadi</span><b>${fmtDate(s.paidUntil)}</b>${dl != null ? `<span class="note">(${dl > 0 ? "siku " + dl + " zimebaki" : "siku " + -dl + " zimepita"})</span>` : ""}</div>
       <div class="kv"><span>Majaribio yaliisha</span><b>${fmtDate(s.trialEnds)}</b></div>
     </div>
-    <div class="row">
+    ${OWNER() ? `<div class="row">
       <button onclick="extend('${s.code}',7)">＋ Siku 7</button>
       <button class="pri" onclick="extend('${s.code}',30)">＋ Mwezi 1</button>
       <button onclick="extend('${s.code}',90)">＋ Miezi 3</button>
       <button onclick="extend('${s.code}',365)">＋ Mwaka 1</button>
     </div>
     <div class="row"><label class="f" style="max-width:220px">Au weka tarehe kamili<input type="date" id="pd-${s.code}"></label><button onclick="setUntil('${s.code}')">Weka</button></div>
-    <div class="row">${s.active === false ? `<button class="pri" onclick="setActive('${s.code}',true)">▶️ Washa mfumo</button>` : `<button class="danger" onclick="setActive('${s.code}',false)">⏸️ Simamisha mfumo</button>`}</div>
+    <div class="row">${s.active === false ? `<button class="pri" onclick="setActive('${s.code}',true)">▶️ Washa mfumo</button>` : `<button class="danger" onclick="setActive('${s.code}',false)">⏸️ Simamisha mfumo</button>`}</div>` : `<div class="msg wn">Kuongeza muda kunafanywa na mmiliki baada ya malipo kuthibitishwa.</div>`}
+    ${vRufaa(s)}
     <p class="note">Ukirekodi malipo kwenye <b>Ofisi</b>, muda unaongezwa hapa wenyewe. Muda ukiisha, mfumo wa mteja unajifunga wenyewe (seva inakagua — hawezi kudanganya kwa saa ya simu). Data yake haifutwi.</p>`;
   }
   if (t === "kuingia") body = vCreds(s);
-  if (t === "hatari") body = `<div class="box"><b>Futa mfumo huu</b><span class="note">Inafuta mfumo, data yote ya duka, na link yake. Rekodi ya Ofisi inabaki. Haiwezi kurudishwa.</span>
+  if (t === "backup") body = vBackup(s);
+  if (t === "hatari" && OWNER()) body = `<div class="box"><b>Futa mfumo huu</b><span class="note">Inafuta mfumo, data yote ya duka, na link yake. Rekodi ya Ofisi inabaki. Haiwezi kurudishwa.</span>
     <label class="f">Kuthibitisha, andika code ya mfumo: <b class="mono">${esc(s.code)}</b><input id="del-${s.code}" autocomplete="off" placeholder="${esc(s.code)}"></label>
     <button class="danger" onclick="delShop('${s.code}')">🗑️ Futa ${esc(s.name)}</button>
     ${K.delMsg && K.delMsg.code === s.code ? `<div class="msg ${K.delMsg.ok ? "ok" : "err"}">${esc(K.delMsg.text)}</div>` : ""}</div>`;
@@ -484,9 +506,9 @@ function vCreds(s) {
       <button class="sm" onclick="dukaForgotFor('${esc(em)}')">📧 Tuma link ya kubadilisha</button>
       <button class="sm" onclick="noteLoginPw('${s.code}')">✏️ Andika kumbukumbu</button></div>
     ${isPackShop(s) ? `<div class="kv"><span>Watumiaji wa ${esc((INDUSTRIES[s.industry] || {}).name || "pakiti")}</span>${c.pk.length ? "" : `<span class="note">bado hakuna — mmiliki ataweka jina na PIN akiingia mara ya kwanza</span>`}</div>
-    ${c.pk.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span><input id="pkpin-${u.id}" class="mono" inputmode="numeric" maxlength="6" placeholder="PIN mpya" style="width:110px"><button class="sm" onclick="packPin('${s.code}','${u.id}')">Weka PIN</button></div>`).join("")}` : `
+    ${c.pk.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span>${OWNER() ? `<input id="pkpin-${u.id}" class="mono" inputmode="numeric" maxlength="6" placeholder="PIN mpya" style="width:110px"><button class="sm" onclick="packPin('${s.code}','${u.id}')">Weka PIN</button>` : `<span class="note">PIN mpya — mwambie Eric</span>`}</div>`).join("")}` : `
     <div class="kv"><span>Password ya mfumo (Wadai)</span><b class="mono">${c.appPw ? esc(c.appPw) : "bado haijawekwa"}</b>
-      <button class="sm" onclick="setAppPw('${s.code}')">Badilisha</button></div>
+      ${OWNER() ? `<button class="sm" onclick="setAppPw('${s.code}')">Badilisha</button>` : ""}</div>
     <div class="kv"><span>PIN za POS</span>${c.users.length ? "" : `<span class="note">bado hakuna mtumiaji wa POS</span>`}</div>
     ${c.users.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span><b class="mono">••••</b><button class="sm" onclick="setPin('${s.code}','${u.id}',${esc(JSON.stringify(u.name))})">Weka PIN mpya</button></div>`).join("")}`}
     <div class="kv"><span>Email nyingine za duka</span><span class="mono">${esc((s.members || []).filter((x) => x !== em).join(", ") || "—")}</span><button class="sm" onclick="addMember('${s.code}')">＋ Ongeza email</button></div>
@@ -547,19 +569,20 @@ function vErrors() {
   if (E.msg) return `<details class="panel" open>${head}<div class="msg err">${esc(E.msg)}</div><button class="sm" onclick="loadErrors()">↻ Jaribu tena</button></details>`;
   const G = errGroups();
   return `<details class="panel" open>${head}
-    <div class="row"><button class="sm" onclick="loadErrors()">↻ Onyesha upya</button>${G.length ? `<button class="sm pri" onclick="const t=document.getElementById('errtxt');t.value=errText();copy('errtxt')">📋 Nakili kwa Claude</button><button class="sm" onclick="if(confirm('Futa zote?'))delErrors(K.err.list.map(e=>e.id))">🗑️ Futa zote</button>` : ""}</div>
+    <div class="row"><button class="sm" onclick="loadErrors()">↻ Onyesha upya</button>${G.length ? `<button class="sm pri" onclick="const t=document.getElementById('errtxt');t.value=errText();copy('errtxt')">📋 Nakili kwa Claude</button>${OWNER() ? `<button class="sm" onclick="if(confirm('Futa zote?'))delErrors(K.err.list.map(e=>e.id))">🗑️ Futa zote</button>` : ""}` : ""}</div>
     <textarea id="errtxt" readonly style="position:absolute;left:-9999px"></textarea>
     ${G.length ? G.map((e) => `<div class="box" style="margin-top:8px;${e.type === "report" ? "border-color:var(--warn,#e8a317)" : ""}"><div class="row" style="justify-content:space-between"><b>${e.type === "report" ? "🆘 Ripoti" : "🐞 Error ×" + e.n} · ${esc(e.shopName || e.shop || "—")}</b><span class="note">${new Date(e.last).toLocaleString("sw-TZ")}</span></div>
       <div class="mono" style="font-size:13px;white-space:pre-wrap;word-break:break-word">${esc(e.msg)}</div>
       <div class="note">${esc(e.industry || "")} · ${esc(e.page || "")} · ${esc(e.who || "")}${e.staff ? " (" + esc(e.staff) + ")" : ""}${e.phone ? " · 📞 " + esc(e.phone) : ""} · ${esc(e.ver || "")}</div>
-      <button class="sm" onclick="delErrors(${esc(JSON.stringify(e.ids))})">✓ Imeshughulikiwa (futa)</button></div>`).join("") : `<p class="note">Hakuna hitilafu. 🎉</p>`}
+      ${OWNER() ? `<button class="sm" onclick="delErrors(${esc(JSON.stringify(e.ids))})">✓ Imeshughulikiwa (futa)</button>` : ""}</div>`).join("") : `<p class="note">Hakuna hitilafu. 🎉</p>`}
     <p class="note">Bonyeza "📋 Nakili kwa Claude", kisha bandika kwenye mazungumzo na Claude ili arekebishe.</p></details>`;
 }
 
 /* ---------- mipangilio ---------- */
 function vSettings() {
+  if (!OWNER()) return "";
   const P = K.pub || {};
-  return `<details class="panel"><summary>⚙️ Mipangilio ya Kiwanda</summary>
+  return `<details class="panel" ${K.setOpen ? "open" : ""} ontoggle="K.setOpen=this.open"><summary>⚙️ Mipangilio ya Kiwanda</summary>
     <h4>Malipo (wateja wanaona hii muda ukiisha)</h4>
     <div class="form">
       <label class="f">Njia<input id="ps-method" value="${esc(P.lipaMethod || "M-Pesa Lipa namba")}"></label>
@@ -569,6 +592,9 @@ function vSettings() {
       <label class="f">Siku za majaribio (kawaida)<input id="ps-trial" type="number" min="0" value="${P.trialDays || 14}"></label>
     </div>
     <button class="pri" onclick="savePub()">💾 Hifadhi</button>
+    ${vStaff()}
+    <h4>💾 Backup ya mifumo yote</h4>
+    <div class="row"><button onclick="backupAll()" ${K.busy ? "disabled" : ""}>⬇️ Pakua backup ya mifumo yote (${realShops().length})</button><span class="note">Faili moja la JSON lenye data ya kila duka. Lihifadhi Google Drive au flash. Fanya hivi kila wiki.</span></div>
     <h4>Rules za Firebase (weka upya baada ya sasisho hili)</h4>
     <p class="note">Firebase Console → Firestore Database → Rules → futa zote → bandika hizi → Publish.</p>
     <textarea id="rules" readonly style="min-height:240px" class="mono">${esc(dukaRules())}</textarea>
@@ -659,7 +685,7 @@ function vHuduma(s) {
     <div><h4>Huduma za kipekee kwa ${esc(s.name)}</h4><span class="note">Ukiongeza, inaingia kwenye pendekezo na mkataba wa Ofisi. 🤖 Claude inanakili maelekezo yenye taarifa za duka hili, kisha inafungua Claude — bandika na tuma.</span></div>
     <div>${rows}</div>
     <div class="box"><b>💬 Ujumbe wa WhatsApp kwa mteja</b><span class="note">Unafunguka WhatsApp ukiwa umeandikwa tayari — wewe ndiye unayetuma.</span>
-      <div class="row"><button class="sm" onclick="waTo('${s.code}','karibu')">👋 Karibu</button><button class="sm" onclick="waTo('${s.code}','malipo')">⏳ Kumbusho la malipo</button><button class="sm" onclick="waTo('${s.code}','huduma')">🚀 Tangaza huduma mpya</button>
+      <div class="row"><button class="sm" onclick="waTo('${s.code}','karibu')">👋 Karibu</button><button class="sm" onclick="waTo('${s.code}','malipo')">⏳ Kumbusho la malipo</button><button class="sm" onclick="waTo('${s.code}','huduma')">🚀 Tangaza huduma mpya</button><button class="sm" onclick="waTo('${s.code}','alika')">🎁 Alika rafiki (rufaa)</button>
       ${tutorialUrl(s) ? `<button class="sm" onclick="waTo('${s.code}','mafunzo')">🎬 Video ya mafunzo</button>` : ""}</div>
       ${tutorialUrl(s) ? `<span class="note">🎬 Video ya mafunzo (dk 1): <a href="${tutorialUrl(s)}" target="_blank" rel="noopener">tazama ↗</a></span>` : `<span class="note">🎬 Video ya mafunzo ya ${esc((INDUSTRIES[s.industry] || {}).name || "")} inaandaliwa.</span>`}</div>`;
 }
@@ -711,7 +737,7 @@ function claudeAsk(key, target) {
   (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { toast("📋 Maelekezo yamenakiliwa — bandika kwenye Claude"); go(); }).catch(() => { prompt("Nakili maelekezo haya, kisha bandika kwenye Claude:", text); go(); });
 }
 /* video ya mafunzo ya kutumia mfumo (iko kwenye video/ ya tovuti hii) */
-const TUTORIALS = { spea: "video/mafunzo-spea.mp4" };
+const TUTORIALS = Object.fromEntries(Object.keys(INDUSTRIES).map((k) => [k, "video/mafunzo-" + k + ".mp4"]));   // video ya dakika 1 kwa kila aina ya biashara
 function tutorialUrl(s) { const f = s && TUTORIALS[s.industry || "spea"]; return f ? baseUrl() + f : ""; }
 function waTo(code, kind) {
   const x = shopCtx(code), d = String(x.phone || "").replace(/\D/g, ""), num = d.startsWith("0") ? "255" + d.slice(1) : d;
@@ -721,10 +747,249 @@ function waTo(code, kind) {
     karibu: `${hi} karibu kwenye mfumo wa ${x.name}! 🎉\nLink yako: ${x.link}${tut ? "\n🎬 Video fupi ya jinsi ya kuutumia: " + tut : ""}\nUkihitaji msaada wowote niko hapa. Asante kwa kutuamini.\n— Eric, Msango Maduka`,
     malipo: `${hi} mfumo wa ${x.name} unafikia mwisho wa muda tarehe ${fmtDate(x.paidUntil)}. Malipo ya mwezi ni ${tzs(x.monthly)}. Ukishalipa, nitumie ujumbe niongeze muda. Asante!\n— Eric, Msango Maduka`,
     mafunzo: `${hi} hii hapa video fupi (dakika 1) ya jinsi ya kutumia mfumo wa ${x.name}:\n🎬 ${tut}\nIngia, uza, toa risiti, ona stock na ripoti, kisha funga siku. Ukikwama popote niulize.\n— Eric, Msango Maduka`,
+    lala: `${hi} habari za kazi! 😊 Nimeona mfumo wa ${x.name} haujatumika kwa siku kadhaa. Kuna tatizo lolote, au unahitaji msaada/mafunzo kidogo? Niko tayari kukusaidia — hata kwa simu au kuja dukani.\n— Eric, Msango Maduka`,
+    jaribio: `${hi} siku za majaribio ya mfumo wa ${x.name} zinaisha tarehe ${fmtDate(x.paidUntil)}. Ukipenda kuendelea, malipo ni ${tzs(x.monthly)} kwa mwezi${(K.pub || {}).lipaNumber ? " — " + ((K.pub || {}).lipaMethod || "Lipa namba") + " " + (K.pub || {}).lipaNumber + ", kumbukumbu: " + x.code : ""}. Data yako yote inabaki salama. Asante!\n— Eric, Msango Maduka`,
+    rufaa: `${hi} asante kwa kutuletea mteja mpya! 🎁 Tumekuongezea MWEZI 1 BURE kwenye mfumo wa ${x.name} — sasa unatumika hadi ${fmtDate(x.paidUntil)}. Ukileta mwingine, unapata mwezi mwingine bure.\n— Eric, Msango Maduka`,
+    alika: `${hi} unaufurahia mfumo wa ${x.name}? 🎁 Ukimletea rafiki yako mwenye duka aanze kutumia Msango Maduka, wewe unapata MWEZI 1 BURE kila anapolipa. Nitumie jina na namba yake tu, mengine nitamaliza mimi.\n— Eric, Msango Maduka`,
     huduma: `${hi} sasa Msango Maduka tunatoa pia:\n🎨 Logo na brand kit ya duka lako\n📸 Picha za bidhaa za kitaalamu\n🤖 Msaidizi wa AI anayekutumia ripoti ya mauzo kwa SMS kila asubuhi\nUkipenda kimoja, nijibu hapa.\n— Eric`,
   };
   window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(T[kind]), "_blank", "noopener");
 }
+
+/* ---------- 💓 uhai wa wateja (data/_hai — mfumo wa mteja unaandika ukifunguliwa au ukiuza) ---------- */
+const HAI_START = Date.parse("2026-10-26T00:00:00+03:00");   // ufuatiliaji ulianza — kabla ya hapo hakuna taarifa
+const daysAgo = (ms) => (ms ? Math.max(0, Math.floor((Date.now() - ms) / DAY)) : null);
+async function loadHai() {
+  const S = realShops(); K.haiBusy = true; render();
+  const res = await Promise.all(S.map((s) => db.collection("shops").doc(s.code).collection("data").doc("_hai").get()
+    .then((d) => [s.code, d.exists ? d.data() : null]).catch(() => [s.code, undefined])));
+  const m = {}; res.forEach(([c, d]) => { if (d !== undefined) m[c] = d; }); K.hai = m; K.haiAt = Date.now(); K.haiBusy = false; render();
+}
+function sales7(h) {
+  if (!h) return 0; let n = 0;
+  for (let i = 0; i < 7; i++) { const d = new Date(Date.now() - i * DAY); n += +h["s_" + d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")] || 0; }
+  return n;
+}
+function haiInfo(s) {
+  if (!(s.code in K.hai)) return null;            // bado haijasomwa
+  const h = K.hai[s.code], seen = h && h.seen, sale = h && h.sale, ds = daysAgo(seen), dsl = daysAgo(sale);
+  const track = daysAgo(Math.max(s.createdAt || 0, HAI_START)) || 0;   // siku tulizoweza kuona
+  let sleep = "", lvl = 0;
+  if (!seen) { if (track >= 5) { sleep = "Hajafungua mfumo kwa siku " + track; lvl = 2; } }
+  else if (ds >= 5) { sleep = "Hajafungua mfumo siku " + ds; lvl = 2; }
+  else if (!sale && track >= 5) { sleep = "Anafungua, lakini hajarekodi mauzo"; lvl = 1; }
+  else if (sale && dsl >= 5) { sleep = "Anafungua, lakini hajauza siku " + dsl; lvl = 1; }
+  return { seen, sale, ds, dsl, s7: sales7(h), sleep, lvl };
+}
+function haiLine(s) {
+  const i = haiInfo(s); if (!i) return "";
+  const when = (d) => (d === 0 ? "leo" : d === 1 ? "jana" : "siku " + d + " zilizopita");
+  if (!i.seen) return `<div class="hai ${i.lvl ? "bad" : ""}">💓 ${i.sleep ? esc(i.sleep) : "Tunaanza kufuatilia — ataonekana akifungua mfumo"}</div>`;
+  return `<div class="hai ${i.lvl === 2 ? "bad" : i.lvl ? "" : "good"}">💓 Alifungua ${when(i.ds)}${i.sale ? " · muamala wa mwisho " + when(i.dsl) : ""} · miamala wiki hii: ${i.s7}</div>`;
+}
+
+/* ---------- 📅 LEO: kila kitu kinachohitaji hatua leo, mahali pamoja ---------- */
+const isTrialShop = (s) => !!(s.trialEnds && s.paidUntil <= s.trialEnds);
+function leoData() {
+  const S = realShops(), live = (s) => s.active !== false;
+  const due = S.filter((s) => live(s) && !isTrialShop(s)).map((s) => ({ s, dl: daysLeft(s) })).filter((x) => x.dl != null && x.dl <= 7 && x.dl > -30).sort((a, b) => a.dl - b.dl);
+  const trial = S.filter((s) => live(s) && isTrialShop(s)).map((s) => ({ s, dl: daysLeft(s) })).filter((x) => x.dl != null && x.dl <= 3 && x.dl > -15).sort((a, b) => a.dl - b.dl);
+  const sleep = S.filter((s) => live(s) && daysLeft(s) > 0).map((s) => ({ s, i: haiInfo(s) })).filter((x) => x.i && x.i.sleep).sort((a, b) => b.i.lvl - a.i.lvl);
+  const svc = [];
+  Object.values(K.clients || {}).forEach((c) => (c.addons || []).filter((a) => a.svc && a.status === "imekamilika")
+    .forEach((a) => svc.push({ c, a, s: S.find((x) => (x.clientId && x.clientId === c.id) || x.code === c.shopCode) })));
+  const refs = S.filter((s) => s.referredBy && !s.refRewarded && !isTrialShop(s) && daysLeft(s) > 0).map((s) => ({ s, r: S.find((x) => x.code === s.referredBy) })).filter((x) => x.r);
+  const mrr = S.filter((s) => live(s) && !isTrialShop(s) && daysLeft(s) > 0).reduce((a, s) => a + (+s.monthly || 0), 0);
+  const week = due.filter((x) => x.dl <= 7).reduce((a, x) => a + (+x.s.monthly || 0), 0);
+  const svcSum = svc.reduce((a, x) => a + (+x.a.price || 0), 0);
+  return { due, trial, sleep, svc, refs, mrr, week, svcSum };
+}
+function leoOpen(code, tab) {
+  K.open = code; if (tab) K.tab[code] = tab; history.replaceState(null, "", "#" + code); render();
+  setTimeout(() => { const el = document.getElementById("sys-" + code); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30);
+}
+function telBtn(s) { const d = String(s.phone || "").replace(/\D/g, ""); return d.length >= 9 ? `<a class="btn sm" href="tel:${d.startsWith("0") ? "+255" + d.slice(1) : "+" + d}">📞</a>` : ""; }
+function vLeo() {
+  const L = leoData(), when = (dl) => (dl > 1 ? "inaisha baada ya siku " + dl : dl === 1 ? "inaisha kesho" : dl === 0 ? "inaisha leo" : "imeisha siku " + -dl + " zilizopita — mfumo umejifunga");
+  const row = (s, meta, btns, tab) => `<div class="lrow"><div><div class="n">${esc(s.name)}</div><div class="m">${meta}</div></div><div class="a">${btns}<button class="sm" onclick="leoOpen('${s.code}','${tab || ""}')" aria-label="Fungua ${esc(s.name)}">⚙️</button></div></div>`;
+  const sec = (title, n, rows) => (n ? `<div class="lsec"><h4><span>${title}</span><span class="pill p-soon">${n}</span></h4>${rows}</div>` : "");
+  const parts = [
+    sec("⏳ Malipo yanayokaribia / yaliyokwisha", L.due.length, L.due.map(({ s, dl }) => row(s, `${when(dl)} · ${tzs(s.monthly)}/mwezi · ${fmtDate(s.paidUntil)}`,
+      `<button class="sm" onclick="waTo('${s.code}','malipo')">💬 Kumbusha</button>${OWNER() ? `<button class="sm pri" onclick="extend('${s.code}',30)">✅ Amelipa · ＋ Mwezi 1</button>` : ""}`, "muda")).join("")),
+    sec("🧪 Majaribio yanayoisha", L.trial.length, L.trial.map(({ s, dl }) => row(s, `majaribio ${when(dl)} · bei ${tzs(s.monthly)}/mwezi`,
+      `<button class="sm" onclick="waTo('${s.code}','jaribio')">💬 Mwombe alipie</button>${OWNER() ? `<button class="sm pri" onclick="extend('${s.code}',30)">✅ Amelipa · ＋ Mwezi 1</button>` : ""}`, "muda")).join("")),
+    sec("😴 Wateja waliolala (hatari ya kuacha)", L.sleep.length, L.sleep.map(({ s, i }) => row(s, `<span class="${i.lvl === 2 ? "danger" : ""}">${esc(i.sleep)}</span>`,
+      `${telBtn(s)}<button class="sm" onclick="waTo('${s.code}','lala')">💬 Muulize hali</button>`, "huduma")).join("")),
+    sec("🚀 Huduma zimekamilika, hazijalipwa", L.svc.length, L.svc.map(({ c, a, s }) => s ? row(s, `${esc(a.name)} · <b class="num">${tzs(a.price)}</b>`,
+      OWNER() ? `<button class="sm pri" onclick="svcSet('${s.code}','${a.svc}','imelipwa')">✅ Amelipa</button>` : "", "huduma")
+      : `<div class="lrow"><div><div class="n">${esc(c.name)}</div><div class="m">${esc(a.name)} · ${tzs(a.price)} — mteja wa Ofisi bila mfumo</div></div><div class="a"><a class="btn sm" href="ofisi.html#${esc(c.id)}">📋 Ofisi</a></div></div>`).join("")),
+    sec("🎁 Zawadi za rufaa za kutoa", L.refs.length, L.refs.map(({ s, r }) => row(s, `ameletwa na <b>${esc(r.name)}</b> na sasa amelipa — ${esc(r.name)} apate mwezi 1 bure`,
+      OWNER() ? `<button class="sm pri" onclick="giveRef('${s.code}')">🎁 Mpe ${esc(r.name)} mwezi 1</button>` : `<span class="note">Eric atampa</span>`, "muda")).join("")),
+  ].filter(Boolean);
+  const hai = K.haiBusy ? "inasoma…" : K.haiAt ? "uhai umesomwa " + new Date(K.haiAt).toLocaleTimeString("sw-TZ", { hour: "2-digit", minute: "2-digit" }) : "";
+  return `<section class="panel leo" aria-label="Leo">
+    <div class="row" style="justify-content:space-between"><h3>📅 Leo · ${esc(new Date().toLocaleDateString("sw-TZ", { weekday: "long", day: "numeric", month: "long" }))}</h3>
+      <div class="row"><span class="note">${hai}</span><button class="sm" onclick="loadHai()" ${K.haiBusy ? "disabled" : ""}>↻ Sasisha</button><button class="sm" onclick="copyLeo()">📋 Nakili muhtasari</button></div></div>
+    <div class="leo-k">
+      <div><span>Mapato ya mwezi</span><b>${tzs(L.mrr)}</b></div>
+      <div><span>Ya kukusanya wiki hii</span><b style="color:var(--warn)">${tzs(L.week)}</b></div>
+      <div><span>Majaribio yanayoisha</span><b style="color:var(--info)">${L.trial.length}</b></div>
+      <div><span>Waliolala</span><b style="color:${L.sleep.length ? "var(--bad)" : "var(--good)"}">${L.sleep.length}</b></div>
+      <div><span>Huduma hazijalipwa</span><b>${tzs(L.svcSum)}</b></div>
+    </div>
+    ${parts.length ? parts.join("") : `<div class="msg ok">✅ Hakuna cha kushughulikia leo — wateja wote wamelipa na wanatumia mfumo.</div>`}
+  </section>`;
+}
+function leoText() {
+  const L = leoData(), o = ["📅 Kiwanda — " + new Date().toLocaleDateString("sw-TZ", { weekday: "long", day: "numeric", month: "long" }), ""];
+  const days = (dl) => (dl > 0 ? "siku " + dl : dl === 0 ? "leo" : "imeisha siku " + -dl);
+  if (L.due.length) o.push("⏳ Malipo:", ...L.due.map(({ s, dl }) => `• ${s.name} — ${days(dl)} · ${tzs(s.monthly)}${s.phone ? " · " + s.phone : ""}`), "");
+  if (L.trial.length) o.push("🧪 Majaribio yanayoisha:", ...L.trial.map(({ s, dl }) => `• ${s.name} — ${days(dl)}${s.phone ? " · " + s.phone : ""}`), "");
+  if (L.sleep.length) o.push("😴 Waliolala:", ...L.sleep.map(({ s, i }) => `• ${s.name} — ${i.sleep}${s.phone ? " · " + s.phone : ""}`), "");
+  if (L.svc.length) o.push("🚀 Huduma hazijalipwa:", ...L.svc.map(({ c, a }) => `• ${c.name} — ${a.name} · ${tzs(a.price)}`), "");
+  if (L.refs.length) o.push("🎁 Zawadi za rufaa:", ...L.refs.map(({ s, r }) => `• ${r.name} (alimleta ${s.name}) — mwezi 1 bure`), "");
+  o.push(`💰 Mapato ya mwezi ${tzs(L.mrr)} · ya kukusanya wiki hii ${tzs(L.week)}`);
+  return o.join("\n");
+}
+function copyLeo() { const t = leoText(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("📋 Muhtasari wa leo umenakiliwa")).catch(() => prompt("Nakili:", t)); }
+
+/* ---------- 🎁 rufaa: mteja analeta mteja → akishalipa, aliyemleta anapata mwezi 1 bure ---------- */
+function refSelect(cur, onchange, exclude) {
+  return `<select onchange="${onchange}"><option value="">— Hakuna —</option>${realShops().filter((s) => s.code !== exclude)
+    .map((s) => `<option value="${esc(s.code)}" ${cur === s.code ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`;
+}
+function vRufaa(s) {
+  const brought = realShops().filter((x) => x.referredBy === s.code);
+  return `<div class="box"><b>🎁 Rufaa</b>
+    <label class="f">Ameletwa na${refSelect(s.referredBy || "", `setRef('${s.code}',this.value)`, s.code)}</label>
+    ${s.referredBy && s.refRewarded ? `<span class="note">✅ Zawadi ya aliyemleta ilitolewa ${fmtDate(s.refRewarded)}.</span>` : s.referredBy ? `<span class="note">Akishalipa mwezi wa kwanza, aliyemleta anapata mwezi 1 bure — utaiona kwenye 📅 Leo.</span>` : ""}
+    <div class="kv"><span>Wateja aliowaleta</span>${brought.length ? `<span class="chips">${brought.map((b) => `<span class="chip">${esc(b.name)}${b.refRewarded ? " ✓🎁" : ""}</span>`).join("")}</span>` : `<span class="note">bado hakuna — tumia 🎁 Alika rafiki (Huduma za kipekee)</span>`}</div></div>`;
+}
+async function setRef(code, v) { try { await adminUpdateShop(code, { referredBy: v }); toast(v ? "🎁 Rufaa imehifadhiwa" : "Rufaa imeondolewa"); } catch (e) { toast("Haikuhifadhika: " + (e.message || "")); } }
+async function giveRef(code) {
+  const s = K.shops.find((x) => x.code === code), r = s && K.shops.find((x) => x.code === s.referredBy); if (!r) return;
+  try {
+    const until = await adminExtend(r.code, 30); await adminUpdateShop(code, { refRewarded: Date.now() });
+    toast(`🎁 ${r.name} ameongezewa mwezi 1 — hadi ${fmtDate(until)}`);
+    setTimeout(() => { if (confirm("Mtumie " + r.name + " ujumbe wa shukrani WhatsApp?")) waTo(r.code, "rufaa"); }, 900);
+  } catch (e) { toast("Haikuwezekana: " + (e.message || "")); }
+}
+
+/* ---------- 💾 backup ya kila mteja (na kurudisha) ---------- */
+function dlJson(obj, name) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], { type: "application/json" })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+async function shopDump(code) {
+  const s = K.shops.find((x) => x.code === code) || {}, snap = await db.collection("shops").doc(code).collection("data").get();
+  const docs = {}; snap.forEach((d) => (docs[d.id] = d.data()));
+  const shop = { ...s }; delete shop.loginPw;
+  return { app: "msango-maduka", v: 1, code, name: s.name || code, industry: s.industry || "spea", at: Date.now(), shop, docs };
+}
+async function backupShop(code) {
+  K.bk = { code, busy: true, msg: "Inapakua data…" }; render();
+  try {
+    const d = await shopDump(code); dlJson(d, `backup-${code}-${dukaToday()}.json`);
+    K.bk = { code, msg: `✅ Backup imepakuliwa — hati ${Object.keys(d.docs).length}. Ihifadhi Google Drive.` };
+    if (OWNER()) adminUpdateShop(code, { lastBackup: Date.now() }).catch(() => {});
+  } catch (e) { K.bk = { code, err: true, msg: "Imeshindikana: " + (e.message || "") }; }
+  render();
+}
+async function restoreShop(code, input) {
+  const f = input.files && input.files[0]; input.value = ""; if (!f) return;
+  let d; try { d = JSON.parse(await f.text()); } catch (e) { return toast("Faili si backup sahihi (JSON)"); }
+  if (d && d.all && Array.isArray(d.shops)) d = d.shops.find((x) => x.code === code) || d.shops[0];
+  if (!d || d.app !== "msango-maduka" || !d.docs) return toast("Faili hili si backup ya Msango Maduka");
+  const typed = (($("#rs-" + code) || {}).value || "").trim().toLowerCase();
+  if (typed !== code) return toast(`Andika code "${code}" kwenye kisanduku kwanza`);
+  if (d.code !== code && !confirm(`Backup hii ni ya "${d.name || d.code}", si ya mfumo huu. Uirudishe HAPA hata hivyo?`)) return;
+  const n = Object.keys(d.docs).length;
+  if (!confirm(`Rudisha hati ${n} kutoka backup ya ${new Date(d.at).toLocaleString("sw-TZ")}?\nKwanza nitapakua backup ya hali ya sasa (usalama).`)) return;
+  K.bk = { code, busy: true, msg: "Inahifadhi hali ya sasa kwanza…" }; render();
+  try {
+    dlJson(await shopDump(code), `kabla-ya-kurudisha-${code}-${dukaToday()}.json`);
+    const col = db.collection("shops").doc(code).collection("data"); let i = 0;
+    for (const [id, doc] of Object.entries(d.docs)) { await col.doc(id).set(doc); if (++i % 20 === 0) { K.bk.msg = `Inarudisha… ${i}/${n}`; render(); } }
+    K.bk = { code, msg: `✅ Hati ${n} zimerudishwa. Mwambie mteja afunge mfumo na kuufungua upya.` };
+  } catch (e) { K.bk = { code, err: true, msg: "Haikurudishwa: " + (e.message || "") }; }
+  render();
+}
+function vBackup(s) {
+  const b = K.bk && K.bk.code === s.code ? K.bk : null;
+  return `<div class="box"><b>⬇️ Pakua backup ya ${esc(s.name)}</b>
+      <span class="note">Data yote ya duka — bidhaa, stock, mauzo, madeni, wafanyakazi na picha — kwenye faili moja. Ihifadhi Google Drive au flash.${s.lastBackup ? " Backup ya mwisho: " + fmtDate(s.lastBackup) + "." : ""}</span>
+      <div class="row"><button class="pri" ${b && b.busy ? "disabled" : ""} onclick="backupShop('${s.code}')">⬇️ Pakua backup</button></div></div>
+    ${OWNER() ? `<div class="box"><b>♻️ Rudisha kutoka backup</b>
+      <span class="note">Mteja akipoteza au kuharibu data: chagua faili la backup. Hati zilizo kwenye backup zinarudishwa kama zilivyokuwa; zilizoongezwa baadaye zinabaki. Kabla ya kurudisha, backup ya hali ya sasa inapakuliwa yenyewe.</span>
+      <label class="f">Kuthibitisha, andika code ya mfumo: <b class="mono">${esc(s.code)}</b><input id="rs-${s.code}" autocomplete="off" placeholder="${esc(s.code)}"></label>
+      <div class="row"><label class="btn sm">📂 Chagua faili la backup<input type="file" accept="application/json,.json" hidden onchange="restoreShop('${s.code}',this)"></label></div></div>` : ""}
+    ${b && b.msg ? `<div class="msg ${b.err ? "err" : b.busy ? "wn" : "ok"}">${esc(b.msg)}</div>` : ""}`;
+}
+async function backupAll() {
+  K.busy = true; render(); toast("Inapakua data ya mifumo yote…");
+  try {
+    const out = { app: "msango-maduka", v: 1, all: true, at: Date.now(), shops: [] };
+    for (const s of realShops()) out.shops.push(await shopDump(s.code));
+    dlJson(out, `backup-mifumo-yote-${dukaToday()}.json`); toast(`✅ Backup ya mifumo ${out.shops.length} imepakuliwa`);
+  } catch (e) { toast("Imeshindikana: " + (e.message || "")); }
+  K.busy = false; render();
+}
+
+/* ---------- 🧑‍💼 wafanyakazi wa Kiwanda (settings/staff) ---------- */
+function vStaff() {
+  const st = K.staff || { emails: [], names: {} }, list = st.emails || [];
+  return `<h4>🧑‍💼 Wafanyakazi wa Kiwanda</h4>
+    <p class="note">Mfanyakazi anaingia hapa Kiwanda kwa email yake. <b>Anaweza:</b> kutengeneza mfumo (bei ya mpango, majaribio ≤ siku 30), chapa na logo, huduma za kipekee, kuunganisha na Ofisi, PIN za POS, kupakua backup, na kufungua demo. <b>Hawezi:</b> kubadilisha bei au vipengele, kuongeza muda, kusimamisha, kufuta, kurudisha backup, kuona Ofisi wala mipangilio. Ukiongeza mfanyakazi wa kwanza, weka rules mpya (chini).</p>
+    ${list.length ? `<div class="lsec">${list.map((e) => `<div class="lrow"><div><div class="n">${esc((st.names || {})[e] || e)}</div><div class="m mono">${esc(e)}</div></div><div class="a"><button class="sm danger" onclick="delStaff(${esc(JSON.stringify(e))})">Ondoa</button></div></div>`).join("")}</div>` : `<span class="note">Bado hakuna mfanyakazi.</span>`}
+    <div class="form"><label class="f">Jina<input id="sf-name" autocomplete="off"></label><label class="f">Email<input id="sf-email" type="email" autocomplete="off"></label>
+      <label class="f">Password ya kuanzia<input id="sf-pw" value="${esc(K.sfPw || (K.sfPw = genPw()))}"></label></div>
+    <div class="row"><button onclick="addStaff()">＋ Ongeza mfanyakazi</button></div>
+    ${K.staffMsg ? `<textarea id="staffmsg" readonly style="min-height:110px;font-size:13px">${esc(K.staffMsg)}</textarea><button class="sm" onclick="copy('staffmsg')">📋 Nakili ujumbe</button>` : ""}`;
+}
+async function addStaff() {
+  const name = $("#sf-name").value.trim(), email = $("#sf-email").value.trim().toLowerCase(), pw = $("#sf-pw").value.trim();
+  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("Andika jina na email sahihi");
+  if (email === ADMIN_EMAIL.toLowerCase()) return toast("Hiyo ni email yako ya mmiliki");
+  if (pw.length < 6) return toast("Password iwe na herufi 6 au zaidi");
+  let existed = false;
+  try { const sec = dukaApp("ee-staff"); await sec.auth().createUserWithEmailAndPassword(email, pw); await sec.auth().signOut().catch(() => {}); }
+  catch (e) { if (e && e.code === "auth/email-already-in-use") existed = true; else return toast("Haikuwezekana: " + (e.message || "")); }
+  const st = K.staff || { emails: [], names: {} };
+  try {
+    await db.collection("settings").doc("staff").set({ emails: Array.from(new Set([...(st.emails || []), email])), names: { ...(st.names || {}), [email]: name } });
+    K.sfPw = ""; K.setOpen = true;
+    K.staffMsg = `Habari ${name}! Umeongezwa kwenye Kiwanda cha Msango Maduka.\nFungua: ${baseUrl()}kiwanda.html\nEmail: ${email}\n${existed ? "Password: ile uliyonayo tayari" : "Password: " + pw}\n— Eric, E.E.MSANGO`;
+    toast("✅ " + name + " ameongezwa"); render();
+  } catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
+}
+async function delStaff(email) {
+  if (!confirm("Ondoa " + email + " kwenye Kiwanda?")) return;
+  const st = K.staff || { emails: [], names: {} }, names = { ...(st.names || {}) }; delete names[email];
+  try { await db.collection("settings").doc("staff").set({ emails: (st.emails || []).filter((x) => x !== email), names }); toast("Ameondolewa"); } catch (e) { toast("Haikuwezekana: " + (e.message || "")); }
+}
+
+/* ---------- 🎬 maduka ya demo ---------- */
+function vDemo() {
+  const has = (ind) => K.shops.find((s) => s.code === demoCode(ind));
+  return `<details class="panel" ${K.demoOpen ? "open" : ""} ontoggle="K.demoOpen=this.open"><summary>🎬 Maduka ya Demo — mwonyeshe mteja</summary>
+    <p class="note">Kila aina ya biashara ina duka la mfano lenye bidhaa, mauzo na ripoti. Lifungue kwenye simu yako mbele ya mteja — hauonyeshi data ya mteja mwingine. Ukimaliza, bonyeza 🔄 kurudisha data ya mfano.</p>
+    <div class="demo-g">${Object.entries(INDUSTRIES).map(([k, x]) => {
+      const s = has(k), busy = K.demoBusy === k;
+      return `<div class="box"><b>${esc(x.name)}</b>${s ? `<span class="note">${k === "spea" ? `Wadai: password <b class="mono">${DEMO_PW}</b> · POS: PIN <b class="mono">${DEMO_PIN}</b>` : "Unaingia moja kwa moja kama msimamizi"}</span>
+        <div class="row"><a class="btn sm pri" href="${systemLink(s)}" target="_blank" rel="noopener">↗ Fungua demo</a>${k === "spea" ? `<a class="btn sm" href="${shopLink(s.code, "pos.html")}" target="_blank" rel="noopener">↗ POS</a>` : ""}
+        <button class="sm" ${busy ? "disabled" : ""} onclick="demoMake('${k}')">${busy ? "Inaandaa…" : "🔄 Rudisha data"}</button></div>
+        <a class="note" href="${baseUrl() + TUTORIALS[k]}" target="_blank" rel="noopener">🎬 Video ya mafunzo (dk 1) ↗</a>`
+        : OWNER() ? `<div class="row"><button class="sm" ${busy ? "disabled" : ""} onclick="demoMake('${k}')">${busy ? "Inatengeneza…" : "＋ Tengeneza demo"}</button></div>` : `<span class="note">Bado haijatengenezwa — mwambie Eric.</span>`}</div>`;
+    }).join("")}</div>
+    ${OWNER() ? `<div class="row"><button class="sm" onclick="demoAll()" ${K.demoBusy ? "disabled" : ""}>⚡ Tengeneza / rudisha demo zote ${Object.keys(INDUSTRIES).length}</button></div>` : ""}
+  </details>`;
+}
+async function demoMake(ind) {
+  K.demoBusy = ind; render();
+  try { await demoCreate(ind, !OWNER()); toast("✅ Demo ya " + INDUSTRIES[ind].name + " iko tayari"); } catch (e) { toast("Haikuwezekana: " + (e.message || "")); }
+  K.demoBusy = ""; render();
+}
+async function demoAll() { for (const k of Object.keys(INDUSTRIES)) await demoMake(k); }
 
 /* ---------- render ---------- */
 function render() {
@@ -733,12 +998,14 @@ function render() {
   if (!IS_ADMIN) { app.innerHTML = `<div class="center"><div class="card panel"><h3>Ukurasa huu ni wa msimamizi tu</h3><button onclick="auth.signOut()">Toka</button></div></div>`; return; }
   const a = document.activeElement, fid = a && a.id, sel = a && "selectionStart" in a ? [a.selectionStart, a.selectionEnd] : null;
   app.innerHTML = `
-    <div class="row" style="justify-content:space-between"><div><div class="note">E.E.MSANGO</div><h2>🏭 Kiwanda cha mifumo</h2></div>
+    <div class="row" style="justify-content:space-between"><div><div class="note">E.E.MSANGO${IS_STAFF ? " · 🧑‍💼 Mfanyakazi: " + esc(K.user.email) : ""}</div><h2>🏭 Kiwanda cha mifumo</h2></div>
       ${K.showNew ? "" : `<button class="pri" onclick="openNew()">＋ Mfumo mpya</button>`}</div>
+    ${K.loaded && !K.denied ? vLeo() : ""}
     ${vStats()}
     ${K.showNew ? vNew() : ""}
     ${vCreated()}
     ${vList()}
+    ${vDemo()}
     ${vErrors()}
     ${vSettings()}`;
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
@@ -780,7 +1047,7 @@ function prefillFromKatalogi() {
 }
 auth.onAuthStateChanged(async (u) => {
   K.user = u;
-  if (u) { await resolveShop(u); $("#who").textContent = u.email; if (IS_ADMIN) { listen(); prefillFromKatalogi(); const m = location.search.match(/[?&]mteja=([^&]+)/); if (m) prefillFromClient(decodeURIComponent(m[1])); } }
+  if (u) { await resolveShop(u); $("#who").textContent = u.email; if (IS_STAFF) document.querySelectorAll('nav.top a[href="ofisi.html"]').forEach((a) => (a.hidden = true)); if (IS_ADMIN) { listen(); prefillFromKatalogi(); const m = location.search.match(/[?&]mteja=([^&]+)/); if (m) prefillFromClient(decodeURIComponent(m[1])); } }
   else $("#who").textContent = "";
   render();
   if (K.open) setTimeout(() => { const el = document.getElementById("sys-" + K.open); el && el.scrollIntoView({ block: "start" }); }, 400);
