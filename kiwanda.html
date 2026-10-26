@@ -98,6 +98,14 @@ details summary{cursor:pointer;font-weight:700}
 .lgen button{all:unset;cursor:pointer;border:2px solid var(--line);border-radius:12px;background:#fff;padding:4px;display:grid;place-items:center;aspect-ratio:1}
 .lgen button:hover{border-color:var(--muted)}.lgen button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .lgen button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.lgen svg{width:100%;height:auto;display:block}
+.pals{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}
+.pal{all:unset;cursor:pointer;display:grid;gap:5px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12.5px}
+.pal b{font-weight:600;font-size:13px}.pal small{color:var(--muted);font-size:11px;line-height:1.3}
+.pal[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.pal:focus-visible{outline:2px solid var(--accent)}
+.pal-sw{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line)}.pal-sw i{display:block}
+.pal-none{align-items:center;justify-content:center;color:var(--muted)}
+.pal-dots{display:flex;gap:4px}.pal-dots i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--ink)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
 </style>
@@ -117,8 +125,8 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="duka.js?v=12"></script>
-<script src="logo-gen.js?v=1"></script>
+<script src="duka.js?v=13"></script>
+<script src="logo-gen.js?v=2"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -202,6 +210,16 @@ function themePicker(cur, fn) {
     <span class="sw"><i style="background:${t.side}"></i><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i><i style="background:${t.bg}"></i></span>
     ${esc(t.name)}${t.tier === "premium" ? " 💎" : ""}</button>`).join("")}</div>`;
 }
+/* 🎨 seti ya rangi 3 (60‑30‑10) — ikichaguliwa inashinda muundo */
+function palettePicker(cur, fn) {
+  const card = (k, t) => `<button class="pal" aria-pressed="${cur === k}" onclick="${fn}('${k}')" title="${t ? esc(t.name) : "Hakuna seti"}">
+    ${t ? `<span class="pal-sw"><i style="flex:6;background:${t.bg}"></i><i style="flex:3;background:${t.side}"></i><i style="flex:1;background:${t.accent}"></i></span>
+    <span class="pal-dots"><i style="background:${t.c[0]}"></i><i style="background:${t.c[1]}"></i><i style="background:${t.c[2]}"></i></span>` : `<span class="pal-sw pal-none">—</span>`}
+    <b>${t ? esc(t.name) : "Hakuna (tumia muundo)"}</b>${t ? `<small>${esc(PALETTES.find((x) => x[0] === k)[5])}</small>` : ""}</button>`;
+  return `<div class="grp" style="margin-top:6px">🎨 Seti ya rangi 3 — kanuni ya 60‑30‑10</div>
+    <div class="note">60% mandhari · 30% rangi kuu (pembeni na kadi) · 10% msisitizo (vitufe na ikoni). Ukichagua seti, inashinda muundo hapo juu.</div>
+    <div class="pals">${card("", null)}${PALETTES.map(([k]) => card(k, paletteTheme(k))).join("")}</div>`;
+}
 function industrySelect(cur, onchange) {
   return `<select onchange="${onchange}">${Object.entries(INDUSTRIES).map(([k, x]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${esc(x.name)}${k === "spea" ? " (Wadai + POS)" : " (pakiti maalum)"}</option>`).join("")}</select>`;
 }
@@ -234,6 +252,7 @@ function vNew() {
     <h4>4. Muundo na chapa</h4>
     <label class="f">Aina ya biashara${industrySelect(f.industry, "nf('industry',this.value)")}</label>
     ${themePicker(f.theme, "nfTheme")}
+    ${palettePicker(f.palette || "", "nfPal")}
     <div class="note">💎 = Premium. <a href="katalogi.html" target="_blank" rel="noopener">Ona mifano kwenye Katalogi ↗</a>${f.addons && f.addons.length ? " · Ziada kutoka Katalogi: " + esc(f.addons.join(", ")) : ""}</div>
     <div class="form">
       ${f.theme === "asili" ? `<label class="f">Rangi kuu<input id="nf-color" type="color" value="${esc(f.color)}" oninput="nf('color',this.value)"></label>` : ""}
@@ -257,11 +276,12 @@ function nf(k, v) {
 function nfEdition(e) { const f = K.form; f.edition = e; f.features = presetFeatures(e); f.users = EDITIONS[e].users; f.monthly = EDITIONS[e].price; render(); }
 function nfFeat(k, on) { K.form.features[k] = on; render(); }
 function nfTheme(k) { K.form.theme = k; render(); }
+function nfPal(k) { K.form.palette = k; render(); }
 
 async function createShop() {
   const f = K.form; K.busy = true; K.msg = "Inatengeneza…"; K.ok = true; render();
   try {
-    const r = await adminCreateShop({ ...f, brand: { color: f.color, tagline: f.tagline, theme: f.theme, logo: f.logo || "" } });
+    const r = await adminCreateShop({ ...f, brand: { color: f.color, tagline: f.tagline, theme: f.theme, logo: f.logo || "", palette: f.palette || "" } });
     K.created = r; K.form = null; K.showNew = false; K.msg = ""; K.open = r.code; location.hash = r.code;
     toast("✅ Mfumo wa " + r.name + " umetengenezwa");
   } catch (e) {
@@ -317,7 +337,8 @@ function vList() {
 function vSys(s) {
   const [cls, label] = status(s), open = K.open === s.code;
   const E = EDITIONS[s.edition] || EDITIONS.duka;
-  const color = (s.brand && s.brand.theme && THEMES[s.brand.theme] && s.brand.theme !== "asili" ? THEMES[s.brand.theme].side : (s.brand && s.brand.color)) || "var(--sunk)";
+  const pt = s.brand && s.brand.palette && paletteTheme(s.brand.palette);
+  const color = (pt && pt.side) || (s.brand && s.brand.theme && THEMES[s.brand.theme] && s.brand.theme !== "asili" ? THEMES[s.brand.theme].side : (s.brand && s.brand.color)) || "var(--sunk)";
   return `<div class="sys" id="sys-${s.code}">
     <div class="top">
       ${s.brand && s.brand.logo ? `<span class="swl">${logoImg(s.brand.logo)}</span>` : `<span class="sw" style="background:${esc(color)}"></span>`}
@@ -352,7 +373,7 @@ function vEditor(s) {
     edition: s.edition, features: { ...presetFeatures(s.edition), ...(s.features || {}) }, users: s.users || (EDITIONS[s.edition] || EDITIONS.duka).users,
     monthly: s.monthly || (EDITIONS[s.edition] || EDITIONS.duka).price, name: s.name, color: (s.brand && s.brand.color) || "#0d6a5b",
     tagline: (s.brand && s.brand.tagline) || "", phone: s.phone || "", location: s.location || "", notes: s.notes || "",
-    theme: (s.brand && s.brand.theme) || "asili", industry: s.industry || "spea", logo: (s.brand && s.brand.logo) || "" });
+    theme: (s.brand && s.brand.theme) || "asili", industry: s.industry || "spea", logo: (s.brand && s.brand.logo) || "", palette: (s.brand && s.brand.palette) || "" });
   const tabs = [["vipengele", "🧩 Vipengele"], ["chapa", "🎨 Chapa"], ["huduma", "🚀 Huduma za kipekee"], ["muda", "⏳ Muda & malipo"], ["kuingia", "🔑 Kuingia"], ["hatari", "⚠️ Hatari"]];
   let body = "";
   if (t === "vipengele") body = `
@@ -367,6 +388,7 @@ function vEditor(s) {
   if (t === "chapa") body = `
     <label class="f">Aina ya biashara${industrySelect(E.industry, "K.edit['" + s.code + "'].industry=this.value")}</label>
     ${themePicker(E.theme, "edTheme_" + s.code.replace(/-/g, "_"))}
+    ${palettePicker(E.palette || "", "edPal_" + s.code.replace(/-/g, "_"))}
     <div class="form">
       <label class="f">Jina la duka<input value="${esc(E.name)}" oninput="K.edit['${s.code}'].name=this.value"></label>
       ${E.theme === "asili" ? `<label class="f">Rangi kuu<input type="color" value="${esc(E.color)}" oninput="K.edit['${s.code}'].color=this.value"></label>` : ""}
@@ -401,6 +423,7 @@ function vEditor(s) {
     ${K.delMsg && K.delMsg.code === s.code ? `<div class="msg ${K.delMsg.ok ? "ok" : "err"}">${esc(K.delMsg.text)}</div>` : ""}</div>`;
   window["edFeat_" + s.code.replace(/-/g, "_")] = (k, on) => { K.edit[s.code].features[k] = on; render(); };
   window["edTheme_" + s.code.replace(/-/g, "_")] = (k) => { K.edit[s.code].theme = k; render(); };
+  window["edPal_" + s.code.replace(/-/g, "_")] = (k) => { K.edit[s.code].palette = k; render(); };
   return `<div class="editor">
     <div class="row">${tabs.map(([k, l]) => `<button class="sm ${t === k ? "pri" : ""}" onclick="K.tab['${s.code}']='${k}';render()">${l}</button>`).join("")}</div>
     ${body}</div>`;
@@ -417,7 +440,7 @@ async function saveFeatures(code) {
 }
 async function saveBrand(code) {
   const E = K.edit[code];
-  try { await adminUpdateShop(code, { name: E.name, brand: { color: E.color, tagline: E.tagline, theme: E.theme, logo: E.logo || "" }, industry: E.industry, phone: E.phone, location: E.location }); toast("✅ Muundo na chapa vimehifadhiwa — mteja ataona akifungua upya"); }
+  try { await adminUpdateShop(code, { name: E.name, brand: { color: E.color, tagline: E.tagline, theme: E.theme, logo: E.logo || "", palette: E.palette || "" }, industry: E.industry, phone: E.phone, location: E.location }); toast("✅ Muundo na chapa vimehifadhiwa — mteja ataona akifungua upya"); }
   catch (e) { toast("Haikuhifadhika: " + (e.message || "")); }
 }
 async function setActive(code, on) {
@@ -572,8 +595,8 @@ function logoField(cur, target, name, color, theme) {
 }
 /* ✨ logo 30 za kuchagua, kulingana na jina na aina ya biashara */
 function genCtx(target) {
-  if (target === "new") { const f = K.form || {}; return { name: f.name, industry: f.industry, color: f.theme === "asili" ? f.color : (THEMES[f.theme] || {}).side }; }
-  const E = K.edit[target] || {}; return { name: E.name, industry: E.industry, color: E.theme === "asili" ? E.color : (THEMES[E.theme] || {}).side };
+  if (target === "new") { const f = K.form || {}; return { name: f.name, industry: f.industry, palette: f.palette || "", color: f.theme === "asili" ? f.color : (THEMES[f.theme] || {}).side }; }
+  const E = K.edit[target] || {}; return { name: E.name, industry: E.industry, palette: E.palette || "", color: E.theme === "asili" ? E.color : (THEMES[E.theme] || {}).side };
 }
 function genOpen(target) {
   const x = genCtx(target);
@@ -582,7 +605,7 @@ function genOpen(target) {
   setTimeout(() => { const el = document.getElementById("lgen-" + target); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
 }
 function vLogoGen(target) {
-  const x = genCtx(target), ideas = logoIdeas(x.name, x.industry, x.color, K.gen.seed, 30); K.gen.ideas = ideas;
+  const x = genCtx(target), ideas = logoIdeas(x.name, x.industry, x.color, K.gen.seed, 30, x.palette && paletteTheme(x.palette)); K.gen.ideas = ideas;
   return `<div id="lgen-${target}" style="display:grid;gap:10px;margin-top:6px">
     <div class="row" style="justify-content:space-between"><b>✨ Logo 30 za ${esc(x.name)} · ${esc((INDUSTRIES[x.industry] || INDUSTRIES.spea).name)}</b>
       <div class="row"><button class="sm" onclick="K.gen.seed++;K.gen.picked=null;render()">🔄 Nyingine 30</button><button class="sm" onclick="K.gen=null;render()">Funga</button></div></div>

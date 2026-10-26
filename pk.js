@@ -622,12 +622,14 @@ let _soft; function soft() { clearTimeout(_soft); _soft = setTimeout(render, 180
 
 /* ---------- kuwasha ---------- */
 function setTheme() {
-  const key = (SHOP && SHOP.brand && SHOP.brand.theme) || (PRE_BRAND && PRE_BRAND.theme) || (PK.pack && PK.pack.theme) || "asili";
-  const t = THEMES[key] || THEMES.asili;
+  const palKey = (SHOP && SHOP.brand && SHOP.brand.palette) || (PRE_BRAND && PRE_BRAND.palette) || "";
+  const pal = palKey ? paletteTheme(palKey) : null;
+  const key = pal ? "palette" : (SHOP && SHOP.brand && SHOP.brand.theme) || (PRE_BRAND && PRE_BRAND.theme) || (PK.pack && PK.pack.theme) || "asili";
+  const t = pal || THEMES[key] || THEMES.asili;
   const side = key === "asili" && SHOP && SHOP.brand && /^#[0-9a-f]{6}$/i.test(SHOP.brand.color || "") ? SHOP.brand.color : t.side;
   const r = document.documentElement.style;
   const v = { "--bg": t.bg, "--sf": t.surface, "--sf2": shade(t.dark ? t.surface : t.bg, t.dark ? 10 : -5), "--ink": t.ink, "--mu": t.muted, "--ln": t.line, "--sd": side, "--ac": t.accent, "--ac2": t.accent2,
-    "--aci": t.dark || key === "theluji" ? (t.dark ? "#111" : "#fff") : "#fff", "--fd": `'${t.fd}',Georgia,serif`, "--fb": `'${t.fb}',system-ui,-apple-system,'Segoe UI',sans-serif` };
+    "--aci": t.accentInk || (t.dark || key === "theluji" ? (t.dark ? "#111" : "#fff") : "#fff"), "--fd": `'${t.fd}',Georgia,serif`, "--fb": `'${t.fb}',system-ui,-apple-system,'Segoe UI',sans-serif` };
   Object.entries(v).forEach(([k, x]) => r.setProperty(k, x));
   r.colorScheme = t.dark ? "dark" : "light";
   let link = document.getElementById("pk-fonts"); if (!link) { link = document.createElement("link"); link.id = "pk-fonts"; link.rel = "stylesheet"; document.head.appendChild(link); }

@@ -75,12 +75,45 @@ const THEMES = {
   mkaa:     { name: "Mkaa na Moto", tier: "premium", mood: "Giza la kitaalamu na kaharabu — supermarket za usiku, bar, lounge", dark: true,
               bg: "#15171a", surface: "#1f2226", ink: "#e8eaed", muted: "#9aa1a9", line: "#2c3036", side: "#0f1113", accent: "#f59e0b", accent2: "#fbbf24", fd: "Sora", fb: "Manrope" },
 };
+/* ---------- 🎨 SETI ZA RANGI 3 — kanuni ya 60‑30‑10 ----------
+   60% mandhari (rangi nyepesi), 30% rangi kuu (pembeni, juu, kadi za takwimu), 10% msisitizo (vitufe, ikoni, chati).
+   [key, jina, rangi ya 1, rangi ya 2, msisitizo, inafaa kwa] */
+const PALETTES = [
+  ["gari", "Built Differently", "#1C1C1E", "#1F4D3A", "#C1121F", "spea, magari, gereji"],
+  ["studio", "Creative Studio", "#2B2B2B", "#F4E04D", "#8B5CF6", "studio, matangazo, vijana"],
+  ["amani", "Inner Peace", "#4E342E", "#E6C98F", "#C2410C", "kahawa, mgahawa, samani"],
+  ["neon", "Human Next", "#0B0B0F", "#1E88C9", "#FF2E88", "simu, electronics, tech"],
+  ["polepole", "Slow Power", "#3B1D3A", "#E6E9EF", "#F2A900", "boutique, vipodozi, sanaa"],
+  ["dansi", "Choreo Class", "#5B4033", "#D6D6DC", "#B9A3E3", "saluni, spa, mitindo"],
+  ["kasi", "Creative Momentum", "#2D2A5A", "#C4B5FD", "#E53935", "shule, matukio, burudani"],
+  ["sauti", "Sound Waves", "#0B0B0F", "#D4FF3A", "#FF2BB5", "muziki, bar, vijana"],
+  ["mtazamo", "Change of Perspective", "#14532D", "#F5EEDC", "#E23D28", "maduka makubwa, kilimo"],
+  ["ishara", "Signal Red", "#2E3238", "#C9CED6", "#E10600", "vifaa, hardware, karakana"],
+  ["urembo", "Deeper Beauty", "#0B0B12", "#5B21B6", "#22D3EE", "urembo, vito, premium"],
+  ["hai", "Spaces Alive", "#4A3527", "#8BAE7C", "#D98E04", "nyumba, hoteli, lodge"],
+  ["bustani", "Orchard Market", "#2F5D2B", "#F7D9C4", "#C62828", "matunda, supermarket, chakula"],
+  ["lotus", "Lotus", "#1E3B30", "#EDE3D1", "#B39DDB", "famasia, kliniki, afya"],
+  ["krimu", "Cream", "#4A1E3A", "#D9A5B3", "#C8553D", "mikate, ice cream, keki"],
+];
+function dukaPaletteKeys() { return PALETTES.map((p) => p[0]); }
+function hexRgb(h) { const n = parseInt(String(h).slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function hexMix(a, b, t) { const x = hexRgb(a), y = hexRgb(b); return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join(""); }
+function hexLum(h) { const c = hexRgb(h).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+/* seti → muundo kamili (kama THEMES) */
+function paletteTheme(key) {
+  const p = PALETTES.find((x) => x[0] === key); if (!p) return null;
+  const [, name, c1, c2, acc] = p;
+  let side = hexLum(c1) <= hexLum(c2) ? c1 : c2; const other = side === c1 ? c2 : c1;
+  if (hexLum(side) > 0.12) side = hexMix(side, "#000000", 0.45);           // pembeni pawe na giza la kutosha kwa maandishi meupe
+  return { name, tier: "palette", palette: key, dark: false, bg: hexMix(other, "#ffffff", 0.9), surface: "#ffffff", ink: "#172033", muted: "#6b7280",
+    line: hexMix(other, "#ffffff", 0.7), side, accent: acc, accent2: other, accentInk: hexLum(acc) > 0.42 ? "#111111" : "#ffffff", fd: "Archivo", fb: "IBM Plex Sans", c: [c1, c2, acc] };
+}
 function themeFonts(t) { return [t.fd, t.fb].filter((v, i, a) => v && a.indexOf(v) === i); }
 function fontHref(fams) { return "https://fonts.googleapis.com/css2?" + fams.map((f) => "family=" + f.replace(/ /g, "+") + ":wght@400;500;600;700").join("&") + "&display=swap"; }
 function shade(hex, amt) { const n = parseInt(hex.slice(1), 16); const c = (x) => Math.max(0, Math.min(255, x + amt)); return "#" + [c(n >> 16), c((n >> 8) & 255), c(n & 255)].map((v) => v.toString(16).padStart(2, "0")).join(""); }
 /* Paka muundo kwenye Wadai (app="wadai") au POS (app="pos") */
-function applyTheme(key, color) {
-  const t = THEMES[key]; if (!t) return false;
+function applyTheme(key, color, obj) {
+  const t = obj || THEMES[key]; if (!t) return false;
   const side = color && /^#[0-9a-f]{6}$/i.test(color) && key === "asili" ? color : t.side;
   let link = document.getElementById("ms-theme-font");
   if (!link) { link = document.createElement("link"); link.id = "ms-theme-font"; link.rel = "stylesheet"; document.head.appendChild(link); }
@@ -94,8 +127,16 @@ function applyTheme(key, color) {
   html[data-theme="dark"] .login-card,html[data-theme="dark"] .panel,html[data-theme="dark"] .column,html[data-theme="dark"] .card,html[data-theme="dark"] .field,html[data-theme="dark"] .entry-form,html[data-theme="dark"] [style*="background:#fff"]{background:${t.surface}!important;border-color:${t.line}!important}` : ""}
   *{font-family:${fb}}
   h1,h2,.logo,.logo h2,.login-card h1,.login-card h2,.top .t,.kpi b,.stat b{font-family:${fd}!important;letter-spacing:.01em}
-  .btn-primary,.btn-p,.menu li.active,.menu li:hover{background:${t.accent}!important;color:${t.dark || key === "theluji" ? (t.dark ? "#111" : "#fff") : "#fff"}!important}
-  .sidebar,.top,.topbar,.login-wrap{background:${side}!important}`;
+  .btn-primary,.btn-p,.menu li.active,.menu li:hover{background:${t.accent}!important;color:${t.accentInk || (t.dark || key === "theluji" ? (t.dark ? "#111" : "#fff") : "#fff")}!important}
+  .sidebar,.top,.topbar,.login-wrap{background:${side}!important}
+  ${t.palette ? `/* 60‑30‑10: kadi za takwimu = rangi kuu, vitufe/ikoni/chati = msisitizo */
+  .db{--dbacc:${t.accent};--dbb1:${hexMix(t.accent, "#ffffff", 0.72)};--dbb2:${t.accent}}
+  .db-kc{background:linear-gradient(135deg,${side},${hexMix(side, t.accent2, 0.28)})!important}
+  .db-kc.orange,.db-kc.purple{background:linear-gradient(135deg,${hexMix(side, "#000000", 0.15)},${side})!important}
+  .db-kt{background:${hexMix(t.accent, side, 0.55)}!important}
+  .db-btn.pri,.db-ed{background:${t.accent}!important;border-color:${t.accent}!important;color:${t.accentInk}!important}
+  .db-hbbar i,.db-meter i{background:${t.accent}!important}
+  .db-ai.blue{background:${side}!important}.db-ai.purple{background:${hexMix(side, t.accent, 0.4)}!important}` : ""}`;
   let st = document.getElementById("ms-theme-css");
   if (!st) { st = document.createElement("style"); st.id = "ms-theme-css"; document.head.appendChild(st); }
   st.textContent = css;
@@ -187,6 +228,13 @@ function loadPreBrand() {
 function applyBrand(b) {
   b = b || (SHOP && SHOP.brand) || null;
   const color = b && b.color;
+  const pal = b && b.palette && paletteTheme(b.palette);
+  if (pal) {
+    applyTheme("palette", null, pal);
+    const name = (b && b.name) || (SHOP && SHOP.name);
+    if (name && DUKA_HOOK.titleSuffix != null) document.title = name + DUKA_HOOK.titleSuffix;
+    return;
+  }
   const premium = b && b.theme && b.theme !== "asili" && THEMES[b.theme];
   if (premium) applyTheme(b.theme, color);
   else if (b && b.theme === "asili") applyTheme("asili", color);
@@ -206,7 +254,7 @@ function dukaLogoHtml(size, src) {
   const logo = (b && (b.logo || "")) || "";
   if (/^data:image\/(png|jpeg|webp);base64,/.test(logo)) return `<img src="${logo}" alt="" style="${sz}object-fit:contain">`;
   const ini = name.replace(/[^\p{L}\p{N} ]/gu, " ").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "•";
-  const t = b && b.theme && b.theme !== "asili" && THEMES[b.theme];
+  const t = (b && b.palette && paletteTheme(b.palette)) || (b && b.theme && b.theme !== "asili" && THEMES[b.theme]);
   const col = (t && t.side) || (b && /^#[0-9a-f]{6}$/i.test(b.color || "") ? b.color : "#0d6a5b");
   return `<svg viewBox="0 0 100 100" style="${sz}" role="img" aria-label="${dukaEsc(name)}"><circle cx="50" cy="50" r="48" fill="${col}"/><text x="50" y="${ini.length > 1 ? 61 : 64}" font-family="Arial,Helvetica,sans-serif" font-size="${ini.length > 1 ? 34 : 44}" font-weight="700" fill="#fff" text-anchor="middle">${dukaEsc(ini)}</text></svg>`;
 }
@@ -326,7 +374,7 @@ function dukaForgot(email) {
    ADMIN API — inatumiwa na Kiwanda na Ofisi (msimamizi tu; rules zinalinda)
    ===================================================================== */
 function dukaApp(name) { return firebase.apps.find((a) => a.name === name) || firebase.initializeApp(firebaseConfig, name); }
-function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "", theme: (s.brand && s.brand.theme) || "", logo: (s.brand && s.brand.logo) || "", industry: s.industry || "spea" }; }
+function shopPublic(s) { return { name: s.name, color: (s.brand && s.brand.color) || "", tagline: (s.brand && s.brand.tagline) || "", theme: (s.brand && s.brand.theme) || "", logo: (s.brand && s.brand.logo) || "", palette: (s.brand && s.brand.palette) || "", industry: s.industry || "spea" }; }
 /* Tengeneza mfumo mpya. opts: {name, code, edition, features, users, monthly, brand:{color,tagline}, email, pw, phone, location, trialDays, notes, clientId} */
 async function adminCreateShop(o) {
   const name = (o.name || "").trim(), code = dukaSlug(o.code || o.name), email = (o.email || "").trim().toLowerCase(), pw = o.pw || "";
@@ -346,7 +394,7 @@ async function adminCreateShop(o) {
     name, edition: o.edition || "duka", features: o.features || presetFeatures(o.edition || "duka"),
     users: Number(o.users) || (EDITIONS[o.edition] || EDITIONS.duka).users,
     monthly: Number(o.monthly) || (EDITIONS[o.edition] || EDITIONS.duka).price,
-    brand: { color: (o.brand && o.brand.color) || "", tagline: (o.brand && o.brand.tagline) || "", theme: (o.brand && o.brand.theme) || "", logo: (o.brand && o.brand.logo) || "" },
+    brand: { color: (o.brand && o.brand.color) || "", tagline: (o.brand && o.brand.tagline) || "", theme: (o.brand && o.brand.theme) || "", logo: (o.brand && o.brand.logo) || "", palette: (o.brand && o.brand.palette) || "" },
     industry: o.industry || "spea", addons: o.addons || [],
     members: [email], ownerEmail: email, phone: (o.phone || "").trim(), location: (o.location || "").trim(),
     active: true, paidUntil: now + trial * DAY, trialEnds: now + trial * DAY, createdAt: now,

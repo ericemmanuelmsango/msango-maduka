@@ -63,39 +63,87 @@
   const fit = (t, w, max, k) => Math.max(16, Math.min(max, Math.floor(w / (Math.max(1, t.length) * (k || 0.62)))));
   function hashSeed(s) { let h = 2166136261; for (const ch of String(s)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
   function rng(seed) { let a = seed || 1; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  const icon = (k, c, b, x, y, s) => `<g transform="translate(${x} ${y}) scale(${s / 100})">${I[k](c, b)}</g>`;
+  const icon = (k, c, b, x, y, s, fx) => `<g transform="translate(${x} ${y}) scale(${s / 100})"${fx ? ` filter="url(#${fx})"` : ""}>${I[k](c, b)}</g>`;
+  /* rangi: kuchanganya (kwa gradient, mwanga na kivuli) */
+  const rgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+  const mix = (a, b, t) => { const x = rgb(a), y = rgb(b); return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join(""); };
+  const lit = (h, t) => mix(h, "#ffffff", t), drk = (h, t) => mix(h, "#000000", t);
+  /* defs za kila logo — ID za kipekee ili logo 30 kwenye ukurasa mmoja zisichanganye rangi */
+  function defs(o, clip) {
+    const u = o.u;
+    return `<defs>
+      <linearGradient id="gp-${u}" x1="0" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="${lit(o.p, 0.16)}"/><stop offset="0.55" stop-color="${o.p}"/><stop offset="1" stop-color="${drk(o.p, 0.32)}"/></linearGradient>
+      <linearGradient id="ga-${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${lit(o.a, 0.28)}"/><stop offset="0.5" stop-color="${o.a}"/><stop offset="1" stop-color="${drk(o.a, 0.25)}"/></linearGradient>
+      <linearGradient id="gm-${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${lit(o.a, 0.55)}"/><stop offset="0.3" stop-color="${o.a}"/><stop offset="0.55" stop-color="${drk(o.a, 0.35)}"/><stop offset="0.8" stop-color="${lit(o.a, 0.35)}"/><stop offset="1" stop-color="${o.a}"/></linearGradient>
+      <linearGradient id="gl-${u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".34"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+      <radialGradient id="gv-${u}" cx=".5" cy=".42" r=".62"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>
+      <filter id="sh-${u}" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#0b1220" flood-opacity=".32"/></filter>
+      <filter id="si-${u}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000" flood-opacity=".35"/></filter>
+      ${clip ? `<clipPath id="cp-${u}">${clip}</clipPath>` : ""}
+    </defs>`;
+  }
+  const G = (o, k) => `url(#${k}-${o.u})`;
+  const sub = (o, y, w, size, fill) => o.rest ? `<text x="200" y="${y}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" letter-spacing="3" font-size="${fit(o.rest, w, size, 0.75)}" fill="${fill}">${xmlEsc(o.rest)}</text>` : "";
+  const gloss = (o, shape) => `<g clip-path="url(#cp-${o.u})"><rect x="0" y="0" width="400" height="200" fill="${G(o, "gl")}"/>${shape || ""}<rect width="400" height="400" fill="${G(o, "gv")}"/></g>`;
 
-  /* ---------- miundo 8 (kila moja 400×400) ---------- */
+  /* ---------- miundo 8 (kila moja 400×400) — gradient, mwanga juu, kivuli chini ---------- */
+  const SHIELD = "M200 16L364 68V194C364 296 290 356 200 384 110 356 36 296 36 194V68Z";
   const LAYOUTS = {
-    badge: (o) => { const t = shortName(o.name); return `<circle cx="200" cy="200" r="190" fill="${o.p}"/><circle cx="200" cy="200" r="172" fill="none" stroke="${o.a}" stroke-width="6"/>${icon(o.ic, o.t, o.p, 130, 70, 140)}<text x="200" y="${o.rest ? 278 : 292}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 280, 54)}" fill="${o.t}">${xmlEsc(t)}</text>${o.rest ? `<text x="200" y="318" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3" font-size="${fit(o.rest, 230, 22, 0.75)}" fill="${o.a}">${xmlEsc(o.rest)}</text>` : ""}`; },
-    shield: (o) => { const t = shortName(o.name); return `<path d="M200 12L370 66V196C370 300 292 362 200 390 108 362 30 300 30 196V66Z" fill="${o.p}" stroke="${o.a}" stroke-width="10"/>${icon(o.ic, o.a, o.p, 135, 66, 130)}<text x="200" y="262" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 250, 50)}" fill="${o.t}">${xmlEsc(t)}</text>${o.rest ? `<text x="200" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3" font-size="${fit(o.rest, 200, 20, 0.75)}" fill="${o.a}">${xmlEsc(o.rest)}</text>` : ""}`; },
-    hexa: (o) => `<polygon points="200,10 365,105 365,295 200,390 35,295 35,105" fill="${o.a}"/><polygon points="200,38 341,119 341,281 200,362 59,281 59,119" fill="${o.p}"/>${icon(o.ic, o.a, o.p, 150, 84, 100)}<text x="200" y="${o.ini.length > 1 ? 290 : 296}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${o.ini.length > 1 ? 96 : 110}" fill="${o.t}">${xmlEsc(o.ini)}</text>`,
-    app: (o) => `<rect x="10" y="10" width="380" height="380" rx="86" fill="${o.p}"/>${icon(o.ic, o.t, o.p, 105, 70, 190)}<text x="200" y="350" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(shortName(o.name), 300, 46)}" fill="${o.a}">${xmlEsc(shortName(o.name))}</text>`,
-    stack: (o) => { const t = shortName(o.name); return `<rect width="400" height="400" rx="40" fill="#ffffff"/>${icon(o.ic, o.p, "#ffffff", 140, 40, 120)}<text x="200" y="${o.rest ? 250 : 262}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 340, 64)}" fill="${o.p}">${xmlEsc(t)}</text><rect x="120" y="${o.rest ? 270 : 284}" width="160" height="8" rx="4" fill="${o.a}"/>${o.rest ? `<text x="200" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" letter-spacing="4" font-size="${fit(o.rest, 300, 26, 0.8)}" fill="#374151">${xmlEsc(o.rest)}</text>` : ""}`; },
-    ring: (o) => `<rect width="400" height="400" rx="40" fill="#ffffff"/><circle cx="200" cy="200" r="170" fill="none" stroke="${o.p}" stroke-width="22"/><circle cx="200" cy="200" r="138" fill="${o.a}" opacity=".18"/><text x="200" y="${o.ini.length > 1 ? 236 : 244}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${o.ini.length > 1 ? 130 : 150}" fill="${o.p}">${xmlEsc(o.ini)}</text>${icon(o.ic, o.a, "#ffffff", 300, 20, 76)}`,
-    split: (o) => { const t = shortName(o.name); return `<rect width="400" height="400" rx="40" fill="${o.p}"/><rect y="250" width="400" height="150" rx="0" fill="${o.a}"/><rect y="360" width="400" height="40" rx="0" fill="${o.a}"/>${icon(o.ic, o.t, o.p, 140, 60, 120)}<text x="200" y="${o.rest ? 318 : 340}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 340, 58)}" fill="${o.p}">${xmlEsc(t)}</text>${o.rest ? `<text x="200" y="362" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3" font-size="${fit(o.rest, 300, 22, 0.75)}" fill="${o.p}">${xmlEsc(o.rest)}</text>` : ""}`; },
-    stamp: (o) => { const t = shortName(o.name); return `<rect width="400" height="400" rx="40" fill="${o.a}"/><rect x="34" y="34" width="332" height="332" rx="26" fill="none" stroke="${o.p}" stroke-width="10" stroke-dasharray="2 14" stroke-linecap="round"/>${icon(o.ic, o.p, o.a, 145, 72, 110)}<text x="200" y="262" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 290, 54)}" fill="${o.p}">${xmlEsc(t)}</text><text x="200" y="306" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" letter-spacing="4" font-size="20" fill="${o.p}">${xmlEsc(o.place)}</text>`; },
+    badge: (o) => { const t = shortName(o.name); const c = `<circle cx="200" cy="198" r="182"/>`; return `${defs(o, c)}<g filter="${G(o, "sh")}"><circle cx="200" cy="198" r="182" fill="${G(o, "gp")}"/></g>${gloss(o)}
+      <circle cx="200" cy="198" r="166" fill="none" stroke="${G(o, "gm")}" stroke-width="9"/><circle cx="200" cy="198" r="151" fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="2"/>
+      ${icon(o.ic, o.t, o.p, 138, 70, 124, "si-" + o.u)}<text x="200" y="${o.rest ? 268 : 282}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 260, 50)}" fill="${o.t}" filter="${G(o, "si")}">${xmlEsc(t)}</text>${sub(o, 306, 210, 20, lit(o.a, 0.2))}`; },
+    shield: (o) => { const t = shortName(o.name); const c = `<path d="${SHIELD}"/>`; return `${defs(o, c)}<g filter="${G(o, "sh")}"><path d="${SHIELD}" fill="${G(o, "gp")}"/></g>${gloss(o)}
+      <path d="${SHIELD}" fill="none" stroke="${G(o, "gm")}" stroke-width="11"/><path d="M200 40L342 84V194C342 282 278 334 200 360 122 334 58 282 58 194V84Z" fill="none" stroke="#ffffff" stroke-opacity=".2" stroke-width="2"/>
+      ${icon(o.ic, G(o, "gm"), o.p, 140, 66, 120, "si-" + o.u)}<text x="200" y="258" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 240, 48)}" fill="${o.t}" filter="${G(o, "si")}">${xmlEsc(t)}</text>${sub(o, 294, 190, 19, lit(o.a, 0.25))}`; },
+    hexa: (o) => { const c = `<polygon points="200,40 341,121 341,279 200,360 59,279 59,121"/>`; return `${defs(o, c)}<g filter="${G(o, "sh")}"><polygon points="200,14 362,107 362,293 200,386 38,293 38,107" fill="${G(o, "gm")}"/></g>
+      <polygon points="200,40 341,121 341,279 200,360 59,279 59,121" fill="${G(o, "gp")}"/>${gloss(o)}
+      ${icon(o.ic, G(o, "ga"), o.p, 152, 84, 96, "si-" + o.u)}<text x="200" y="${o.ini.length > 1 ? 290 : 296}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${o.ini.length > 1 ? 92 : 106}" fill="${o.t}" filter="${G(o, "si")}">${xmlEsc(o.ini)}</text>`; },
+    app: (o) => { const c = `<rect x="18" y="14" width="364" height="364" rx="84"/>`; return `${defs(o, c)}<g filter="${G(o, "sh")}"><rect x="18" y="14" width="364" height="364" rx="84" fill="${G(o, "gp")}"/></g>${gloss(o)}
+      <rect x="19.5" y="15.5" width="361" height="361" rx="82.5" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="3"/>
+      ${icon(o.ic, o.t, o.p, 112, 58, 176, "si-" + o.u)}<text x="200" y="338" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(shortName(o.name), 290, 44)}" fill="${G(o, "ga")}" filter="${G(o, "si")}">${xmlEsc(shortName(o.name))}</text>`; },
+    stack: (o) => { const t = shortName(o.name); return `${defs(o)}<g filter="${G(o, "sh")}"><rect x="14" y="14" width="372" height="366" rx="36" fill="#ffffff"/></g><rect x="14.5" y="14.5" width="371" height="365" rx="35.5" fill="none" stroke="#e5e7eb"/>
+      <circle cx="200" cy="104" r="66" fill="${G(o, "gp")}" filter="${G(o, "si")}"/><circle cx="200" cy="104" r="66" fill="none" stroke="${G(o, "gm")}" stroke-width="5"/>${icon(o.ic, o.t, o.p, 160, 64, 80)}
+      <text x="200" y="${o.rest ? 246 : 258}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 330, 60)}" fill="${G(o, "gp")}">${xmlEsc(t)}</text>
+      <rect x="130" y="${o.rest ? 264 : 276}" width="140" height="8" rx="4" fill="${G(o, "ga")}"/>${sub(o, 312, 300, 24, "#374151")}`; },
+    ring: (o) => `${defs(o)}<g filter="${G(o, "sh")}"><rect x="14" y="14" width="372" height="366" rx="36" fill="#ffffff"/></g>
+      <circle cx="200" cy="196" r="160" fill="none" stroke="${G(o, "gp")}" stroke-width="26"/><circle cx="200" cy="196" r="160" fill="none" stroke="#ffffff" stroke-opacity=".35" stroke-width="2" stroke-dasharray="1 9"/>
+      <circle cx="200" cy="196" r="128" fill="${lit(o.a, 0.82)}"/><text x="200" y="${o.ini.length > 1 ? 236 : 244}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${o.ini.length > 1 ? 124 : 144}" fill="${G(o, "gp")}">${xmlEsc(o.ini)}</text>
+      <circle cx="318" cy="80" r="44" fill="${G(o, "ga")}" filter="${G(o, "si")}"/>${icon(o.ic, "#ffffff", o.a, 292, 54, 52)}`,
+    split: (o) => { const t = shortName(o.name); const c = `<rect x="14" y="14" width="372" height="366" rx="36"/>`; return `${defs(o, c)}<g filter="${G(o, "sh")}"><rect x="14" y="14" width="372" height="366" rx="36" fill="${G(o, "gp")}"/></g>
+      <g clip-path="url(#cp-${o.u})"><path d="M0 252 Q200 216 400 252 V400 H0Z" fill="${G(o, "ga")}"/><rect x="0" y="0" width="400" height="180" fill="${G(o, "gl")}"/></g>
+      ${icon(o.ic, o.t, o.p, 144, 52, 112, "si-" + o.u)}<text x="200" y="${o.rest ? 316 : 334}" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 330, 56)}" fill="${drk(o.p, 0.1)}">${xmlEsc(t)}</text>${sub(o, 356, 290, 21, drk(o.p, 0.1))}`; },
+    stamp: (o) => { const t = shortName(o.name); const c = `<rect x="14" y="14" width="372" height="366" rx="36"/>`; return `${defs(o, c)}<g filter="${G(o, "sh")}"><rect x="14" y="14" width="372" height="366" rx="36" fill="${G(o, "ga")}"/></g>${gloss(o)}
+      <rect x="40" y="40" width="320" height="314" rx="24" fill="none" stroke="${o.p}" stroke-width="9" stroke-dasharray="2 14" stroke-linecap="round"/>
+      ${icon(o.ic, G(o, "gp"), o.a, 148, 70, 104, "si-" + o.u)}<text x="200" y="258" text-anchor="middle" font-family="${o.f}" font-weight="900" font-size="${fit(t, 280, 52)}" fill="${o.p}">${xmlEsc(t)}</text>
+      <text x="200" y="300" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" letter-spacing="4" font-size="19" fill="${o.p}">${xmlEsc(o.place)}</text>`; },
   };
   const LKEYS = Object.keys(LAYOUTS);
 
-  /** logo 30 (au n) za kuchagua kwa duka hili. seed tofauti → seti mpya. */
-  function logoIdeas(name, industry, color, seed, n) {
+  /* seti 15 za rangi (zile za 60‑30‑10 za Kiwanda) → [kuu, msisitizo, maandishi] */
+  function setPalettes() {
+    if (typeof dukaPaletteKeys !== "function" || typeof paletteTheme !== "function") return [];
+    return dukaPaletteKeys().map((k) => { const t = paletteTheme(k); return [t.side, t.accent, "#ffffff"]; });
+  }
+
+  /** logo 30 (au n) za kuchagua kwa duka hili. seed tofauti → seti mpya. pal = seti ya rangi ya mteja (ikiwepo) */
+  function logoIdeas(name, industry, color, seed, n, pal) {
     n = n || 30;
     const icons = BY_IND[industry] || BY_IND.spea;
     const R = rng(hashSeed((name || "") + "|" + (industry || "") + "|" + (seed || 0)));
-    const pals = PALETTES.slice();
+    let pals = [...setPalettes(), ...PALETTES];
+    for (let i = pals.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [pals[i], pals[j]] = [pals[j], pals[i]]; }
     if (/^#[0-9a-f]{6}$/i.test(color || "")) pals.unshift([color, "#f5c518", "#ffffff"]);
+    const own = pal && pal.side ? [pal.side, pal.accent, "#ffffff"] : null;
     const combos = [];
     LKEYS.forEach((l) => icons.forEach((ic) => combos.push([l, ic])));
     for (let i = combos.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [combos[i], combos[j]] = [combos[j], combos[i]]; }
-    // kila muundo uonekane mapema: panga kwa muundo kwa zamu
     const byL = {}; combos.forEach((c) => (byL[c[0]] = byL[c[0]] || []).push(c));
     const order = []; for (let k = 0; order.length < combos.length; k++) LKEYS.forEach((l) => byL[l] && byL[l][k] && order.push(byL[l][k]));
     const out = [];
     for (let i = 0; i < n; i++) {
       const [l, ic] = order[i % order.length];
-      const [p, a, t] = pals[(i + Math.floor(R() * 3)) % pals.length];
-      const o = { name: name || "Duka", ini: initials(name), rest: restName(name).slice(0, 22), ic, p, a, t, f: FONTS[Math.floor(R() * FONTS.length)], place: "MWANZA" };
+      const [p, a, t] = own && i % 3 === 0 ? own : pals[i % pals.length];   // seti ya mteja: kila logo ya 3
+      const o = { u: "L" + (seed || 0) + "_" + i, name: name || "Duka", ini: initials(name), rest: restName(name).slice(0, 22), ic, p, a, t, f: FONTS[Math.floor(R() * FONTS.length)], place: "MWANZA" };
       out.push({ id: `${l}-${ic}-${i}`, layout: l, icon: ic, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">${LAYOUTS[l](o)}</svg>` });
     }
     return out;
