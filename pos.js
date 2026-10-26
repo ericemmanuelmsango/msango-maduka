@@ -10,6 +10,7 @@ const APP_VERSION = "MM POS v5";
 /* Firebase config + admin email live in ../duka.js (shared with the main app). */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+try { db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch (e) {}   // mauzo yanahifadhiwa kwenye kifaa mpaka yafike cloud — hayapotei ukiprint au ukirefresh
 const auth = firebase.auth();
 let colRef = db.collection("wadai_na_wadaiwa");     // same place the first system keeps its data (changes per shop — duka.js)
 const POS_DOC = "pos_settings";
@@ -542,6 +543,7 @@ async function nextReceiptNo() {
     return "R" + String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate()) + "-" + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
   }
 }
+const SYNCING = new Set();   // mauzo yaliyohifadhiwa kwenye kifaa lakini bado hayajathibitishwa na cloud
 async function checkout() {
   if (U.busy || !U.cart.length) return;
   const total = cartTotal();
@@ -568,7 +570,9 @@ async function checkout() {
     items, total, paid: U.pay === "Cash" ? (Number(U.paid) || total) : total,
     deleted: false,
   });
-  colRef.doc(SALE_PREFIX + id).set(sale).catch(() => toast("⚠️ Mauzo hayajafika cloud bado — yatatumwa mtandao ukirudi."));
+  SYNCING.add(id);
+  colRef.doc(SALE_PREFIX + id).set(sale).then(() => { SYNCING.delete(id); if (U.receipt && U.receipt.id === id) render(); })
+    .catch(() => toast("⚠️ Mauzo hayajafika cloud bado — yatatumwa mtandao ukirudi."));
   if (sale.pay === "Mkopo") addToDebtors(sale);
   const changed = items.filter((i) => i.price !== i.listPrice);
   logActivity("Ameuza", `${no} · ${fmt(total)} · ${sale.pay}${sale.customer ? " · " + sale.customer : ""}${changed.length ? ` · bei imebadilishwa: ${changed.map((i) => i.name + " " + num(i.listPrice) + "→" + num(i.price)).join(", ")}` : ""}`);
@@ -992,6 +996,7 @@ function receiptModal(r) {
   const sh = posCfg().shop;
   const change = r.pay === "Cash" ? (r.paid || r.total) - r.total : 0;
   return `<div class="ov"><div style="width:100%;max-width:340px">
+  ${SYNCING.has(r.id) ? `<div class="no-print" style="background:#fff7e6;color:#7a4a00;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12.5px;font-weight:600">⏳ Mauzo yanatumwa cloud… yamehifadhiwa kwenye kifaa hiki, hayatapotea hata ukiprint au mtandao ukikatika.</div>` : ""}
   <div class="rcpt print-area">
     <div class="lg">${logoHtml()}</div>
     <h3>${esc(sh.name)}</h3>

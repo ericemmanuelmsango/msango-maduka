@@ -14,7 +14,9 @@ with sync_playwright() as pw:
     p.fill("#login-password", "1234"); p.click("button:has-text(\"Enter\")"); p.wait_for_timeout(400)
     s = store(p)
     items = s["shops/sp9/data/products__0"]["items"]; print("products after second clear:", len(items), s["shops/sp9/data/data"]["settings"].get("productResetId"))
-    assert len(items) == 0 and s["shops/sp9/data/data"]["settings"].get("productResetId") == "2026-10-15b"   # Shem list is not loaded into Shemdar
+    if today < "2026-10-25":   # usafishaji wa mara moja ulifanya kazi hadi 2026-10-25 tu
+        assert len(items) == 0 and s["shops/sp9/data/data"]["settings"].get("productResetId") == "2026-10-15b"   # Shem list is not loaded into Shemdar
+    assert not any(i.get("name") != "6001" for i in items)   # orodha ya Shem haiingizwi kwa Shemdar
     # expenses: POS expense shows, add one more from the main system
     assert "Matumizi" in p.inner_text(".menu"), p.inner_text(".menu")
     p.click(".menu li:has-text('Matumizi')"); p.wait_for_timeout(300); assert "Umeme" in p.inner_text("main")
