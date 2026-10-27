@@ -207,6 +207,10 @@ function ed() {
 }
 function has(k) { return !!ed().f[k]; }
 function bizName() { return SHOP ? (SHOP.name || "") : "MSANGO MADUKA"; }
+/* email ya kuingia: ondoa nafasi (hata katikati — simu huziongeza), herufi ndogo, koma → nukta */
+function dukaEmail(s) { return String(s || "").replace(/\s+/g, "").toLowerCase().replace(/,/g, ".").replace(/\.+$/, ""); }
+function dukaEmailOk(s) { return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(s); }
+const DUKA_EMAIL_BAD = "Email si sahihi — iandike kama jina@gmail.com (bila nafasi, iwe na @ na .com).";
 function dukaEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function dukaRerender() { if (DUKA_HOOK.rerender) DUKA_HOOK.rerender(); }
 function dukaSlug(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30); }

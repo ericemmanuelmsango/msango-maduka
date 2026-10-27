@@ -1405,13 +1405,15 @@ function deviceLoginView() {
 }
 function activateDevice() {
   const f = U.devLogin || (U.devLogin = { email: "", pw: "" });
-  if (!f.email.trim() || !f.pw) { f.msg = "Andika email na password."; f.ok = false; return render(); }
+  f.email = dukaEmail(f.email);
+  if (!f.email || !f.pw) { f.msg = "Andika email na password."; f.ok = false; return render(); }
+  if (!dukaEmailOk(f.email)) { f.msg = DUKA_EMAIL_BAD; f.ok = false; return render(); }
   f.msg = "Inaingia…"; f.ok = true; render();
-  auth.signInWithEmailAndPassword(f.email.trim(), f.pw).then(() => {
+  auth.signInWithEmailAndPassword(f.email, f.pw).then(() => {
     f.msg = "✅ Kifaa kimewashwa. Inapakia upya…"; render(); setTimeout(() => location.reload(), 800);
   }).catch((e) => {
     const c = (e && e.code) || "";
-    f.msg = c.includes("operation-not-allowed") ? "Email/Password haijawashwa kwenye Firebase (Authentication → Sign-in method)."
+    f.msg = c.includes("invalid-email") ? DUKA_EMAIL_BAD : c.includes("operation-not-allowed") ? "Email/Password haijawashwa kwenye Firebase (Authentication → Sign-in method)."
       : /wrong-password|invalid-credential|user-not-found|invalid-login/.test(c) ? "Email au password si sahihi."
       : c.includes("network") ? "Hakuna mtandao." : "Imeshindikana: " + ((e && e.message) || c);
     f.ok = false; render();

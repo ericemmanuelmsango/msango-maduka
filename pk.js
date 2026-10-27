@@ -549,9 +549,10 @@ function vDevice() {
     <button class="btn p big" onclick="devLogin()">Ingia</button><button class="btn g" onclick="dukaForgot(PK.login.email)">Umesahau password?</button></div></div>`;
 }
 function devLogin() {
-  const f = PK.login; if (!f.email.trim() || !f.pw) { f.msg = "Andika email na password."; return render(); }
+  const f = PK.login; f.email = dukaEmail(f.email); if (!f.email || !f.pw) { f.msg = "Andika email na password."; return render(); }
+  if (!dukaEmailOk(f.email)) { f.msg = DUKA_EMAIL_BAD; return render(); }
   f.msg = "Inaingia…"; render();
-  auth.signInWithEmailAndPassword(f.email.trim(), f.pw).then(() => location.reload()).catch((e) => { const c = (e && e.code) || ""; f.msg = /wrong|invalid|not-found/.test(c) ? "Email au password si sahihi." : c.includes("network") ? "Hakuna mtandao." : (e.message || c); render(); });
+  auth.signInWithEmailAndPassword(f.email, f.pw).then(() => location.reload()).catch((e) => { const c = (e && e.code) || ""; f.msg = c.includes("invalid-email") ? DUKA_EMAIL_BAD : /wrong|invalid|not-found/.test(c) ? "Email au password si sahihi." : c.includes("network") ? "Hakuna mtandao." : (e.message || c); render(); });
 }
 function vSetup() {
   const s = PK.setup;

@@ -400,14 +400,16 @@ function renderDeviceLogin() {
 }
 function activateDevice() {
   const f = UI.devLogin || (UI.devLogin = { email: "", pw: "" });
-  if (!f.email.trim() || !f.pw) { f.msg = "Andika email na password."; f.ok = false; return rerender(); }
+  f.email = dukaEmail(f.email);
+  if (!f.email || !f.pw) { f.msg = "Andika email na password."; f.ok = false; return rerender(); }
+  if (!dukaEmailOk(f.email)) { f.msg = DUKA_EMAIL_BAD; f.ok = false; return rerender(); }
   f.msg = "Inaingia…"; f.ok = true; rerender();
-  auth.signInWithEmailAndPassword(f.email.trim(), f.pw).then(() => {
+  auth.signInWithEmailAndPassword(f.email, f.pw).then(() => {
     f.msg = "✅ Kifaa kimewashwa. Inapakia upya…"; f.ok = true; rerender();
     setTimeout(() => location.reload(), 800);
   }).catch((e) => {
     const c = e && e.code || "";
-    f.msg = c.includes("operation-not-allowed") ? "Email/Password haijawashwa kwenye Firebase (Authentication → Sign-in method)."
+    f.msg = c.includes("invalid-email") ? DUKA_EMAIL_BAD : c.includes("operation-not-allowed") ? "Email/Password haijawashwa kwenye Firebase (Authentication → Sign-in method)."
       : c.includes("wrong-password") || c.includes("invalid-credential") || c.includes("user-not-found") || c.includes("invalid-login") ? "Email au password si sahihi."
       : c.includes("network") ? "Hakuna mtandao." : "Imeshindikana: " + (e && e.message ? e.message : c);
     f.ok = false; rerender();
