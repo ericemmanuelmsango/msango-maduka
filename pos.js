@@ -6,7 +6,7 @@
      • credit (Mkopo) sales are added to the customer's account in Debtors
      • has its own users, sales, reports and settings
    ===================================================================== */
-const APP_VERSION = "MM POS v5";
+const APP_VERSION = "MM POS v6";
 /* Firebase config + admin email live in ../duka.js (shared with the main app). */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -1448,4 +1448,54 @@ function securityPanel() { return dukaSignOutButton(); }
   setTimeout(check, 4000);
   setInterval(check, 5 * 60 * 1000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+})();
+
+/* =====================================================================
+   RASIMU (DRAFT): kikapu na taarifa za mteja havipotei ukirefresh
+   ===================================================================== */
+(function () {
+  const KEY = "rasimu_pos_v1:" + location.pathname + location.search;
+  const F = ["cart", "pay", "paid", "customer", "phone", "saleDate", "mode", "store", "page"];
+  const dirty = () => (U.cart && U.cart.length > 0) || [U.customer, U.phone, U.paid].some((v) => String(v || "").trim() !== "");
+  function save() {
+    try {
+      if (!dirty()) { localStorage.removeItem(KEY); return; }
+      const d = { _ts: Date.now(), _busy: !!U.busy }; for (const k of F) d[k] = U[k];
+      localStorage.setItem(KEY, JSON.stringify(d));
+    } catch (e) {}
+  }
+  let t = null; const later = () => { clearTimeout(t); t = setTimeout(save, 300); };
+  function banner(ts, n, wasBusy) {
+    const b = document.createElement("div"); b.id = "rasimu-bar";
+    b.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;max-width:92vw;background:#111827;color:#fff;border:1px solid #c9a24a;border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;box-shadow:0 8px 30px rgba(0,0,0,.35);font:14px system-ui,sans-serif";
+    const when = new Date(ts).toLocaleString("sw-TZ", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" });
+    b.innerHTML = `<span>🛒 Kikapu cha mauzo ambayo hayajamalizwa (${n} bidhaa, ${when}) kimerudishwa.${wasBusy ? ' <b style="color:#fbbf24">⚠️ Ulikuwa ukibonyeza Maliza Mauzo - angalia kwenye Mauzo kama tayari yalihifadhiwa kabla ya kuuza tena.</b>' : ''}</span>
+      <button id="rasimu-ok" style="background:#c9a24a;color:#111;border:0;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer">Sawa, endelea</button>
+      <button id="rasimu-del" style="background:transparent;color:#fca5a5;border:1px solid #fca5a5;border-radius:8px;padding:6px 12px;cursor:pointer">Futa kikapu</button>`;
+    document.body.appendChild(b);
+    document.getElementById("rasimu-ok").onclick = () => b.remove();
+    document.getElementById("rasimu-del").onclick = () => {
+      if (!confirm("Futa kikapu hiki?")) return;
+      U.cart = []; U.paid = ""; U.customer = ""; U.phone = "";
+      try { localStorage.removeItem(KEY); } catch (e) {} b.remove(); render();
+    };
+  }
+  function restore() {
+    try {
+      const raw = localStorage.getItem(KEY); if (!raw) return;
+      const d = JSON.parse(raw);
+      if (!d._ts || Date.now() - d._ts > 2 * 86400000 || !Array.isArray(d.cart)) { localStorage.removeItem(KEY); return; }
+      for (const k of F) if (d[k] !== undefined && d[k] !== null) U[k] = d[k];
+      render(); if (d.cart.length || d.customer) banner(d._ts, d.cart.length, d._busy);
+    } catch (e) {}
+  }
+  const _render = render;
+  render = function () { const r = _render.apply(this, arguments); save(); return r; };
+  document.addEventListener("input", later, true);
+  document.addEventListener("change", later, true);
+  document.addEventListener("click", later, true);
+  window.addEventListener("pagehide", save);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") save(); });
+  window.addEventListener("beforeunload", (e) => { save(); if (dirty()) { e.preventDefault(); e.returnValue = ""; } });
+  restore();
 })();
