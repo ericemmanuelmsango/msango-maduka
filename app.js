@@ -72,7 +72,7 @@ let charts = {};
 
 /* ---------- helpers ---------- */
 function fmt(n) { return "TSh " + Math.round(n || 0).toLocaleString("en-US"); }
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function todayStr() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }   // saa ya kifaa (Tanzania), si UTC
 function getCharges(e) {
   if (e.charges && e.charges.length) return e.charges;
   // legacy entries stored amount/items/note at top level — treat as one charge
@@ -320,6 +320,13 @@ function startSplitListener() {
     if (!changes || Object.keys(_DOCS).length !== snap.size) {
       Object.keys(_DOCS).forEach((k) => { delete _DOCS[k]; delete _DOC_KB[k]; });
       snap.forEach((d) => { _DOCS[d.id] = d.data(); _DOC_KB[d.id] = -1; });
+    }
+    if (typeof devStart === "function") { devStart(); if (DEV) DEV.load(_DOCS); }   // kipengele cha hiari "vifaaNet"
+    // badiliko la "vifaa" tu (kila dakika 3) → usijenge data zote upya
+    if (changes && changes.length && changes.every((c) => c.doc.id.startsWith("dev_")) && STATE_LOADED) {
+      UI.sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: new Date() };
+      if (UI.page === "settings") rerender();
+      return;
     }
     const docs = _DOCS;
     const main = docs.data || {};
@@ -2901,10 +2908,13 @@ function pickSaleItem(id) {
 }
 
 function renderSalesPage() {
+  if (typeof optF === "function" && optF("mauzoFolda")) return renderSalesFolders();   // kipengele cha hiari (vipengele.js)
   if (!UI.salesStore) UI.salesStore = "dukani";
   if (!UI.salesView) UI.salesView = "day";
-  if (!UI.saleForm) UI.saleForm = { store: UI.salesStore, customer: "", date: todayStr(), rows: [{ id: uid(), itemName: "", price: "", qty: "" }] };
+  if (!UI.saleForm) UI.saleForm = { store: UI.salesStore, customer: "", date: todayStr(), _day: todayStr(), rows: [{ id: uid(), itemName: "", price: "", qty: "" }] };
   const f = UI.saleForm;
+  // Fomu iliyofunguliwa jana (tablet iliachwa wazi usiku, au rasimu iliyorudishwa) isiandike mauzo ya leo kwa tarehe ya jana.
+  if (f._day !== todayStr()) { f.date = todayStr(); f._day = todayStr(); }
   const grandTotal = f.rows.reduce((s, r) => s + (Number(r.price) || 0) * (Number(r.qty) || 0), 0);
   const salesInStore = STATE.sales.filter((s) => (s.store || "dukani") === UI.salesStore && !s.archived);
   const salesByDay = {};
@@ -3169,7 +3179,8 @@ function renderReports() {
   const from = UI.plFrom || "0000-01-01";
   const to = UI.plTo || "9999-12-31";
   const cutAt = Number(STATE.settings.reportClearedAt) || 0;      // old "Futa zote" (before 2026-10-19 14:00); kept so nothing jumps back
-  const RP = typeof has === "function" ? has("ripotiMteja") : true;   // "Ripoti ya mteja" is chosen per client in Kiwanda
+  const RN = typeof optF === "function" && optF("ripotiMpya");   // "Ripoti mpya" — kipengele cha hiari (vipengele.js)
+  const RP = RN || (typeof has === "function" ? has("ripotiMteja") : true);   // "Ripoti ya mteja" is chosen per client in Kiwanda
   const PV = RP ? (UI.plView || "day") : "item";
   const showHist = RP && !!UI.plHistory;
   const inView = (ts) => (showHist ? ts <= cutAt : ts > cutAt);
@@ -3263,7 +3274,8 @@ function renderReports() {
     ${unknownCostCount > 0 ? `<p style="font-size:11.5px;color:#b8862f;margin-bottom:10px">⚠️ ${unknownCostCount} sale(s) in this range have no known buying price (item was never received with a price in Main Store), so cost/profit may be understated.</p>` : ""}
     ${RP && UI.pdfOpen ? pdfPanel() : ""}
     ${RP ? plViewTabs() + plHistoryBar(showHist) : ""}
-    ${PV === "day" ? plGroupTable(salesInRange, (x) => x.date, "Tarehe", effBuy, true, "d", showHist)
+    ${RN ? (PV === "day" ? plDayFolders(salesInRange, effBuy, showHist) : PV === "customer" ? plCustView(salesInRange, effBuy, showHist) : plItemView(salesInRange, effBuy, showHist))
+      : PV === "day" ? plGroupTable(salesInRange, (x) => x.date, "Tarehe", effBuy, true, "d", showHist)
       : PV === "customer" ? plGroupTable(salesInRange, repCust, "Mteja", effBuy, false, "c", showHist)
       : `<table class="recent-table" style="width:100%">
       <thead><tr><th style="text-align:left;font-size:10.5px;color:#8290a4;padding:6px">Item</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Qty</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Sold @</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Bought @</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Profit</th><th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Date</th></tr></thead>
@@ -3294,7 +3306,7 @@ function repProfit(x) { const b = repEffBuy(x); return b != null ? (x.sellPrice 
 function repArchived(x) {
   const A = STATE.settings.repArch || {};
   const cut = Number(STATE.settings.reportClearedAt) || 0;
-  return x.ts <= cut || x.ts <= (A["c:" + repCust(x)] || 0) || x.ts <= (A["d:" + x.date] || 0);
+  return x.ts <= cut || x.ts <= (A["c:" + repCust(x)] || 0) || x.ts <= (A["d:" + x.date] || 0) || x.ts <= (A["cd:" + repCust(x) + "|" + x.date] || 0);
 }
 /* Mauzo yaliyoondolewa kwenye ripoti baada ya kuchukua PDF (settings.repPurge). Hayafutwi kwenye database
    wala stock haiguswi — yanafichwa tu kwenye ripoti, History na dashboard; yanarudishwa kutoka Settings. */
@@ -3498,6 +3510,12 @@ function repToast(m) { UI.toastMsg = m; rerender(); setTimeout(() => { if (UI.to
 function purgeAfterPdf() {
   const d = UI.pdfDone; if (!d) return;
   const what = (d.cust ? "ya " + d.cust + " " : "") + "kuanzia " + d.from + " hadi " + d.to;
+  if (typeof optF === "function" && optF("futaKabisa")) {   // kipengele cha hiari: futa kabisa
+    if (!confirmPermanent("mauzo " + d.count + " " + what)) return;
+    const lines = reportLines().filter((x) => x.date >= d.from && x.date <= d.to && (!d.cust || repCust(x) === d.cust));
+    purgeSalesForever(lines); UI.pdfDone = null; UI.pdfOpen = false;
+    repToast("🗑️ Mauzo " + lines.length + " yamefutwa kabisa"); return rerender();
+  }
   if (!confirm("Ondoa mauzo " + d.count + " " + what + " kwenye ripoti?\n\nHayataonekana kwenye Reports, History wala Dashboard.\nHayafutwi kwenye database na stock haiguswi — ukiyahitaji, yarudishe kutoka Settings → Mauzo yaliyoondolewa.")) return;
   const P = (STATE.settings.repPurge || []).slice();
   P.push({ id: uid(), from: d.from, to: d.to, cust: d.cust || "", at: Date.now(), count: d.count });
@@ -3605,7 +3623,8 @@ service cloud.firestore {
     <input id="fp-new" class="field" type="password" placeholder="New reports password">
     ${UI.finSettingsMsg ? `<p class="settings-msg ${UI.finSettingsMsg.ok ? "ok" : "err"}">${esc(UI.finSettingsMsg.text)}</p>` : ""}
     <button class="btn btn-primary" onclick="changeReportsPassword()">Save Reports Password</button>
-  </div>`;
+  </div>
+  ${typeof DEV !== "undefined" && DEV ? DEV.panel() : ""}`;
 }
 function enableNotifications() {
   if (!("Notification" in window)) { UI.err = "Your browser does not support notifications."; return rerender(); }
