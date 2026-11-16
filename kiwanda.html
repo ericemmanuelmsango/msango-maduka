@@ -490,7 +490,8 @@ async function loadCreds(code) {
     const [m, p] = await Promise.all([col.doc("data").get(), col.doc("pos_settings").get()]);
     const sh = K.shops.find((x) => x.code === code); let pk = [];
     if (sh && isPackShop(sh)) { const q = await col.where("t", "==", "user").get(); pk = q.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => u.active !== false); }
-    K.creds[code] = { appPw: ((m.exists && m.data().settings) || {}).appPassword || "", users: ((p.exists && p.data().users) || []).filter((u) => u.active !== false), pk };
+    const st = (m.exists && m.data().settings) || {};
+    K.creds[code] = { appPw: st.appPassword || "", rptPw: st.reportsPassword || "eric1234", users: ((p.exists && p.data().users) || []).filter((u) => u.active !== false), pk };
   } catch (e) { K.creds[code] = { err: e.message || "Imeshindikana" }; }
   render();
 }
@@ -509,6 +510,8 @@ function vCreds(s) {
     ${c.pk.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span>${OWNER() ? `<input id="pkpin-${u.id}" class="mono" inputmode="numeric" maxlength="6" placeholder="PIN mpya" style="width:110px"><button class="sm" onclick="packPin('${s.code}','${u.id}')">Weka PIN</button>` : `<span class="note">PIN mpya — mwambie Eric</span>`}</div>`).join("")}` : `
     <div class="kv"><span>Password ya mfumo (Wadai)</span><b class="mono">${c.appPw ? esc(c.appPw) : "bado haijawekwa"}</b>
       ${OWNER() ? `<button class="sm" onclick="setAppPw('${s.code}')">Badilisha</button>` : ""}</div>
+    <div class="kv"><span>Password ya Ripoti</span><b class="mono">${esc(c.rptPw)}</b>
+      ${OWNER() ? `<button class="sm" onclick="setRptPw('${s.code}')">Badilisha</button>` : ""}</div>
     <div class="kv"><span>PIN za POS</span>${c.users.length ? "" : `<span class="note">bado hakuna mtumiaji wa POS</span>`}</div>
     ${c.users.map((u) => `<div class="kv"><span>&nbsp;&nbsp;${u.role === "owner" ? "👑" : "🧑‍💼"} ${esc(u.name)}</span><b class="mono">••••</b><button class="sm" onclick="setPin('${s.code}','${u.id}',${esc(JSON.stringify(u.name))})">Weka PIN mpya</button></div>`).join("")}`}
     <div class="kv"><span>Email nyingine za duka</span><span class="mono">${esc((s.members || []).filter((x) => x !== em).join(", ") || "—")}</span><button class="sm" onclick="addMember('${s.code}')">＋ Ongeza email</button></div>
@@ -522,6 +525,12 @@ async function setAppPw(code) {
   if (pw.length < 4) return toast("Herufi 4 au zaidi");
   await db.collection("shops").doc(code).collection("data").doc("data").set({ settings: { appPassword: pw } }, { merge: true });
   toast("✅ Password ya mfumo sasa ni " + pw); loadCreds(code);
+}
+async function setRptPw(code) {
+  const pw = (prompt("Password mpya ya Ripoti — herufi 4+:") || "").trim(); if (!pw) return;
+  if (pw.length < 4) return toast("Herufi 4 au zaidi");
+  await db.collection("shops").doc(code).collection("data").doc("data").set({ settings: { reportsPassword: pw } }, { merge: true });
+  toast("✅ Password ya Ripoti sasa ni " + pw); loadCreds(code);
 }
 async function setPin(code, uid, name) {
   const pin = (prompt("PIN mpya ya " + name + " (namba 4–6):") || "").trim(); if (!pin) return;
