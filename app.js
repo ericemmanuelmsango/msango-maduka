@@ -307,6 +307,68 @@ function oneTimeProductImport() {
   BULK_PRODUCTS.forEach((it) => { if (!have.has(it.name.toLowerCase())) { STATE.products.push({ id: uid(), name: it.name, price: it.price, buyPrice: it.buyPrice }); have.add(it.name.toLowerCase()); } });
   Promise.resolve(saveProducts()).then(() => { STATE.settings.productImportId = PRODUCT_IMPORT_ID; saveSettings(); oneTimeProductImport.busy = false; });
 }
+/* ---------- MARA MOJA: marekebisho ya Godown (ombi la mmiliki, 2026-11-17) ----------
+   1) "SIDE COVER HLX 150 RED" iliyopokelewa Godown → jina sahihi "SIDE COVER HLX 150 BLACK" (idadi na bei hazibadiliki).
+   2) "COWLING HLX BLACK" ya Godown → "COWLING HLX BLACK NEW" (kama ilivyo kwenye Products), na buying price 3,900
+      badala ya 6,900 — kwenye stock, kwenye mzigo uliopokelewa (deliveries) na kwenye Products; jumla zinahesabiwa upya.
+   Inafanya kazi tu kwa duka lenye bidhaa hizo Godown; alama kwenye settings inazuia isijirudie. */
+const HLX_FIX_ID = "2026-11-17-hlx";
+function oneTimeHlxFix() {
+  if (!STATE.settings || STATE.settings.hlxFixId === HLX_FIX_ID || oneTimeHlxFix.busy) return;
+  if (Date.now() > Date.parse("2026-12-15")) return;          // usalama: wakati wa marekebisho haya tu
+  const L = (s) => String(s || "").trim().toLowerCase();
+  const gd = () => storeItems("godown");
+  const red = gd().find((it) => L(it.name) === "side cover hlx 150 red");
+  const cow = gd().find((it) => L(it.name) === "cowling hlx black");
+  if (!red && !cow) return;                                     // duka hili halina makosa haya
+  oneTimeHlxFix.busy = true;
+  const delivRows = (fn) => { STATE.deliveries = (STATE.deliveries || []).map((d) => {
+    if ((d.store || "dukani") !== "godown" || !Array.isArray(d.rows)) return d;
+    const rows = d.rows.map(fn);
+    return { ...d, rows, total: rows.reduce((s, r) => s + (Number(r.total) || 0), 0) };
+  }); };
+  // badilisha jina la bidhaa ya Godown; kama jina jipya lipo tayari Godown, unganisha historia yake hapo
+  const moveTo = (from, newName) => {
+    const exist = gd().find((it) => it.id !== from.id && L(it.name) === L(newName));
+    if (exist) {
+      STATE.stockMovements = STATE.stockMovements.map((m) => (m.itemId === from.id ? { ...m, itemId: exist.id } : m));
+      STATE.stockItems = STATE.stockItems.filter((it) => it.id !== from.id);
+      return exist;
+    }
+    STATE.stockItems = STATE.stockItems.map((it) => (it.id === from.id ? { ...it, name: newName } : it));
+    return { ...from, name: newName };
+  };
+  if (red) {
+    const name = (productByName("SIDE COVER HLX 150 BLACK") || {}).name || "SIDE COVER HLX 150 BLACK";
+    const t = moveTo(red, name);
+    delivRows((r) => (r.itemId === red.id || (!r.itemId && L(r.name) === "side cover hlx 150 red") ? { ...r, name, itemId: t.id } : r));
+  }
+  if (cow) {
+    const name = (productByName("COWLING HLX BLACK NEW") || {}).name || "COWLING HLX BLACK NEW", BUY = 3900;
+    const t = moveTo(cow, name);
+    STATE.stockMovements = STATE.stockMovements.map((m) => (m.itemId === t.id && m.type === "in" && m.price != null && m.price !== "" && Number(m.price) === 6900 ? { ...m, price: BUY } : m));
+    delivRows((r) => (r.itemId === cow.id || r.itemId === t.id || (!r.itemId && L(r.name) === "cowling hlx black")
+      ? { ...r, name, itemId: t.id, price: Number(r.price) === 6900 ? BUY : r.price, total: (Number(r.price) === 6900 ? BUY : Number(r.price) || 0) * (Number(r.qty) || 0) } : r));
+    setBuyPriceEverywhere(name, BUY);                            // stock (Dukani + Godown) na Products
+  }
+  invalidateStock();
+  // orodha zote nne na alama ya "imefanyika" kwenye batch MOJA — listener isirudishe orodha ya zamani katikati
+  const FIELDS = ["stockItems", "stockMovements", "products", "deliveries"];
+  const settings = { ...STATE.settings, hlxFixId: HLX_FIX_ID };
+  const batch = db.batch();
+  FIELDS.forEach((f) => {
+    if (STORAGE_MODE === "legacy" || !colRef) { batch.set(docRef, { [f]: STATE[f] }, { merge: true }); return; }
+    const chunks = chunkList(STATE[f] || []);
+    chunks.forEach((items, i) => batch.set(colRef.doc(f + "__" + i), { part: i, of: chunks.length, items }));
+    for (let i = chunks.length; i < (KNOWN_PARTS[f] || 0); i++) batch.delete(colRef.doc(f + "__" + i));
+    if (LEGACY_FIELDS[f]) batch.set(docRef, { [f]: firebase.firestore.FieldValue.delete() }, { merge: true });
+    KNOWN_PARTS[f] = chunks.length; LEGACY_FIELDS[f] = false;
+  });
+  batch.set(docRef, { settings }, { merge: true });
+  STATE.settings = settings;
+  batch.commit().then(() => { oneTimeHlxFix.busy = false; onSaveSuccess(); rerender(); })
+    .catch((e) => { oneTimeHlxFix.busy = false; onSaveError(e); });
+}
 /* Nakala ya hati zote kwenye kumbukumbu: kila badiliko linasoma hati zilizobadilika TU (si zote — picha
    na sehemu kubwa zilikuwa zinasomwa upya kila mauzo, mfumo ukawa mzito kwenye tablet). */
 const _DOCS = {}, _DOC_KB = {};
@@ -365,6 +427,7 @@ function startSplitListener() {
       oneTimeProductReset();
       oneTimeStockReset();
       oneTimeProductImport();
+      oneTimeHlxFix();
     }
   }, (err) => {
     // Rules don't allow reading the whole collection yet → keep working the old way.
