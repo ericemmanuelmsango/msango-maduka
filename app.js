@@ -2447,9 +2447,10 @@ function renameProduct(prod, newName) {
     alert("Kuna bidhaa nyingine yenye jina \"" + newName + "\" tayari."); return false;
   }
   STATE.products = STATE.products.map((x) => (x.id === prod.id ? { ...x, name: newName } : x));
-  let stockChanged = false;
-  STATE.stockItems = STATE.stockItems.map((it) => (it.name.trim().toLowerCase() === oldL ? (stockChanged = true, { ...it, name: newName }) : it));
-  if (stockChanged) saveStockItems();
+  STATE.stockItems = STATE.stockItems.map((it) => (it.name.trim().toLowerCase() === oldL ? { ...it, name: newName } : it));
+  // mizigo iliyopokelewa (Dukani + Godown) ionyeshe jina jipya pia; mpigaji (saveProductPrice) anahifadhi vyote pamoja
+  STATE.deliveries = (STATE.deliveries || []).map((d) => (d.rows || []).some((r) => (r.name || "").trim().toLowerCase() === oldL)
+    ? { ...d, rows: d.rows.map((r) => ((r.name || "").trim().toLowerCase() === oldL ? { ...r, name: newName } : r)) } : d);
   // photo follows the new name
   const pic = photoOf(oldName);
   if (pic && oldL !== newL) {
@@ -2477,8 +2478,8 @@ function saveProductPrice(id) {
   }
   const prod = STATE.products.find((p) => p.id === id);
   STATE.products = STATE.products.map((p) => (p.id === id ? { ...p, price: val } : p));
-  if (prod && buyRaw !== "") { setBuyPriceEverywhere(prod.name, Number(buyRaw)); saveStockItems(); }
-  saveProducts();
+  if (prod && buyRaw !== "") setBuyPriceEverywhere(prod.name, Number(buyRaw));
+  saveFieldsTogether(["products", "stockItems", "deliveries"]).catch(() => {});   // jina/bei vifike kila mahali kwa pamoja
   UI.editingProductId = null;
   rerender();
 }
