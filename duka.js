@@ -39,6 +39,7 @@ const FEATURES = [
   ["ripotiMpya", "Ripoti mpya — folda za siku zenye faida/hasara, Kila Bidhaa, tafuta mteja", "Wadai"],
   ["futaKabisa", "Kufuta mauzo kabisa (andika FUTA) — hakuna History wala Rudisha", "Wadai"],
   ["vifaaNet", "Vifaa vinavyotumia mfumo + onyo la internet dhaifu", "Wadai"],
+  ["haririMzigo", "Hariri mzigo uliopokelewa — jina, idadi na buying price (stock inafuata)", "Wadai"],
   ["alerts", "Tahadhari (madeni + stock ndogo)", "Wadai"],
   ["pos", "POS ya mauzo", "POS"],
   ["jumla", "Bei za jumla kwenye POS", "POS"],
@@ -49,7 +50,7 @@ const FEATURES = [
   ["ripoti", "Ripoti za faida (POS)", "POS"],
 ];
 const BASE_F = ["owed", "owe", "products", "mainstore", "reports", "alerts"];
-const OPT_IN_F = ["ripotiMteja", "mauzoFolda", "ripotiMpya", "futaKabisa", "vifaaNet"];   // never switched on by an edition — the owner turns it on in Kiwanda for clients who want it
+const OPT_IN_F = ["ripotiMteja", "mauzoFolda", "ripotiMpya", "futaKabisa", "vifaaNet", "haririMzigo"];   // never switched on by an edition — the owner turns it on in Kiwanda for clients who want it
 const EDITIONS = {
   mali:  { name: "Mali Yangu", price: 15000, users: 1,   f: BASE_F },
   duka:  { name: "DukaSmart",  price: 30000, users: 3,   f: BASE_F.concat(["sales", "pos", "posMadeni", "matumizi", "funga", "whatsapp"]) },

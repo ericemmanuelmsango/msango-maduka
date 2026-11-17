@@ -641,3 +641,105 @@ function devStart() { if (DEV || !optF("vifaaNet") || typeof colRef === "undefin
   }
   return { id, load, panel, beat, rename, remove, flush, quality, net };
 })(); if (typeof _DOCS !== "undefined" && Object.keys(_DOCS).length) DEV.load(_DOCS); }
+
+/* ---------- ✏️ HARIRI MZIGO ULIOPOKELEWA (kipengele "haririMzigo", 2026-11-17) ----------
+   Rekebisha supplier, tarehe, ref, na kwa kila bidhaa: jina, idadi na buying price.
+   Stock inafuata: idadi ya "in" ya mzigo huo inabadilika, jina jipya linahamisha stock kwenda
+   bidhaa yenye jina hilo (stoo ileile), na buying price mpya inawekwa kwenye stock na Products. */
+function openEditDelivery(id) {
+  const d = (STATE.deliveries || []).find((x) => x.id === id); if (!d) return;
+  UI.editDelivery = { id, supplier: d.supplier || "", date: d.date || todayStr(), ref: d.ref || "", msg: null,
+    rows: d.rows.map((r) => ({ key: r.movementId || uid(), name: r.name, qty: String(r.qty), price: r.price != null ? String(r.price) : "" })) };
+  rerender();
+}
+function setEditDelivery(field, value, key) {
+  const e = UI.editDelivery; if (!e) return;
+  if (key) { const r = e.rows.find((x) => x.key === key); if (r) r[field] = value; } else e[field] = value;
+  const el = key && document.getElementById("ed-tot-" + key);
+  if (el) { const r = e.rows.find((x) => x.key === key); el.textContent = fmt((Number(r.price) || 0) * (Number(r.qty) || 0)); }
+  const all = document.getElementById("ed-total");
+  if (all) all.textContent = fmt(e.rows.reduce((s, r) => s + (Number(r.price) || 0) * (Number(r.qty) || 0), 0));
+}
+function renderEditDeliveryModal() {
+  const e = UI.editDelivery; const d = (STATE.deliveries || []).find((x) => x.id === e.id);
+  if (!d) { UI.editDelivery = null; return ""; }
+  const total = e.rows.reduce((s, r) => s + (Number(r.price) || 0) * (Number(r.qty) || 0), 0);
+  const names = [...new Set(STATE.products.filter((p) => !p.deleted).map((p) => p.name))];
+  return `
+  <div class="modal-overlay">
+    <div class="modal-stack" style="max-width:720px">
+      <div class="receipt-print" style="padding:20px">
+        <h3 style="margin:0 0 4px">✏️ Hariri mzigo — ${d.store === "godown" ? "Godown" : "Dukani"}</h3>
+        <p style="font-size:12px;color:#6b7280;margin:0 0 12px">Stock na buying price zitarekebishwa pamoja na mzigo huu.</p>
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px">
+          <input class="field field-sm" placeholder="Supplier" value="${esc(e.supplier)}" oninput="setEditDelivery('supplier',this.value)">
+          <input class="field field-sm" type="date" value="${esc(e.date)}" oninput="setEditDelivery('date',this.value)">
+          <input class="field field-sm" placeholder="Ref" value="${esc(e.ref)}" oninput="setEditDelivery('ref',this.value)">
+        </div>
+        <datalist id="ed-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
+        <table class="recent-table" style="width:100%;margin-top:12px">
+          <thead><tr><th style="text-align:left">Bidhaa</th><th style="text-align:right">Idadi</th><th style="text-align:right">Buying price</th><th style="text-align:right">Jumla</th></tr></thead>
+          <tbody>${e.rows.map((r) => `<tr>
+            <td style="padding:4px"><input class="field field-sm" list="ed-names" style="margin:0" value="${esc(r.name)}" oninput="setEditDelivery('name',this.value,'${r.key}')"></td>
+            <td style="padding:4px;width:90px"><input class="field field-sm" type="number" min="0" style="margin:0;text-align:right" value="${esc(r.qty)}" oninput="setEditDelivery('qty',this.value,'${r.key}')"></td>
+            <td style="padding:4px;width:120px"><input class="field field-sm" type="number" min="0" style="margin:0;text-align:right" value="${esc(r.price)}" oninput="setEditDelivery('price',this.value,'${r.key}')"></td>
+            <td style="padding:4px;text-align:right;font-weight:600" id="ed-tot-${r.key}">${fmt((Number(r.price) || 0) * (Number(r.qty) || 0))}</td>
+          </tr>`).join("")}</tbody>
+        </table>
+        <p style="text-align:right;margin:8px 0 12px">JUMLA: <strong id="ed-total">${fmt(total)}</strong></p>
+        ${e.msg ? `<p class="settings-msg err">${esc(e.msg)}</p>` : ""}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" style="flex:1" onclick="saveEditDelivery()">💾 Hifadhi marekebisho</button>
+          <button class="btn btn-ghost" onclick="UI.editDelivery=null;rerender();">Ghairi</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function saveEditDelivery() {
+  const e = UI.editDelivery; const d = (STATE.deliveries || []).find((x) => x.id === e.id); if (!d) return;
+  const store = d.store || "dukani", L = (s) => String(s || "").trim().toLowerCase();
+  if (!e.supplier.trim()) { e.msg = "Andika jina la supplier."; return rerender(); }
+  for (const r of e.rows) {
+    if (!r.name.trim() || !(Number(r.qty) > 0)) { e.msg = "Kila bidhaa iwe na jina na idadi kubwa kuliko 0."; return rerender(); }
+    if (r.price !== "" && !(Number(r.price) >= 0)) { e.msg = "Buying price ya " + r.name + " si sahihi."; return rerender(); }
+  }
+  // hakiki kwanza: stock isiwe chini ya sifuri (kilichouzwa au kuhamishwa hakiwezi kuondolewa)
+  const take = {}, give = {};   // itemId → idadi inayoondoka / inayoongezeka
+  const plan = e.rows.map((r) => {
+    const old = d.rows.find((x) => (x.movementId || "") === r.key) || {};
+    const oldItem = old.itemId, oldQty = Number(old.qty) || 0, qty = Number(r.qty);
+    const target = storeItems(store).find((it) => L(it.name) === L(r.name));
+    const moving = !target || target.id !== oldItem;
+    if (oldItem) { take[oldItem] = (take[oldItem] || 0) + (moving ? oldQty : Math.max(0, oldQty - qty)); }
+    return { r, old, oldItem, qty, target, moving };
+  });
+  for (const id of Object.keys(take)) {
+    if (take[id] > 0 && qtyOf(id) < take[id]) {
+      const it = STATE.stockItems.find((x) => x.id === id) || {};
+      e.msg = `Haiwezekani: ${it.name || "bidhaa"} imebaki ${qtyOf(id)} tu, lakini marekebisho yanaondoa ${take[id]} (zingine zimeshauzwa au kuhamishwa).`;
+      return rerender();
+    }
+  }
+  const rows = plan.map(({ r, old, qty, target }) => {
+    const name = r.name.trim(), price = r.price !== "" ? Number(r.price) : null;
+    let item = target;
+    if (!item) { item = { id: uid(), name, category: guessCategory(name), lowStockLimit: null, store }; STATE.stockItems.push(item); }
+    const movementId = old.movementId && STATE.stockMovements.some((m) => m.id === old.movementId) ? old.movementId : uid();
+    if (STATE.stockMovements.some((m) => m.id === movementId)) {
+      STATE.stockMovements = STATE.stockMovements.map((m) => (m.id === movementId ? { ...m, itemId: item.id, qty, price, supplier: e.supplier.trim(), date: e.date } : m));
+    } else {
+      STATE.stockMovements.push({ id: movementId, itemId: item.id, type: "in", qty, supplier: e.supplier.trim(), date: e.date, price, deliveryId: d.id });
+    }
+    if (price != null) setBuyPriceEverywhere(name, price);
+    else if (!productByName(name)) STATE.products.push({ id: uid(), name, price: 0 });
+    return { ...old, name, qty, price, total: (price || 0) * qty, itemId: item.id, movementId };
+  });
+  const total = rows.reduce((s, r) => s + r.total, 0);
+  STATE.deliveries = STATE.deliveries.map((x) => (x.id === d.id ? { ...x, supplier: e.supplier.trim(), date: e.date, ref: e.ref.trim(), rows, total, editedAt: Date.now() } : x));
+  invalidateStock();
+  saveFieldsTogether(["stockItems", "stockMovements", "products", "deliveries"]).catch(() => {});
+  UI.editDelivery = null;
+  UI.deliveryListMsg = { ok: true, text: "✅ Mzigo umerekebishwa — stock na buying price zimesasishwa." };
+  rerender();
+}

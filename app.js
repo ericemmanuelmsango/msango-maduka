@@ -353,10 +353,17 @@ function oneTimeHlxFix() {
   }
   invalidateStock();
   // orodha zote nne na alama ya "imefanyika" kwenye batch MOJA — listener isirudishe orodha ya zamani katikati
-  const FIELDS = ["stockItems", "stockMovements", "products", "deliveries"];
-  const settings = { ...STATE.settings, hlxFixId: HLX_FIX_ID };
+  STATE.settings = { ...STATE.settings, hlxFixId: HLX_FIX_ID };
+  saveFieldsTogether(["stockItems", "stockMovements", "products", "deliveries"], true)
+    .then(() => { oneTimeHlxFix.busy = false; rerender(); }, () => { oneTimeHlxFix.busy = false; });
+}
+/* Hifadhi orodha kadhaa (na settings, ukitaka) kwa batch MOJA: zote zinafika cloud pamoja, hivyo
+   snapshot haiwezi kurudisha orodha moja ya zamani wakati nyingine imeshabadilishwa. */
+function saveFieldsTogether(fields, withSettings) {
+  if (!docRef) return Promise.resolve();
+  if (fields.includes("stockMovements")) invalidateStock();
   const batch = db.batch();
-  FIELDS.forEach((f) => {
+  fields.forEach((f) => {
     if (STORAGE_MODE === "legacy" || !colRef) { batch.set(docRef, { [f]: STATE[f] }, { merge: true }); return; }
     const chunks = chunkList(STATE[f] || []);
     chunks.forEach((items, i) => batch.set(colRef.doc(f + "__" + i), { part: i, of: chunks.length, items }));
@@ -364,10 +371,8 @@ function oneTimeHlxFix() {
     if (LEGACY_FIELDS[f]) batch.set(docRef, { [f]: firebase.firestore.FieldValue.delete() }, { merge: true });
     KNOWN_PARTS[f] = chunks.length; LEGACY_FIELDS[f] = false;
   });
-  batch.set(docRef, { settings }, { merge: true });
-  STATE.settings = settings;
-  batch.commit().then(() => { oneTimeHlxFix.busy = false; onSaveSuccess(); rerender(); })
-    .catch((e) => { oneTimeHlxFix.busy = false; onSaveError(e); });
+  if (withSettings) batch.set(docRef, { settings: STATE.settings }, { merge: true });
+  return batch.commit().then(onSaveSuccess, (e) => { onSaveError(e); throw e; });
 }
 /* Nakala ya hati zote kwenye kumbukumbu: kila badiliko linasoma hati zilizobadilika TU (si zote — picha
    na sehemu kubwa zilikuwa zinasomwa upya kila mauzo, mfumo ukawa mzito kwenye tablet). */
@@ -876,6 +881,7 @@ function renderShell() {
     ${UI.customerReceipt ? renderCustomerReceiptModal() : ""}
     ${UI.grnId ? renderGrnModal() : ""}
     ${UI.deleteDeliveryId ? renderDeleteDeliveryModal() : ""}
+    ${UI.editDelivery && typeof renderEditDeliveryModal === "function" ? renderEditDeliveryModal() : ""}
   </div>`;
 }
 
@@ -4786,6 +4792,7 @@ function renderDeliveryCard(d) {
     ${d.note ? `<p style="font-size:11.5px;color:#6b7280;padding:0 12px">📝 ${esc(d.note)}</p>` : ""}
     <div style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 12px 12px">
       <button class="btn btn-sm btn-ghost" onclick="UI.grnId='${d.id}';rerender();">🖨️ Print</button>
+      ${typeof optF === "function" && optF("haririMzigo") ? `<button class="btn btn-sm btn-ghost" onclick="openEditDelivery('${d.id}')">✏️ Hariri</button>` : ""}
       ${d.archived
         ? `<button class="btn btn-sm btn-ghost" onclick="archiveDelivery('${d.id}',false)">↩️ Restore</button>`
         : `<button class="btn btn-sm btn-ghost" onclick="archiveDelivery('${d.id}',true)">🗄️ Move to History</button>`}
