@@ -881,6 +881,7 @@ function renderShell() {
     ${UI.customerReceipt ? renderCustomerReceiptModal() : ""}
     ${UI.grnId ? renderGrnModal() : ""}
     ${UI.deleteDeliveryId ? renderDeleteDeliveryModal() : ""}
+    ${UI.deleteRow ? renderDeleteRowModal() : ""}
     ${UI.editDelivery && typeof renderEditDeliveryModal === "function" ? renderEditDeliveryModal() : ""}
     ${UI.editStock && typeof renderEditStockModal === "function" ? renderEditStockModal() : ""}
   </div>`;
@@ -4781,13 +4782,15 @@ function renderDeliveryCard(d) {
         <th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Qty</th>
         <th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Buying price</th>
         <th style="text-align:right;font-size:10.5px;color:#8290a4;padding:6px">Total</th>
+        <th class="no-print" style="width:34px"></th>
       </tr></thead>
       <tbody>
-        ${d.rows.map((r) => `<tr>
+        ${d.rows.map((r, ri) => `<tr>
           <td style="padding:7px 6px">${esc(r.name)}</td>
           <td style="padding:7px 6px;text-align:right">${r.qty}</td>
           <td style="padding:7px 6px;text-align:right">${r.price != null ? fmt(r.price) : "—"}</td>
           <td style="padding:7px 6px;text-align:right;font-weight:600">${fmt(r.total)}</td>
+          <td class="no-print" style="padding:4px;text-align:center"><button class="icon-btn" style="color:#dc2636" title="Futa bidhaa hii na stock yake" onclick="UI.deleteRow={id:'${d.id}',i:${ri}};rerender();">🗑️</button></td>
         </tr>`).join("")}
       </tbody>
     </table>
@@ -4858,6 +4861,50 @@ function renderDeleteDeliveryModal() {
       </div>
     </div>
   </div>`;
+}
+/* Futa BIDHAA MOJA ndani ya mzigo uliopokelewa — na stock yake (au rekodi tu) */
+function renderDeleteRowModal() {
+  const d = (STATE.deliveries || []).find((x) => x.id === UI.deleteRow.id), r = d && d.rows[UI.deleteRow.i];
+  if (!r) { UI.deleteRow = null; return ""; }
+  const hasMv = STATE.stockMovements.some((m) => m.id === r.movementId), have = hasMv ? qtyOf(r.itemId) : 0;
+  const all = hasMv && have >= (Number(r.qty) || 0), part = hasMv && !all && have > 0;
+  return `
+  <div class="modal-overlay">
+    <div class="modal-stack" style="max-width:440px">
+      <div class="receipt-print" style="padding:20px">
+        <h3 style="margin:0 0 6px">🗑️ Futa ${esc(r.name)}?</h3>
+        <p style="font-size:12.5px;color:#6b7280;margin:0 0 14px">Kwenye mzigo wa ${esc(d.supplier)} (${d.date}) · ${r.qty} × ${r.price != null ? fmt(r.price) : "—"} = ${fmt(r.total)}${hasMv ? ` · ipo sasa: <strong>${have}</strong>` : ""}</p>
+        ${all ? `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;background:#dc2636;border-color:#dc2636" onclick="deleteDeliveryRow('stock')">Futa bidhaa hii na stock yake (${r.qty})</button>` : ""}
+        ${part ? `<button class="btn btn-primary" style="width:100%;margin-bottom:6px;background:#dc2636;border-color:#dc2636" onclick="deleteDeliveryRow('part')">Futa bidhaa hii na stock iliyobaki (${have})</button>
+          <p style="font-size:11px;color:#dc2636;margin:0 0 8px">${r.qty - have} zimeshauzwa au kuhamishwa — hizo haziwezi kuondolewa.</p>` : ""}
+        ${hasMv && !have ? `<p style="font-size:11px;color:#dc2636;margin:0 0 8px">Stock yote ya bidhaa hii imeshauzwa au kuhamishwa — unaweza kufuta rekodi tu.</p>` : ""}
+        <button class="btn btn-ghost" style="width:100%;margin-bottom:6px" onclick="deleteDeliveryRow('record')">Futa kwenye rekodi tu — stock ibaki</button>
+        <button class="btn btn-ghost" style="width:100%" onclick="UI.deleteRow=null;rerender();">Ghairi</button>
+      </div>
+    </div>
+  </div>`;
+}
+function deleteDeliveryRow(mode) {
+  const d = (STATE.deliveries || []).find((x) => x.id === UI.deleteRow.id), r = d && d.rows[UI.deleteRow.i];
+  if (!r) { UI.deleteRow = null; return rerender(); }
+  const mv = STATE.stockMovements.find((m) => m.id === r.movementId);
+  let out = 0;
+  if (mv && mode !== "record") {
+    const have = qtyOf(r.itemId), q = Number(r.qty) || 0;
+    out = mode === "stock" ? q : Math.min(q, have);
+    if (out > have || out <= 0) { UI.deleteRow = null; return rerender(); }
+    const left = (Number(mv.qty) || 0) - out;
+    STATE.stockMovements = left > 0 ? STATE.stockMovements.map((m) => (m.id === mv.id ? { ...m, qty: left } : m)) : STATE.stockMovements.filter((m) => m.id !== mv.id);
+  }
+  const rows = d.rows.filter((_, i) => i !== UI.deleteRow.i);
+  STATE.deliveries = rows.length
+    ? STATE.deliveries.map((x) => (x.id === d.id ? { ...x, rows, total: rows.reduce((s2, y) => s2 + (Number(y.total) || 0), 0) } : x))
+    : STATE.deliveries.filter((x) => x.id !== d.id);   // bidhaa ya mwisho → mzigo wote unaondoka
+  invalidateStock();
+  saveFieldsTogether(out ? ["stockMovements", "deliveries"] : ["deliveries"]).catch(() => {});
+  UI.deleteRow = null;
+  UI.deliveryListMsg = { ok: true, text: r.name + " imefutwa kwenye mzigo" + (out ? " na stock " + out + " imeondolewa." : " — stock haijaguswa.") + (rows.length ? "" : " Mzigo ulikuwa na bidhaa hii tu, kwa hiyo umeondoka.") };
+  rerender();
 }
 function toggleDeletePick(i, on, max) {
   if (on) UI.deletePick[i] = String(max); else delete UI.deletePick[i];

@@ -45,3 +45,31 @@ with sync_playwright() as pw:
     assert p.evaluate("STATE.stockMovements.find(m=>m.id==='m1').qty") == 20
     print("2. nichague mwenyewe ✓ | ERRS", p.errs); assert not p.errs; p.browser_.close()
 print("FUTA MZIGO OK")
+
+# ---- futa BIDHAA MOJA ndani ya mzigo ----
+def openrow(pw, i):
+    p = openp(pw); p.evaluate("UI.deleteDeliveryId=null; rerender()"); p.wait_for_timeout(200)
+    p.locator("button[title='Futa bidhaa hii na stock yake']").nth(i).click(); p.wait_for_timeout(200)
+    return p
+with sync_playwright() as pw:
+    p = openrow(pw, 0)   # CHAIN KIT 50, zote zipo
+    shot(p, "futa-bidhaa-moja")
+    p.click("text=Futa bidhaa hii na stock yake"); p.wait_for_timeout(700)
+    r = p.evaluate("[qtyOf('g1'), qtyOf('g2'), STATE.deliveries[0].rows.map(x=>x.name), STATE.deliveries[0].total]")
+    assert r == [0, 5, ["BRAKE SHOE BAJAJ"], 100000], r
+    print("3. bidhaa moja + stock ✓"); p.browser_.close()
+
+    p = openrow(pw, 1)   # BRAKE SHOE 20, zimebaki 5
+    t = p.inner_text(".modal-overlay"); assert "stock iliyobaki (5)" in t and "15 zimeshauzwa" in t
+    p.click("text=stock iliyobaki (5)"); p.wait_for_timeout(700)
+    assert p.evaluate("[qtyOf('g2'), STATE.deliveries[0].rows.length]") == [0, 1]
+    assert p.evaluate("STATE.stockMovements.find(m=>m.id==='m2').qty") == 15
+    print("4. bidhaa moja, sehemu iliyobaki ✓"); p.browser_.close()
+
+    p = openrow(pw, 0); p.click("text=Futa kwenye rekodi tu"); p.wait_for_timeout(600)
+    assert p.evaluate("[qtyOf('g1'), STATE.deliveries[0].rows.length]") == [50, 1]
+    p.locator("button[title='Futa bidhaa hii na stock yake']").nth(0).click(); p.wait_for_timeout(200)
+    p.click("text=Futa kwenye rekodi tu"); p.wait_for_timeout(600)
+    assert p.evaluate("STATE.deliveries.length") == 0   # bidhaa ya mwisho → mzigo unaondoka
+    print("5. rekodi tu + mzigo mtupu unaondoka ✓ | ERRS", p.errs); assert not p.errs; p.browser_.close()
+print("FUTA BIDHAA OK")
