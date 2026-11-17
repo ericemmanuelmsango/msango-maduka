@@ -743,3 +743,77 @@ function saveEditDelivery() {
   UI.deliveryListMsg = { ok: true, text: "✅ Mzigo umerekebishwa — stock na buying price zimesasishwa." };
   rerender();
 }
+
+/* ---------- ✏️ HARIRI BIDHAA YA STOCK — Dukani na Godown (kipengele "haririMzigo") ----------
+   Jina (likiwa la bidhaa nyingine ya stoo hiyo, historia inaunganishwa), idadi iliyopo kweli
+   (tofauti inaandikwa kama "✏️ Marekebisho ya stock") na buying price (stock + Products). */
+const ADJ_LABEL = "✏️ Marekebisho ya stock";
+function openEditStock(id) {
+  const it = STATE.stockItems.find((x) => x.id === id); if (!it) return;
+  const bp = buyPriceOf(it);
+  UI.editStock = { id, name: it.name, qty: String(qtyOf(id)), price: bp != null ? String(bp) : "", msg: null };
+  rerender();
+}
+function renderEditStockModal() {
+  const e = UI.editStock; const it = STATE.stockItems.find((x) => x.id === e.id);
+  if (!it) { UI.editStock = null; return ""; }
+  const store = (it.store || "dukani") === "godown" ? "Godown" : "Dukani", now = qtyOf(it.id);
+  const names = [...new Set(STATE.products.filter((p) => !p.deleted).map((p) => p.name))];
+  return `
+  <div class="modal-overlay">
+    <div class="modal-stack" style="max-width:460px">
+      <div class="receipt-print" style="padding:20px">
+        <h3 style="margin:0 0 4px">✏️ Hariri bidhaa — ${store}</h3>
+        <p style="font-size:12px;color:#6b7280;margin:0 0 12px">Sasa: <strong>${esc(it.name)}</strong> · ${now} kwenye stock</p>
+        <datalist id="es-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
+        <label style="display:block;font-size:12px;font-weight:600;color:#55657c;margin:8px 0 4px">Jina la bidhaa</label>
+        <input class="field" list="es-names" value="${esc(e.name)}" oninput="UI.editStock.name=this.value">
+        <label style="display:block;font-size:12px;font-weight:600;color:#55657c;margin:8px 0 4px">Idadi iliyopo kweli (${store})</label>
+        <input class="field" type="number" min="0" value="${esc(e.qty)}" oninput="UI.editStock.qty=this.value">
+        <label style="display:block;font-size:12px;font-weight:600;color:#55657c;margin:8px 0 4px">Buying price (kwa kipande)</label>
+        <input class="field" type="number" min="0" value="${esc(e.price)}" oninput="UI.editStock.price=this.value">
+        <p style="font-size:11.5px;color:#6b7280;margin:4px 0 12px">Ukibadilisha idadi, tofauti inaandikwa kwenye historia kama "${ADJ_LABEL}". Buying price inabadilika kwa bidhaa hii Dukani, Godown na Products.</p>
+        ${e.msg ? `<p class="settings-msg err">${esc(e.msg)}</p>` : ""}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" style="flex:1" onclick="saveEditStock()">💾 Hifadhi</button>
+          <button class="btn btn-ghost" onclick="UI.editStock=null;rerender();">Ghairi</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function saveEditStock() {
+  const e = UI.editStock; const it = STATE.stockItems.find((x) => x.id === e.id); if (!it) return;
+  const store = it.store || "dukani", L = (s) => String(s || "").trim().toLowerCase();
+  const name = e.name.trim(), qty = Number(e.qty), price = e.price === "" ? null : Number(e.price);
+  if (!name) { e.msg = "Andika jina la bidhaa."; return rerender(); }
+  if (e.qty === "" || !(qty >= 0) || !Number.isInteger(qty)) { e.msg = "Idadi iwe namba kamili, 0 au zaidi."; return rerender(); }
+  if (price != null && !(price >= 0)) { e.msg = "Buying price si sahihi."; return rerender(); }
+  const diff = qty - qtyOf(it.id);   // tofauti ya bidhaa HII (kabla ya kuunganisha na jina jingine)
+  let target = it;
+  if (L(name) !== L(it.name)) {
+    const other = storeItems(store).find((x) => x.id !== it.id && L(x.name) === L(name));
+    if (other) {   // jina hili lipo tayari stoo hii → unganisha historia yote kwenye bidhaa hiyo
+      STATE.stockMovements = STATE.stockMovements.map((m) => (m.itemId === it.id ? { ...m, itemId: other.id } : m));
+      STATE.stockItems = STATE.stockItems.filter((x) => x.id !== it.id);
+      STATE.deliveries = (STATE.deliveries || []).map((d) => (d.rows || []).some((r) => r.itemId === it.id)
+        ? { ...d, rows: d.rows.map((r) => (r.itemId === it.id ? { ...r, itemId: other.id, name: other.name } : r)) } : d);
+      target = other;
+    } else {
+      STATE.stockItems = STATE.stockItems.map((x) => (x.id === it.id ? { ...x, name } : x));
+      STATE.deliveries = (STATE.deliveries || []).map((d) => (d.rows || []).some((r) => r.itemId === it.id)
+        ? { ...d, rows: d.rows.map((r) => (r.itemId === it.id ? { ...r, name } : r)) } : d);
+      target = { ...it, name };
+    }
+    if (!productByName(target.name)) STATE.products.push({ id: uid(), name: target.name, price: 0 });
+  }
+  invalidateStock();
+  if (diff !== 0) STATE.stockMovements.push(diff > 0
+    ? { id: uid(), itemId: target.id, type: "in", qty: diff, supplier: ADJ_LABEL, date: todayStr(), price: null, adjust: true }
+    : { id: uid(), itemId: target.id, type: "out", qty: -diff, destination: ADJ_LABEL, date: todayStr(), adjust: true });
+  if (price != null && price !== buyPriceOf(target)) setBuyPriceEverywhere(target.name, price);
+  saveFieldsTogether(["stockItems", "stockMovements", "products", "deliveries"]).catch(() => {});
+  UI.editStock = null;
+  UI.toastMsg = "✅ " + target.name + " imerekebishwa" + (diff ? ` (${diff > 0 ? "+" : ""}${diff})` : "");
+  rerender();
+}

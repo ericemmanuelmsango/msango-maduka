@@ -39,7 +39,7 @@ const FEATURES = [
   ["ripotiMpya", "Ripoti mpya — folda za siku zenye faida/hasara, Kila Bidhaa, tafuta mteja", "Wadai"],
   ["futaKabisa", "Kufuta mauzo kabisa (andika FUTA) — hakuna History wala Rudisha", "Wadai"],
   ["vifaaNet", "Vifaa vinavyotumia mfumo + onyo la internet dhaifu", "Wadai"],
-  ["haririMzigo", "Hariri mzigo uliopokelewa — jina, idadi na buying price (stock inafuata)", "Wadai"],
+  ["haririMzigo", "Hariri mzigo uliopokelewa na stock (Dukani + Godown) — jina, idadi, buying price", "Wadai"],
   ["alerts", "Tahadhari (madeni + stock ndogo)", "Wadai"],
   ["pos", "POS ya mauzo", "POS"],
   ["jumla", "Bei za jumla kwenye POS", "POS"],

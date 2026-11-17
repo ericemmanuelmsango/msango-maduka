@@ -882,6 +882,7 @@ function renderShell() {
     ${UI.grnId ? renderGrnModal() : ""}
     ${UI.deleteDeliveryId ? renderDeleteDeliveryModal() : ""}
     ${UI.editDelivery && typeof renderEditDeliveryModal === "function" ? renderEditDeliveryModal() : ""}
+    ${UI.editStock && typeof renderEditStockModal === "function" ? renderEditStockModal() : ""}
   </div>`;
 }
 
@@ -4428,7 +4429,7 @@ function renderStockByCategory(store) {
             <div class="tile-card">
               ${photoBox(it.name)}
               <div class="tc-body">
-              <div class="tc-name">${esc(it.name)}</div>
+              <div class="tc-name">${esc(it.name)}${typeof optF === "function" && optF("haririMzigo") ? ` <button class="icon-btn" title="Hariri bidhaa hii (jina, idadi, buying price)" onclick="openEditStock('${it.id}')">✏️</button>` : ""}</div>
               <div class="tc-row">
                 ${UI.editingCategoryId === it.id ? `
                   <select id="cat-${it.id}" class="field field-sm" style="width:auto;display:inline-block">
