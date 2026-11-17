@@ -4798,7 +4798,7 @@ function renderDeliveryCard(d) {
       ${d.archived
         ? `<button class="btn btn-sm btn-ghost" onclick="archiveDelivery('${d.id}',false)">↩️ Restore</button>`
         : `<button class="btn btn-sm btn-ghost" onclick="archiveDelivery('${d.id}',true)">🗄️ Move to History</button>`}
-      <button class="btn btn-sm btn-ghost" style="color:#dc2636" onclick="UI.deleteDeliveryId='${d.id}';rerender();">🗑️ Delete</button>
+      <button class="btn btn-sm btn-ghost" style="color:#dc2636" onclick="UI.deleteDeliveryId='${d.id}';UI.deletePick=null;UI.deletePickMsg=null;rerender();">🗑️ Delete</button>
     </div>` : ""}
   </div>`;
 }
@@ -4825,33 +4825,76 @@ function renderDeleteDeliveryModal() {
   const d = (STATE.deliveries || []).find((x) => x.id === UI.deleteDeliveryId);
   if (!d) return "";
   const problems = deliveryStockCheck(d);
+  const pick = UI.deletePick;   // "nichague mwenyewe": { rowIndex: idadi ya kuondoa }
+  const rowMax = (r) => (STATE.stockMovements.some((m) => m.id === r.movementId) ? Math.min(Number(r.qty) || 0, qtyOf(r.itemId)) : 0);
   return `
   <div class="modal-overlay">
-    <div class="modal-stack" style="max-width:460px">
+    <div class="modal-stack" style="max-width:${pick ? 560 : 460}px">
       <div class="receipt-print" style="padding:20px">
-        <h3 style="margin:0 0 6px">🗑️ Delete delivery from ${esc(d.supplier)}?</h3>
-        <p style="font-size:12.5px;color:#6b7280;margin:0 0 14px">${d.date} · ${d.rows.length} item(s) · ${fmt(d.total)}</p>
-        <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="deleteDelivery('${d.id}','record')">Delete record only — stock stays</button>
-        <button class="btn btn-ghost" style="width:100%;margin-bottom:6px;color:#dc2636;border-color:#dc2636" ${problems.length ? "disabled" : ""} onclick="deleteDelivery('${d.id}','stock')">Delete AND remove this stock (I entered it by mistake)</button>
-        ${problems.length ? `<p style="font-size:11px;color:#dc2636;margin:0 0 8px">Can't remove the stock — some of it is already sold or moved:<br>${problems.map(esc).join("<br>")}</p>` : ""}
-        <button class="btn btn-ghost" style="width:100%" onclick="UI.deleteDeliveryId=null;rerender();">Cancel</button>
+        <h3 style="margin:0 0 6px">🗑️ Futa mzigo wa ${esc(d.supplier)}?</h3>
+        <p style="font-size:12.5px;color:#6b7280;margin:0 0 14px">${d.date} · bidhaa ${d.rows.length} · ${fmt(d.total)}</p>
+        ${pick ? `
+        <p style="font-size:12.5px;margin:0 0 8px"><strong>Chagua stock ya kuondoa</strong> — weka tiki na idadi. Zisizo na tiki zinabaki kwenye stock.</p>
+        <table class="recent-table" style="width:100%;margin-bottom:10px">
+          <thead><tr><th></th><th style="text-align:left">Bidhaa</th><th style="text-align:right">Mzigo</th><th style="text-align:right">Ipo sasa</th><th style="text-align:right">Ondoa</th></tr></thead>
+          <tbody>${d.rows.map((r, i) => { const max = rowMax(r), on = pick[i] != null; return `<tr>
+            <td style="padding:4px"><input type="checkbox" ${on ? "checked" : ""} ${max ? "" : "disabled"} onchange="toggleDeletePick(${i},this.checked,${max})"></td>
+            <td style="padding:4px">${esc(r.name)}</td>
+            <td style="padding:4px;text-align:right">${r.qty}</td>
+            <td style="padding:4px;text-align:right">${STATE.stockMovements.some((m) => m.id === r.movementId) ? qtyOf(r.itemId) : "—"}</td>
+            <td style="padding:4px;width:90px"><input class="field field-sm" type="number" min="1" max="${max}" style="margin:0;text-align:right" ${on ? "" : "disabled"} value="${on ? pick[i] : ""}" oninput="UI.deletePick[${i}]=this.value"></td>
+          </tr>`; }).join("")}</tbody>
+        </table>
+        ${UI.deletePickMsg ? `<p class="settings-msg err">${esc(UI.deletePickMsg)}</p>` : ""}
+        <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="deleteDelivery('${d.id}','pick')">🗑️ Futa mzigo na uondoe stock niliyochagua</button>
+        <button class="btn btn-ghost" style="width:100%" onclick="UI.deletePick=null;UI.deletePickMsg=null;rerender();">← Rudi</button>
+        ` : `
+        <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="deleteDelivery('${d.id}','record')">Futa rekodi tu — stock ibaki</button>
+        <button class="btn btn-ghost" style="width:100%;margin-bottom:6px;color:#dc2636;border-color:#dc2636" ${problems.length ? "disabled" : ""} onclick="deleteDelivery('${d.id}','stock')">Futa na uondoe stock YOTE ya mzigo huu</button>
+        ${problems.length ? `<p style="font-size:11px;color:#dc2636;margin:0 0 8px">Haiwezekani kuondoa stock yote — sehemu imeshauzwa au kuhamishwa:<br>${problems.map(esc).join("<br>")}</p>` : ""}
+        <button class="btn btn-ghost" style="width:100%;margin-bottom:6px" onclick="UI.deletePick={};UI.deletePickMsg=null;rerender();">✋ Nichague mwenyewe — bidhaa zipi na idadi ngapi</button>
+        <button class="btn btn-ghost" style="width:100%" onclick="UI.deleteDeliveryId=null;rerender();">Ghairi</button>
+        `}
       </div>
     </div>
   </div>`;
 }
+function toggleDeletePick(i, on, max) {
+  if (on) UI.deletePick[i] = String(max); else delete UI.deletePick[i];
+  rerender();
+}
 function deleteDelivery(id, mode) {
   const d = STATE.deliveries.find((x) => x.id === id);
   if (!d) return;
+  let removed = 0;
   if (mode === "stock") {
     if (deliveryStockCheck(d).length) return;
     const ids = new Set(d.rows.map((r) => r.movementId));
     STATE.stockMovements = STATE.stockMovements.filter((m) => !ids.has(m.id));
-    saveStockMovements();
+  }
+  if (mode === "pick") {
+    const pick = UI.deletePick || {}, cut = {};
+    for (const k of Object.keys(pick)) {
+      const r = d.rows[Number(k)], q = Number(pick[k]);
+      const mv = r && STATE.stockMovements.find((m) => m.id === r.movementId);
+      if (!mv) continue;
+      if (!Number.isInteger(q) || q < 1) { UI.deletePickMsg = "Idadi ya " + r.name + " iwe namba kamili, 1 au zaidi."; return rerender(); }
+      const max = Math.min(Number(r.qty) || 0, qtyOf(r.itemId));
+      if (q > max) { UI.deletePickMsg = r.name + ": unaweza kuondoa hadi " + max + " tu (zingine zimeshauzwa au kuhamishwa)."; return rerender(); }
+      cut[mv.id] = q; removed += q;
+    }
+    if (!Object.keys(cut).length) { UI.deletePickMsg = "Chagua angalau bidhaa moja, au rudi nyuma uchague \"Futa rekodi tu\"."; return rerender(); }
+    STATE.stockMovements = STATE.stockMovements
+      .map((m) => (cut[m.id] ? { ...m, qty: (Number(m.qty) || 0) - cut[m.id] } : m))
+      .filter((m) => !(cut[m.id] != null && m.qty <= 0));
   }
   STATE.deliveries = STATE.deliveries.filter((x) => x.id !== id);
-  saveDeliveries();
-  UI.deleteDeliveryId = null;
-  UI.deliveryListMsg = { ok: true, text: mode === "stock" ? "Delivery deleted and its stock removed." : "Delivery record deleted. Stock was not changed." };
+  invalidateStock();
+  if (mode === "record") saveDeliveries(); else saveFieldsTogether(["stockMovements", "deliveries"]).catch(() => {});
+  UI.deleteDeliveryId = null; UI.deletePick = null; UI.deletePickMsg = null;
+  UI.deliveryListMsg = { ok: true, text: mode === "stock" ? "Mzigo umefutwa na stock yake yote imeondolewa."
+    : mode === "pick" ? "Mzigo umefutwa; stock " + removed + " uliyochagua imeondolewa, nyingine imebaki."
+    : "Rekodi ya mzigo imefutwa. Stock haijaguswa." };
   rerender();
 }
 
