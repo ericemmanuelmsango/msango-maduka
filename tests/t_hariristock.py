@@ -30,9 +30,16 @@ def save_edit(p, item, name=None, qty=None, price=None):
     p.click(".modal-overlay >> text=💾 Hifadhi"); p.wait_for_timeout(700)
 
 with sync_playwright() as pw:
-    p = open_page(pw, "index.html?duka=sp1", store({})); p.wait_for_timeout(1200); page(p, "mainstore")
-    assert p.locator("button[onclick^=openEditStock]").count() == 0, "bila kipengele kusiwe na kitufe"
-    print("1. bila kipengele ✓"); p.browser_.close()
+    # bila kipengele: ✏️ ipo, lakini inabadilisha JINA tu (idadi na bei hazionekani wala kuguswa)
+    p = open_page(pw, "index.html?duka=sp1", store({})); p.wait_for_timeout(1200); page(p, "godown")
+    assert p.locator("button[onclick^=openEditStock]").count() == 1
+    p.evaluate("openEditStock('g1')"); p.wait_for_timeout(200)
+    assert p.locator(".modal-overlay input.field").count() == 1 and "Badilisha jina" in p.inner_text(".modal-overlay")
+    p.locator(".modal-overlay input.field").nth(0).fill("CHAIN KIT TVS 428")
+    p.click(".modal-overlay >> text=💾 Hifadhi"); p.wait_for_timeout(700)
+    r = p.evaluate("({n: storeItems('godown').map(i=>i.name+'='+qtyOf(i.id)), d: storeItems('dukani').find(i=>i.id==='d1').name, adj: STATE.stockMovements.filter(m=>m.adjust).length, pb: productByName('CHAIN KIT TVS').buyPrice})")
+    print(r); assert r == {"n": ["CHAIN KIT TVS 428=50"], "d": "CHAIN KIT TVS", "adj": 0, "pb": 10000}
+    print("1. bila kipengele: jina tu ✓ | ERRS", p.errs); assert not p.errs; p.browser_.close()
 
     p = open_page(pw, "index.html?duka=sp1", store({"haririMzigo": True})); p.wait_for_timeout(1200)
     page(p, "godown"); assert p.locator("button[onclick^=openEditStock]").count() == 1

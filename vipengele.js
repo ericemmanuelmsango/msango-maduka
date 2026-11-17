@@ -763,16 +763,18 @@ function renderEditStockModal() {
   <div class="modal-overlay">
     <div class="modal-stack" style="max-width:460px">
       <div class="receipt-print" style="padding:20px">
-        <h3 style="margin:0 0 4px">✏️ Hariri bidhaa — ${store}</h3>
+        <h3 style="margin:0 0 4px">✏️ ${optF("haririMzigo") ? "Hariri bidhaa" : "Badilisha jina"} — ${store}</h3>
         <p style="font-size:12px;color:#6b7280;margin:0 0 12px">Sasa: <strong>${esc(it.name)}</strong> · ${now} kwenye stock</p>
         <datalist id="es-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
         <label style="display:block;font-size:12px;font-weight:600;color:#55657c;margin:8px 0 4px">Jina la bidhaa</label>
         <input class="field" list="es-names" value="${esc(e.name)}" oninput="UI.editStock.name=this.value">
+        ${optF("haririMzigo") ? `
         <label style="display:block;font-size:12px;font-weight:600;color:#55657c;margin:8px 0 4px">Idadi iliyopo kweli (${store})</label>
         <input class="field" type="number" min="0" value="${esc(e.qty)}" oninput="UI.editStock.qty=this.value">
         <label style="display:block;font-size:12px;font-weight:600;color:#55657c;margin:8px 0 4px">Buying price (kwa kipande)</label>
         <input class="field" type="number" min="0" value="${esc(e.price)}" oninput="UI.editStock.price=this.value">
-        <p style="font-size:11.5px;color:#6b7280;margin:4px 0 12px">Ukibadilisha idadi, tofauti inaandikwa kwenye historia kama "${ADJ_LABEL}". Buying price inabadilika kwa bidhaa hii Dukani, Godown na Products.</p>
+        <p style="font-size:11.5px;color:#6b7280;margin:4px 0 12px">Ukibadilisha idadi, tofauti inaandikwa kwenye historia kama "${ADJ_LABEL}". Buying price inabadilika kwa bidhaa hii Dukani, Godown na Products.</p>`
+        : `<p style="font-size:11.5px;color:#6b7280;margin:4px 0 12px">Jina jipya linaonekana kwenye stock ya ${store} na mizigo yake. Ukiandika jina la bidhaa iliyopo tayari ${store}, stock zake zinaunganishwa. Kubadilisha jina kila mahali (Dukani + Godown + Products): tumia ✏️ kwenye Products.</p>`}
         ${e.msg ? `<p class="settings-msg err">${esc(e.msg)}</p>` : ""}
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" style="flex:1" onclick="saveEditStock()">💾 Hifadhi</button>
@@ -785,7 +787,9 @@ function renderEditStockModal() {
 function saveEditStock() {
   const e = UI.editStock; const it = STATE.stockItems.find((x) => x.id === e.id); if (!it) return;
   const store = it.store || "dukani", L = (s) => String(s || "").trim().toLowerCase();
-  const name = e.name.trim(), qty = Number(e.qty), price = e.price === "" ? null : Number(e.price);
+  const full = optF("haririMzigo");   // bila kipengele: jina tu
+  const name = e.name.trim(), qty = full ? Number(e.qty) : qtyOf(it.id), price = !full || e.price === "" ? null : Number(e.price);
+  if (!full) e.qty = String(qty);
   if (!name) { e.msg = "Andika jina la bidhaa."; return rerender(); }
   if (e.qty === "" || !(qty >= 0) || !Number.isInteger(qty)) { e.msg = "Idadi iwe namba kamili, 0 au zaidi."; return rerender(); }
   if (price != null && !(price >= 0)) { e.msg = "Buying price si sahihi."; return rerender(); }
