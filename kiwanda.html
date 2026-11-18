@@ -140,6 +140,7 @@ details summary{cursor:pointer;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="duka.js?v=18"></script>
+<script src="hifadhi.js?v=2"></script>
 <script src="logo-gen.js?v=2"></script>
 <script src="demo.js?v=1"></script>
 <script>
@@ -918,6 +919,10 @@ async function restoreShop(code, input) {
   try {
     dlJson(await shopDump(code), `kabla-ya-kurudisha-${code}-${dukaToday()}.json`);
     const col = db.collection("shops").doc(code).collection("data"); let i = 0;
+    // 🔒 hati ndogo za orodha (r_*) na sehemu za msingi (f__N) zisizo kwenye backup zingeendelea kubadilisha
+    // data iliyorudishwa — zifute kwanza ili duka lirudi kama lilivyokuwa kwenye backup
+    const extra = (await col.get()).docs.map((x) => x.id).filter((id) => !(id in d.docs) && (id.startsWith("r_") || ssIsBaseDoc(id)));
+    for (const id of extra) await col.doc(id).delete();
     for (const [id, doc] of Object.entries(d.docs)) { await col.doc(id).set(doc); if (++i % 20 === 0) { K.bk.msg = `Inarudisha… ${i}/${n}`; render(); } }
     K.bk = { code, msg: `✅ Hati ${n} zimerudishwa. Mwambie mteja afunge mfumo na kuufungua upya.` };
   } catch (e) { K.bk = { code, err: true, msg: "Haikurudishwa: " + (e.message || "") }; }

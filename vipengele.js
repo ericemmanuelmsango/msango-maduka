@@ -166,7 +166,7 @@ async function pdfSaleFile(i) {
     await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
   } catch (e) { alert("Imeshindikana kupakua PDF — angalia internet kisha jaribu tena."); return; }
   const doc = new window.jspdf.jsPDF({ unit: "mm", format: "a4" });
-  const sh = rcShop(), tz = (n) => Math.round(n).toLocaleString("en-US");
+  const sh = rcShop(), tz = (n) => _NF0.format(Math.round(n));
   const whole = f.cust == null, total = items.reduce((a, x) => a + x.total, 0);
   doc.setFontSize(16); doc.setFont(undefined, "bold"); doc.text(sh.name || "", 105, 18, { align: "center" }); doc.setFont(undefined, "normal");
   doc.setFontSize(9.5); let y = 24;
@@ -382,7 +382,7 @@ async function pdfRepFolder(i) {
     await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
   } catch (e) { alert("Imeshindikana kupakua PDF — angalia internet kisha jaribu tena."); return; }
   const doc = new window.jspdf.jsPDF({ unit: "mm", format: "a4" });
-  const tz = (n) => "TSh " + Math.round(n).toLocaleString("en-US"), sg = (n) => (n < 0 ? "-" : "") + tz(Math.abs(n));
+  const tz = (n) => "TSh " + _NF0.format(Math.round(n)), sg = (n) => (n < 0 ? "-" : "") + tz(Math.abs(n));
   const whole = f.cust == null, rev = lines.reduce((a, x) => a + x.total, 0), pr = lines.reduce((a, x) => a + repProfit(x), 0);
   const exp = whole && !UI.plHistory ? expensesIn(f.date, f.date).reduce((a, x) => a + x.amount, 0) : 0;
   const head = { fillColor: [15, 31, 61], textColor: 255, fontStyle: "bold" }, foot = { fillColor: [235, 239, 245], textColor: 20, fontStyle: "bold" };

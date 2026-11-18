@@ -26,8 +26,9 @@ const addDays = (day, n) => { const d = new Date(day + "T12:00:00"); d.setDate(d
 const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 864e5);
 const hm = (ms) => { const d = new Date(ms); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
 const fdate = (day) => { if (!day) return "—"; const d = new Date((day.length > 10 ? day : day + "T12:00:00")); return d.toLocaleDateString("sw-TZ", { day: "numeric", month: "short", year: "numeric" }); };
-const tzs = (n) => "TSh " + Math.round(Number(n) || 0).toLocaleString("en-US");
-const n0 = (n) => Math.round(Number(n) || 0).toLocaleString("en-US");
+const _NF0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });   // ⚡ mara moja — toLocaleString kila namba ilikuwa nzito sana kwenye ripoti
+const tzs = (n) => "TSh " + _NF0.format(Math.round(Number(n) || 0));
+const n0 = (n) => _NF0.format(Math.round(Number(n) || 0));
 const num = (v) => { const x = Number(String(v == null ? "" : v).replace(/[, ]/g, "")); return isFinite(x) ? x : 0; };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const val = (id) => { const el = document.getElementById(id); return el ? (el.type === "checkbox" ? el.checked : el.value.trim()) : ""; };
@@ -468,7 +469,7 @@ async function rmPdf() {
   const L = rmLines(inR).filter((x) => !only || x.cust === only).sort((a, b) => (a.day === b.day ? a.at - b.at : a.day < b.day ? -1 : 1));
   const exp = only ? 0 : txList("exp", (e) => inR(e.day)).reduce((a, e) => a + (Number(e.amount) || 0), 0);
   const doc = new window.jspdf.jsPDF({ unit: "mm", format: "a4" });
-  const tz = (n) => "TSh " + Math.round(n).toLocaleString("en-US"), sg = (n) => (n < 0 ? "-" : "") + tz(Math.abs(n));
+  const tz = (n) => "TSh " + _NF0.format(Math.round(n)), sg = (n) => (n < 0 ? "-" : "") + tz(Math.abs(n));
   const head = { fillColor: [15, 31, 61], textColor: 255, fontStyle: "bold" }, foot = { fillColor: [235, 239, 245], textColor: 20, fontStyle: "bold" };
   const right = (c) => Object.fromEntries(c.map((i) => [i, { halign: "right" }]));
   const hr = (c) => (d) => { if ((d.section === "head" || d.section === "foot") && c.includes(d.column.index)) d.cell.styles.halign = "right"; };

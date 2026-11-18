@@ -17,7 +17,7 @@ if (CONFIG_IS_SET) {
   docRef = db.collection("wadai_na_wadaiwa").doc("data");
 }
 
-const APP_VERSION = "MM v6";
+const APP_VERSION = "MM v7";
 let STATE = { posSales: [], entries: [], products: [], stockItems: [], stockMovements: [], sales: [], deliveries: [], settings: { appPassword: null, reportsPassword: "eric1234" } };
 let STATE_LOADED = false;
 let AUTH_READY = false;
@@ -71,7 +71,8 @@ let notifiedKeys = new Set();
 let charts = {};
 
 /* ---------- helpers ---------- */
-function fmt(n) { return "TSh " + Math.round(n || 0).toLocaleString("en-US"); }
+const _NF0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });   // ⚡ mara moja — toLocaleString kila namba ilikuwa nzito sana kwenye ripoti
+function fmt(n) { return "TSh " + _NF0.format(Math.round(n || 0)); }
 function todayStr() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }   // saa ya kifaa (Tanzania), si UTC
 function getCharges(e) {
   if (e.charges && e.charges.length) return e.charges;
@@ -361,79 +362,99 @@ function oneTimeHlxFix() {
    snapshot haiwezi kurudisha orodha moja ya zamani wakati nyingine imeshabadilishwa. */
 function saveFieldsTogether(fields, withSettings) {
   if (!docRef) return Promise.resolve();
-  if (fields.includes("stockMovements")) invalidateStock();
-  const batch = db.batch();
+  const writes = buildListWrites(fields);
+  if (withSettings) { const w = settingsWrite(); if (w) writes.push(w); }
+  if (!writes.length) return Promise.resolve();
+  return ssCommit(db, writes).then(onSaveSuccess, (e) => { onSaveError(e); throw e; });
+}
+/* 🔒 Hifadhi salama (hifadhi.js): kwa kila orodha andika TU rekodi zilizobadilika, kila moja kwenye hati yake ndogo.
+   Kwa hiyo kifaa hiki hakiwezi tena kufuta mauzo / malipo yaliyoandikwa na kifaa kingine, na mauzo moja
+   yanatuma ~1 KB badala ya orodha nzima (MB kadhaa) — mfumo unakuwa mwepesi. Mabadiliko makubwa sana
+   (mf. kuingiza bidhaa 1,500) yanaandikwa yote kwenye msingi kama zamani. */
+const SS_MAX_OPS = 400;
+const WROTE = {};   // hati ndogo zilizotumwa na kifaa hiki (zifutwe pia orodha nzima ikiandikwa kabla hazijarudi)
+function buildListWrites(fields) {
+  const w = [];
   fields.forEach((f) => {
-    if (STORAGE_MODE === "legacy" || !colRef) { batch.set(docRef, { [f]: STATE[f] }, { merge: true }); return; }
-    const chunks = chunkList(STATE[f] || []);
-    chunks.forEach((items, i) => batch.set(colRef.doc(f + "__" + i), { part: i, of: chunks.length, items }));
-    for (let i = chunks.length; i < (KNOWN_PARTS[f] || 0); i++) batch.delete(colRef.doc(f + "__" + i));
-    if (LEGACY_FIELDS[f]) batch.set(docRef, { [f]: firebase.firestore.FieldValue.delete() }, { merge: true });
-    KNOWN_PARTS[f] = chunks.length; LEGACY_FIELDS[f] = false;
+    if (f === "stockMovements") invalidateStock();
+    const list = STATE[f] || [];
+    if (STORAGE_MODE === "legacy" || !colRef) { w.push(["set", docRef, { [f]: list }, { merge: true }]); return; }
+    let ops = !LEGACY_FIELDS[f] && CLOUDIX[f] ? ssDiff(f, CLOUDIX[f], list) : null;
+    if (ops && ops.length > SS_MAX_OPS) ops = null;
+    if (ops) {
+      const bh = ssBaseHashes(_DOCS, f, ops.map((o) => o.id), (_DOCS.data || {})[f]);
+      w.push(...ssOverlayWrites(colRef, f, ops, SEQOF[f], bh));
+      ops.forEach((o) => (WROTE[f] = WROTE[f] || new Set()).add(ssDocId(f, o.id)));
+      CLOUDIX[f] = ops.after;
+      return;
+    }
+    w.push(...ssFullWrites(colRef, f, list, _DOCS, [...(WROTE[f] || [])]));
+    WROTE[f] = new Set();
+    if (LEGACY_FIELDS[f]) w.push(["set", docRef, { [f]: firebase.firestore.FieldValue.delete() }, { merge: true }]);
+    LEGACY_FIELDS[f] = false;
+    CLOUDIX[f] = ssIndex(list);
   });
-  if (withSettings) batch.set(docRef, { settings: STATE.settings }, { merge: true });
-  return batch.commit().then(onSaveSuccess, (e) => { onSaveError(e); throw e; });
+  return w;
+}
+function settingsWrite() {
+  const patch = ssSettingsPatch(CLOUD_SETTINGS || {}, STATE.settings || {});
+  CLOUD_SETTINGS = JSON.parse(JSON.stringify(STATE.settings || {}));
+  return Object.keys(patch).length ? ["set", docRef, { settings: patch }, { merge: true }] : null;
 }
 /* Nakala ya hati zote kwenye kumbukumbu: kila badiliko linasoma hati zilizobadilika TU (si zote — picha
    na sehemu kubwa zilikuwa zinasomwa upya kila mauzo, mfumo ukawa mzito kwenye tablet). */
 const _DOCS = {}, _DOC_KB = {};
+const MERGED = {}, CLOUDIX = {}, SEQOF = {}, OVCOUNT = {};   // kwa kila orodha: iliyounganishwa, picha ya cloud, hati ndogo
+let CLOUD_SETTINGS = null;                                    // settings kama zilivyo cloud (kwa kutuma tofauti tu)
+const _JSON = new WeakMap();
+function jsonOf(o) {   // JSON ya rekodi ILIVYOFIKA kutoka cloud (inahifadhiwa mara moja — haiathiriwi na mabadiliko ya baadaye)
+  if (!o || typeof o !== "object") return JSON.stringify(o);
+  let j = _JSON.get(o);
+  if (j === undefined) { j = JSON.stringify(o); _JSON.set(o, j); }
+  return j;
+}
+function fieldOfDoc(id) {
+  if (ssIsBaseDoc(id)) return id.slice(0, id.indexOf("__"));
+  if (id.startsWith("r_")) return SPLIT_FIELDS.find((f) => id.startsWith("r_" + f + "_")) || null;
+  return null;
+}
+const QUIET_DOCS = (id) => id === "_hai" || id === "_v2" || id.startsWith("dev_");
 function startSplitListener() {
   return colRef.onSnapshot({ includeMetadataChanges: true }, (snap) => {
     const changes = typeof snap.docChanges === "function" ? snap.docChanges() : null;
-    if (changes && Object.keys(_DOCS).length) {
-      changes.forEach((c) => { const id = c.doc.id; if (c.type === "removed") { delete _DOCS[id]; delete _DOC_KB[id]; } else { _DOCS[id] = c.doc.data(); _DOC_KB[id] = -1; } });
+    const had = Object.keys(_DOCS).length;
+    let dirty = new Set(), all = false;
+    if (changes && had) {
+      changes.forEach((c) => {
+        const id = c.doc.id;
+        if (c.type === "removed") { delete _DOCS[id]; delete _DOC_KB[id]; } else { _DOCS[id] = c.doc.data(); _DOC_KB[id] = -1; }
+        const f = fieldOfDoc(id);
+        if (f) dirty.add(f); else if (id === "data") all = true; else if (!QUIET_DOCS(id)) dirty.add("*");
+        // kifaa chenye toleo la ZAMANI kimeandika msingi (hakina alama v2) → usiunganishe hati ndogo kwa sasa
+        if (c.type !== "removed" && ssIsBaseDoc(id) && !(c.doc.metadata && c.doc.metadata.hasPendingWrites) && !(_DOCS[id] && _DOCS[id].v2)) noteOldClient();
+      });
     }
     // usalama: nakala ikitofautiana na idadi ya hati halisi, soma zote upya
-    if (!changes || Object.keys(_DOCS).length !== snap.size) {
+    if (!changes || !had || Object.keys(_DOCS).length !== snap.size) {
       Object.keys(_DOCS).forEach((k) => { delete _DOCS[k]; delete _DOC_KB[k]; });
       snap.forEach((d) => { _DOCS[d.id] = d.data(); _DOC_KB[d.id] = -1; });
+      all = true;
     }
     if (typeof devStart === "function") { devStart(); if (DEV) DEV.load(_DOCS); }   // kipengele cha hiari "vifaaNet"
-    // badiliko la "vifaa" tu (kila dakika 3) → usijenge data zote upya
-    if (changes && changes.length && changes.every((c) => c.doc.id.startsWith("dev_")) && STATE_LOADED) {
-      UI.sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: new Date() };
-      if (UI.page === "settings") rerender();
+    const server = !snap.metadata.fromCache && !snap.metadata.hasPendingWrites;
+    const sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: new Date() };
+    // hakuna data iliyobadilika (ni uthibitisho wa cloud tu, au "vifaa"/"_hai") → usijenge data zote upya
+    if (!all && !dirty.size && STATE_LOADED) {
+      const flip = !UI.sync || UI.sync.pending !== sync.pending || UI.sync.fromCache !== sync.fromCache;
+      UI.sync = sync;
+      if (flip || UI.page === "settings") softRerender(150);
+      if (server) cloudMaintenance();
       return;
     }
-    const docs = _DOCS;
-    const main = docs.data || {};
-    const result = { settings: main.settings };
-    let parts = 0, biggest = 0;
-    SPLIT_FIELDS.forEach((f) => {
-      const mine = Object.keys(docs).filter((id) => id.startsWith(f + "__")).map((id) => docs[id]).sort((x, y) => x.part - y.part);
-      KNOWN_PARTS[f] = mine.length;
-      LEGACY_FIELDS[f] = Array.isArray(main[f]);
-      if (mine.length) {
-        const n = mine[0].of;
-        result[f] = [].concat(...mine.filter((p) => p.of === n).map((p) => p.items || []));
-        // Records written by a device still running an OLD version land in the
-        // old document — rescue anything new from there so nothing is lost.
-        if (LEGACY_FIELDS[f]) {
-          const ids = new Set(result[f].map((x) => x && x.id));
-          main[f].forEach((x) => { if (x && x.id && !ids.has(x.id)) result[f].push(x); });
-        }
-      } else {
-        result[f] = main[f] || [];
-      }
-    });
-    Object.keys(docs).forEach((id) => { parts++; if (_DOC_KB[id] == null || _DOC_KB[id] < 0) _DOC_KB[id] = id.startsWith("pimg_") ? 0 : JSON.stringify(docs[id]).length; biggest = Math.max(biggest, _DOC_KB[id]); });
-    STORAGE_INFO = { parts, biggestKB: Math.round(biggest / 1024) };
-    // Sales made in the separate POS app (one document each) — they reduce stock here too.
-    STATE.posSales = Object.keys(docs).filter((id) => id.startsWith("possale_")).map((id) => docs[id]);
-    STATE.posExpenses = Object.keys(docs).filter((id) => id.startsWith("posexp_")).map((id) => docs[id]);
-    STATE.posWholePrices = (docs.pos_settings && docs.pos_settings.wholePrices) || {};
-    STATE.images = {}; Object.keys(docs).forEach((id) => { const d = docs[id]; if (id.startsWith("pimg_") && d && d.data) STATE.images[d.key || String(d.name || "").trim().toLowerCase()] = d.data; });
-    UI.sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: new Date() };
-    applyCloudData(result);
+    rebuildFromDocs(all ? null : dirty);
+    UI.sync = sync;
     afterCloudUpdate();
-    // Move anything still in the old single document into its own part-documents.
-    if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
-      SPLIT_FIELDS.filter((f) => LEGACY_FIELDS[f]).forEach((f) => saveField(f));
-      oneTimeProductReset();
-      oneTimeStockReset();
-      oneTimeProductImport();
-      oneTimeHlxFix();
-    }
+    if (server) cloudMaintenance();
   }, (err) => {
     // Rules don't allow reading the whole collection yet → keep working the old way.
     STORAGE_MODE = "legacy";
@@ -443,12 +464,107 @@ function startSplitListener() {
     docRef._unsub = startLegacyListener();
   });
 }
+/* Jenga upya orodha zilizobadilika tu (dirty = null → zote) kutoka _DOCS, kisha weka kwenye STATE */
+function rebuildFromDocs(dirty) {
+  const docs = _DOCS, main = docs.data || {};
+  SPLIT_FIELDS.forEach((f) => {
+    if (dirty && !dirty.has(f) && MERGED[f]) return;
+    LEGACY_FIELDS[f] = Array.isArray(main[f]);
+    const r = ssMerge(docs, f, main[f] || []);
+    let list = r.list;
+    // Records written by a device still running an OLD version land in the
+    // old document — rescue anything new from there so nothing is lost.
+    if (r.parts && LEGACY_FIELDS[f]) {
+      list = list.slice();
+      const ids = new Set(list.map((x) => x && x.id));
+      main[f].forEach((x) => { if (x && x.id && !ids.has(x.id)) list.push(x); });
+    }
+    KNOWN_PARTS[f] = r.parts; OVCOUNT[f] = r.overlays; SEQOF[f] = r.seqOf;
+    MERGED[f] = list;
+    CLOUDIX[f] = ssIndex(list, jsonOf);
+  });
+  if (!dirty || !CLOUD_SETTINGS) CLOUD_SETTINGS = JSON.parse(JSON.stringify(main.settings || {}));
+  let parts = 0, biggest = 0;
+  Object.keys(docs).forEach((id) => { parts++; if (_DOC_KB[id] == null || _DOC_KB[id] < 0) _DOC_KB[id] = id.startsWith("pimg_") ? 0 : JSON.stringify(docs[id]).length; biggest = Math.max(biggest, _DOC_KB[id]); });
+  STORAGE_INFO = { parts, biggestKB: Math.round(biggest / 1024) };
+  // Sales made in the separate POS app (one document each) — they reduce stock here too.
+  const ids = Object.keys(docs);
+  STATE.posSales = ids.filter((id) => id.startsWith("possale_")).map((id) => docs[id]);
+  STATE.posExpenses = ids.filter((id) => id.startsWith("posexp_")).map((id) => docs[id]);
+  STATE.posWholePrices = (docs.pos_settings && docs.pos_settings.wholePrices) || {};
+  STATE.images = {}; ids.forEach((id) => { const d = docs[id]; if (id.startsWith("pimg_") && d && d.data) STATE.images[d.key || String(d.name || "").trim().toLowerCase()] = d.data; });
+  const result = { settings: main.settings };
+  SPLIT_FIELDS.forEach((f) => { result[f] = MERGED[f]; });
+  applyCloudData(result);
+}
+/* Kazi za nyuma zinazofanyika baada ya cloud kuthibitisha (si offline, hakuna kinachosubiri kutumwa) */
+function cloudMaintenance() {
+  SPLIT_FIELDS.filter((f) => LEGACY_FIELDS[f]).forEach((f) => saveField(f));   // hamisha kilichobaki kwenye hati ya zamani
+  oneTimeProductReset();
+  oneTimeStockReset();
+  oneTimeProductImport();
+  oneTimeHlxFix();
+  maybeCompact();
+}
+/* Unganisha hati ndogo (hadi 400) kwenye msingi NDANI ya transaction: inathibitisha kwanza kwamba hakuna kifaa
+   kilichobadilisha msingi, hati hizo ndogo, wala kuanza compaction nyingine tangu tulipoziona — vinginevyo inaacha. */
+function compactField(f) {
+  const ovIds = Object.keys(_DOCS).filter((id) => id.startsWith("r_" + f + "_") && _DOCS[id] && _DOCS[id].f === f)
+    .sort((a, b) => (_DOCS[a].seq || 0) - (_DOCS[b].seq || 0)).slice(0, 400);
+  const partIds = Object.keys(_DOCS).filter((id) => id.startsWith(f + "__") && /__\d+$/.test(id));
+  const lease = (_DOCS._v2 || {}).compactedAt || 0;
+  const sub = {};
+  partIds.forEach((id) => { sub[id] = _DOCS[id]; });
+  ovIds.forEach((id) => { sub[id] = _DOCS[id]; });
+  const list = ssMerge(sub, f).list;
+  return db.runTransaction(async (tx) => {
+    const v = await tx.get(colRef.doc("_v2"));
+    if ((((v.exists && v.data()) || {}).compactedAt || 0) !== lease) throw new Error("compaction nyingine imefanyika");
+    for (const id of partIds) { const s = await tx.get(colRef.doc(id)); if (!s.exists || JSON.stringify(s.data()) !== JSON.stringify(_DOCS[id])) throw new Error("msingi umebadilika"); }
+    for (const id of ovIds) { const s = await tx.get(colRef.doc(id)); if (!s.exists || (s.data().seq || 0) !== (_DOCS[id].seq || 0)) throw new Error("hati ndogo imebadilika"); }
+    const writes = ssFullWrites(colRef, f, list, sub);
+    writes.forEach(([k, r, d]) => (k === "del" ? tx.delete(r) : tx.set(r, d)));
+    tx.set(colRef.doc("_v2"), { compactedAt: Date.now() }, { merge: true });
+  });
+}
+/* Kifaa kingine bado kinatumia toleo la zamani (kinaandika orodha nzima kwenye msingi). Tunaandika muda huo ili
+   hati ndogo zisiunganishwe kwenye msingi mpaka siku 3 zipite bila kifaa cha zamani — kifaa cha zamani kingeweza
+   kufuta msingi mpya. (Vifaa vyote vikifunguliwa upya / refresh, vinapata toleo jipya.) */
+let _oldNoted = 0;
+function noteOldClient() {
+  const now = Date.now();
+  if (now - _oldNoted < 3600e3 || !colRef) return;
+  _oldNoted = now;
+  colRef.doc("_v2").set({ oldAt: now }, { merge: true }).catch(() => {});
+}
+const COMPACT_AT = 250, SAFE_DAYS = 3 * 864e5;
+/* Onyo: kifaa kimoja bado kina toleo la zamani (kinaandika orodha nzima) → kifunguliwe upya ili kipate toleo jipya */
+function oldClientBanner() {
+  const v = _DOCS._v2;
+  return v && v.oldAt && Date.now() - v.oldAt < 6 * 3600e3
+    ? `<div class="err-banner">⚠️ Kifaa kimoja (simu / tablet / kompyuta) bado kinatumia toleo la ZAMANI la mfumo. Ili mauzo yasipotee, FUNGUA UPYA (refresh) mfumo kwenye KILA kifaa — pamoja na POS.</div>` : "";
+}
+function maybeCompact() {
+  if (maybeCompact.busy || STORAGE_MODE !== "split" || !colRef || !STATE_LOADED) return;
+  const v = _DOCS._v2, now = Date.now();
+  if (!v || !v.since) { maybeCompact.busy = true; colRef.doc("_v2").set({ since: now }, { merge: true }).catch(() => {}).then(() => { maybeCompact.busy = false; }); return; }
+  if (now - v.since < SAFE_DAYS || (v.oldAt && now - v.oldAt < SAFE_DAYS)) return;
+  const f = SPLIT_FIELDS.find((x) => (OVCOUNT[x] || 0) > COMPACT_AT);
+  if (!f) return;
+  maybeCompact.busy = true;
+  // subiri kidogo (bila mpangilio) ili vifaa viwili visifanye kazi hii pamoja
+  setTimeout(() => {
+    if (!((OVCOUNT[f] || 0) > COMPACT_AT && UI.sync && !UI.sync.pending && !UI.sync.fromCache && !LEGACY_FIELDS[f])) { maybeCompact.busy = false; return; }
+    compactField(f).catch(() => {}).then(() => { maybeCompact.busy = false; });
+  }, window.__ssWait != null ? window.__ssWait : 4000 + Math.random() * 30000);   // __ssWait: kwa majaribio tu
+}
 function startLegacyListener() {
   return docRef.onSnapshot({ includeMetadataChanges: true }, (doc) => {
     UI.sync = { fromCache: doc.metadata.fromCache, pending: doc.metadata.hasPendingWrites, at: new Date() };
     const data = doc.exists ? doc.data() : {};
     STORAGE_INFO = { parts: 1, biggestKB: Math.round(JSON.stringify(data).length / 1024) };
     applyCloudData(data);
+    CLOUD_SETTINGS = JSON.parse(JSON.stringify(data.settings || {}));
     afterCloudUpdate();
   }, () => {
     // Database is locked to the business account and this device isn't activated yet.
@@ -543,18 +659,9 @@ function chunkList(list) {
 }
 function saveField(f) {
   if (!docRef) return;
-  if (f === "stockMovements") invalidateStock();
-  if (STORAGE_MODE === "legacy" || !colRef) {
-    return docRef.set({ [f]: STATE[f] }, { merge: true }).then(onSaveSuccess).catch(onSaveError);
-  }
-  const chunks = chunkList(STATE[f] || []);
-  const batch = db.batch();
-  chunks.forEach((items, i) => batch.set(colRef.doc(f + "__" + i), { part: i, of: chunks.length, items }));
-  for (let i = chunks.length; i < (KNOWN_PARTS[f] || 0); i++) batch.delete(colRef.doc(f + "__" + i));
-  if (LEGACY_FIELDS[f]) batch.set(docRef, { [f]: firebase.firestore.FieldValue.delete() }, { merge: true });
-  KNOWN_PARTS[f] = chunks.length;
-  LEGACY_FIELDS[f] = false;
-  return batch.commit().then(onSaveSuccess).catch(onSaveError);
+  const writes = buildListWrites([f]);
+  if (!writes.length) return Promise.resolve();
+  return ssCommit(db, writes).then(onSaveSuccess).catch(onSaveError);
 }
 // Full copy of everything as a file on this device — keep it somewhere safe.
 function downloadBackup() {
@@ -585,18 +692,12 @@ function reloadFromCloud() {
   rerender();
   const getter = STORAGE_MODE === "split" && colRef
     ? colRef.get({ source: "server" }).then((snap) => {
-        const docs = {}; snap.forEach((d) => { docs[d.id] = d.data(); });
-        const main = docs.data || {};
-        const result = { settings: main.settings };
-        SPLIT_FIELDS.forEach((f) => {
-          const mine = Object.keys(docs).filter((id) => id.startsWith(f + "__")).map((id) => docs[id]).sort((x, y) => x.part - y.part);
-          result[f] = mine.length ? [].concat(...mine.map((p) => p.items || [])) : (main[f] || []);
-        });
-        return result;
+        Object.keys(_DOCS).forEach((k) => { delete _DOCS[k]; delete _DOC_KB[k]; });
+        snap.forEach((d) => { _DOCS[d.id] = d.data(); _DOC_KB[d.id] = -1; });
+        rebuildFromDocs(null);
       })
-    : docRef.get({ source: "server" }).then((doc) => (doc.exists ? doc.data() : {}));
-  getter.then((data) => {
-    applyCloudData(data);
+    : docRef.get({ source: "server" }).then((doc) => applyCloudData(doc.exists ? doc.data() : {}));
+  getter.then(() => {
     UI.sync = { fromCache: false, pending: false, at: new Date() };
     UI.syncCheckMsg = { ok: true, text: "✅ Fresh data loaded from the cloud." };
     rerender();
@@ -633,7 +734,11 @@ function saveStockItems() { saveField("stockItems"); }
 function saveStockMovements() { invalidateStock(); saveField("stockMovements"); }
 function saveSales() { saveField("sales"); dukaPing("sale"); }
 function saveDeliveries() { saveField("deliveries"); }
-function saveSettings() { if (docRef) docRef.set({ settings: STATE.settings }, { merge: true }).then(onSaveSuccess).catch(onSaveError); }
+function saveSettings() {   // tuma tofauti tu (na ufute funguo zilizofutwa) — angalia ssSettingsPatch kwenye hifadhi.js
+  if (!docRef) return;
+  const w = settingsWrite();
+  if (w) docRef.set(w[2], w[3]).then(onSaveSuccess).catch(onSaveError);
+}
 
 /* ---------- render with focus preservation ---------- */
 // Used by search boxes: waits until you stop typing for a moment, then redraws once.
@@ -870,6 +975,7 @@ function renderShell() {
         </div>`}
 
         ${UI.err ? `<div class="err-banner">${esc(UI.err)}<button onclick="UI.err=null;rerender();">✕</button></div>` : ""}
+        ${oldClientBanner()}
 
         ${safeRenderPage(UI.page)}
       </section>
@@ -2749,10 +2855,10 @@ function renderDashboard() {
   </section>
 
   <section class="db-kpis">
-    ${kpi("blue", "box", "Bidhaa zote", prods.length.toLocaleString("en-US"), `Dukani ${nD} · Godown ${nG}`)}
+    ${kpi("blue", "box", "Bidhaa zote", _NF0.format(prods.length), `Dukani ${nD} · Godown ${nG}`)}
     ${kpi("green", "wallet", "Matumizi ya mwezi huu", fin ? fmt(expTotal) : `<span class="db-dots">••••••</span>`, fin ? `<span class="db-kl-a" onclick="setPage('expenses')">Fungua matumizi →</span>` : lock)}
-    ${kpi("orange", "alert", "Vitu vinavyoisha", (zero.length + low.length).toLocaleString("en-US"), zero.length + low.length ? `⚠ ${zero.length} zimeisha · ${low.length} ziko chini — agiza tena` : "✓ Stock iko sawa")}
-    ${kpi("purple", "users", "Wasambazaji", sup.size.toLocaleString("en-US"), sup.size ? "kutoka mizigo uliyopokea" : "Bado hujarekodi mzigo")}
+    ${kpi("orange", "alert", "Vitu vinavyoisha", _NF0.format((zero.length + low.length)), zero.length + low.length ? `⚠ ${zero.length} zimeisha · ${low.length} ziko chini — agiza tena` : "✓ Stock iko sawa")}
+    ${kpi("purple", "users", "Wasambazaji", _NF0.format(sup.size), sup.size ? "kutoka mizigo uliyopokea" : "Bado hujarekodi mzigo")}
   </section>
 
   <section class="db-row">
@@ -2774,7 +2880,7 @@ function renderDashboard() {
     <div class="db-h"><h3>Bidhaa za karibuni</h3><button class="db-btn pri sm" onclick="setPage('products')">＋ Ongeza bidhaa</button></div>
     ${!recent.length ? `<div class="db-ok neutral">Bado hakuna bidhaa. Bonyeza ＋ Ongeza bidhaa.</div>` : `<div class="db-tw"><table class="db-t"><thead><tr><th>#</th><th>Picha</th><th>Jina la bidhaa</th><th>Kundi</th><th class="r">Stock</th><th class="r">Bei (TSh)</th><th>Hali</th><th></th></tr></thead><tbody>
       ${recent.map((pr, i) => { const k = pr.name.toLowerCase(), it = itemByName[k], q = qtyByName[k] || 0, st = !it ? ["mute", "Haipo stock"] : q <= 0 ? ["bad", "Imeisha"] : isLowStock(it) ? ["warn", "Inakaribia kuisha"] : ["good", "Ipo"];
-        return `<tr><td class="m">${i + 1}</td><td>${photoBox(pr.name, "ph-box db-ph")}</td><td><b>${esc(pr.name)}</b></td><td class="m">${esc((it && it.category) || "—")}</td><td class="r">${it ? q : "—"}</td><td class="r">${Math.round(pr.price || 0).toLocaleString("en-US")}</td><td><span class="db-tag ${st[0]}">${st[1]}</span></td>
+        return `<tr><td class="m">${i + 1}</td><td>${photoBox(pr.name, "ph-box db-ph")}</td><td><b>${esc(pr.name)}</b></td><td class="m">${esc((it && it.category) || "—")}</td><td class="r">${it ? q : "—"}</td><td class="r">${_NF0.format(Math.round(pr.price || 0))}</td><td><span class="db-tag ${st[0]}">${st[1]}</span></td>
           <td><button class="db-ed" aria-label="Badilisha ${esc(pr.name)}" onclick="UI.productSearch='${nameJs(pr.name)}';setPage('products')">${dbIc("edit", "db-ico-s")}</button></td></tr>`; }).join("")}
     </tbody></table></div>`}
   </section>
@@ -3162,11 +3268,12 @@ function submitSale() {
     STATE.stockMovements.push({ id: movementId, itemId: stockItem.id, type: "out", qty, destination: "Sale", date: f.date });
     STATE.sales.push({
       id: uid(), itemId: stockItem.id, itemName: stockItem.name, sellPrice: price, qty,
-      total: price * qty, buyPrice, date: f.date || todayStr(), movementId, store: f.store, customer: f.customer.trim(), createdAt: Date.now(),
+      total: price * qty, buyPrice, date: f.date || todayStr(), movementId, store: f.store, customer: f.customer.trim(), createdAt: ssNow(STATE.settings),
     });
   });
-  saveStockMovements();
-  saveSales();
+  // stock na mauzo kwa batch MOJA (vinafika cloud pamoja); ssNow: saa ya kifaa ikiwa nyuma, mauzo mapya yasijifiche kwenye History
+  saveFieldsTogether(["stockMovements", "sales"]).catch(() => {});
+  dukaPing("sale");
 
   UI.saleForm = null;
   UI.saleMsg = { ok: true, text: `${validRows.length} sale(s) recorded.` };
@@ -3516,7 +3623,7 @@ async function downloadReportPdf(purgeId) {
     await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
   } catch (e) { alert("Imeshindikana kupakua PDF — angalia internet kisha jaribu tena."); return; }
   const doc = new window.jspdf.jsPDF({ unit: "mm", format: "a4" });
-  const tz = (n) => "TSh " + Math.round(n).toLocaleString("en-US");
+  const tz = (n) => "TSh " + _NF0.format(Math.round(n));
   const sg = (n) => (n < 0 ? "-" : "") + tz(Math.abs(n));
   const head = { fillColor: [15, 31, 61], textColor: 255, fontStyle: "bold" };
   const foot = { fillColor: [235, 239, 245], textColor: 20, fontStyle: "bold" };
@@ -5134,7 +5241,7 @@ function checkAlertsForNotification() {
 /* ---------- Risiti ya mtindo wa POS (sawa na EE.POS): Bidhaa | Pcs | Bei | Jumla ---------- */
 const RC_THANKS = "Asante kwa kutuamini! 🙏<br>Bidhaa bora kwa bei nzuri.<br>Karibu tena — tunakuthamini sana.";
 const rcDate = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || "")); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d || ""); };
-const rcNum = (n) => Math.round(Number(n) || 0).toLocaleString("en-US");
+const rcNum = (n) => _NF0.format(Math.round(Number(n) || 0));
 function rcShop() {
   const shop = typeof SHOP !== "undefined" && SHOP ? SHOP : null;
   return shop

@@ -21,8 +21,9 @@ const PART_LIMIT = 550000;
 
 /* ---------- helpers ---------- */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-const fmt = (n) => "TSh " + Math.round(Number(n) || 0).toLocaleString("en-US");
-const num = (n) => Math.round(Number(n) || 0).toLocaleString("en-US");
+const _NF0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });   // ⚡ mara moja — toLocaleString kila namba ilikuwa nzito sana kwenye ripoti
+const fmt = (n) => "TSh " + _NF0.format(Math.round(Number(n) || 0));
+const num = (n) => _NF0.format(Math.round(Number(n) || 0));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const normName = (n) => (n || "").toLowerCase().replace(/[.,'"`]/g, "").replace(/\s+/g, " ").trim();
 const pad = (n) => String(n).padStart(2, "0");
@@ -79,25 +80,34 @@ function posCfg() {
   return { ...POS_DEFAULTS, ...p, shop, wholePrices: p.wholePrices || {}, users: p.users || [], activity: p.activity || [] };
 }
 
+let POS_DOCS = {}, POS_SEQ = {};   // hati zote za duka (nakala) · mpangilio wa hati ndogo
 function startListening() {
   colRef.onSnapshot({ includeMetadataChanges: true }, (snap) => {
-    const docs = {};
-    snap.forEach((d) => { docs[d.id] = d.data(); });
+    // ⚡ nakala ya hati kwenye kumbukumbu: soma zilizobadilika TU (zamani kila badiliko lilisoma hati zote,
+    // pamoja na orodha za MB kadhaa — ndiyo sababu POS ilikuwa nzito)
+    const changes = typeof snap.docChanges === "function" ? snap.docChanges() : null, docs = POS_DOCS;
+    const had = Object.keys(docs).length;
+    let dirty = false;
+    if (changes && had) changes.forEach((c) => { dirty = true; if (c.type === "removed") delete docs[c.doc.id]; else docs[c.doc.id] = c.doc.data(); });
+    if (!changes || !had || Object.keys(docs).length !== snap.size) {
+      Object.keys(docs).forEach((k) => delete docs[k]);
+      snap.forEach((d) => { docs[d.id] = d.data(); });
+      dirty = true;
+    }
+    const sync = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites, at: Date.now() };
+    if (!dirty && D.loaded) { D.sync = sync; render(); return; }   // uthibitisho wa cloud tu — data haijabadilika
     const main = docs.data || {};
     SHARED.forEach((f) => {
-      const parts = Object.keys(docs).filter((id) => id.startsWith(f + "__")).map((id) => docs[id]).sort((a, b) => a.part - b.part);
-      D.parts[f] = parts.length;
-      if (parts.length) {
-        const n = parts[0].of;
-        let list = [].concat(...parts.filter((p) => p.of === n).map((p) => p.items || []));
-        if (Array.isArray(main[f])) { // records an old device wrote into the old place
-          const ids = new Set(list.map((x) => x && x.id));
-          main[f].forEach((x) => { if (x && x.id && !ids.has(x.id)) list.push(x); });
-        }
-        D[f] = list;
-      } else {
-        D[f] = main[f] || [];
+      // 🔒 msingi (f__N) + hati ndogo za kila rekodi (r_<f>_<id>) — angalia hifadhi.js
+      const r = ssMerge(docs, f, main[f] || []);
+      let list = r.list;
+      if (r.parts && Array.isArray(main[f])) { // records an old device wrote into the old place
+        list = list.slice();
+        const ids = new Set(list.map((x) => x && x.id));
+        main[f].forEach((x) => { if (x && x.id && !ids.has(x.id)) list.push(x); });
       }
+      D.parts[f] = r.parts; POS_SEQ[f] = r.seqOf;
+      D[f] = list;
     });
     D.settings = main.settings || {};
     const pick = (pre) => Object.keys(docs).filter((id) => id.startsWith(pre)).map((id) => docs[id]);
@@ -169,25 +179,32 @@ function chunkList(list) {
   });
   return chunks;
 }
-function txUpdateShared(field, mutate) {
+/* 🔒 Badiliko la orodha ya pamoja (madeni, bidhaa…) linaandikwa kwa REKODI ZILIZOBADILIKA TU, kila moja kwenye
+   hati yake ndogo (hifadhi.js). Zamani orodha nzima iliandikwa upya, na Wadai ikihifadhi orodha yake ya zamani
+   wakati huohuo, malipo/madeni ya POS yalipotea (au kinyume chake). Transaction inasoma toleo la karibuni la
+   rekodi hizo kwanza, kwa hiyo vifaa viwili vikigusa mteja mmoja kwa wakati mmoja, hakuna anayefuta mwenzake. */
+async function txUpdateShared(field, mutate) {
+  const copy = (list) => clean(list || []);
+  const probe = ssDiff(field, ssIndex(D[field] || []), mutate(copy(D[field])));   // rekodi zipi zinaguswa?
+  if (probe === null) return ssCommit(db, ssFullWrites(colRef, field, copy(mutate(copy(D[field]))), POS_DOCS));
+  if (!probe.length) return;
+  const ids = probe.map((o) => o.id);
   return db.runTransaction(async (tx) => {
-    const n = D.parts[field] || 0;
-    let list = [];
-    if (n === 0) {
-      const s = await tx.get(colRef.doc("data"));
-      list = ((s.exists && s.data()) || {})[field] || [];
-      list = mutate(clean(list));
-      tx.set(colRef.doc("data"), { [field]: clean(list) }, { merge: true });
-      return;
-    }
-    for (let i = 0; i < n; i++) {
-      const s = await tx.get(colRef.doc(field + "__" + i));
-      if (s.exists) list = list.concat(s.data().items || []);
-    }
-    list = mutate(clean(list));
-    const chunks = chunkList(clean(list));
-    chunks.forEach((items, i) => tx.set(colRef.doc(field + "__" + i), { part: i, of: chunks.length, items }));
-    for (let i = chunks.length; i < n; i++) tx.delete(colRef.doc(field + "__" + i));
+    const fresh = {};
+    for (const id of ids) { const s = await tx.get(colRef.doc(ssDocId(field, id))); if (s.exists) fresh[id] = s.data(); }
+    let list = (D[field] || []).slice();
+    const at = new Map();
+    list.forEach((x, i) => { if (x && x.id != null && !at.has(String(x.id))) at.set(String(x.id), i); });
+    const GONE = {};
+    Object.keys(fresh).forEach((id) => {
+      const d = fresh[id];
+      if (at.has(id)) list[at.get(id)] = d.del ? GONE : d.rec;
+      else if (!d.del && d.rec) list.push(d.rec);
+    });
+    list = list.filter((x) => x !== GONE);
+    const ops = ssDiff(field, ssIndex(list), mutate(copy(list)));
+    if (ops === null) throw new Error("Orodha haikuweza kuhifadhiwa — jaribu tena");
+    ssOverlayWrites(colRef, field, ops, POS_SEQ[field], ssBaseHashes(POS_DOCS, field, ops.map((o) => o.id), (POS_DOCS.data || {})[field])).forEach(([, r, d]) => tx.set(r, d));
   });
 }
 function savePos(patch) {
@@ -374,7 +391,8 @@ function shellView() {
   const sync = !s ? "⚪" : s.fromCache ? "🔴 Offline" : s.pending ? "🟡 Inahifadhi" : "🟢 Live";
   const pages = { uza: pagePOS, stock: pageStock, mauzo: pageSales, madeni: pageDebts, matumizi: pageExpenses, funga: pageClose, ripoti: pageReport, watu: pageUsers, mipangilio: pageSettings };
   if (!pages[U.page] || (!isOwner() && ["ripoti", "watu", "mipangilio"].includes(U.page)) || (U.page !== "uza" && !tabs.some(([k]) => k === U.page))) U.page = "uza";
-  return `${dukaAdminBanner()}${dukaExpiryBanner()}<div class="top"><div class="logo"><span class="mk">${logoHtml()}</span><span class="t">${esc(SHOP ? SHOP.name : "E.E.MSANGO POS")}</span></div>
+  const v2 = POS_DOCS._v2, oldDev = v2 && v2.oldAt && Date.now() - v2.oldAt < 6 * 3600e3;
+  return `${dukaAdminBanner()}${dukaExpiryBanner()}${oldDev ? `<div class="err" style="padding:8px 12px;margin:6px;border-radius:8px">⚠️ Kifaa kimoja bado kinatumia toleo la ZAMANI la mfumo. Ili mauzo yasipotee, FUNGUA UPYA (refresh) mfumo kwenye KILA kifaa.</div>` : ""}<div class="top"><div class="logo"><span class="mk">${logoHtml()}</span><span class="t">${esc(SHOP ? SHOP.name : "E.E.MSANGO POS")}</span></div>
     <div class="who"><span class="sync">${sync}</span>
       <button class="icon-top" title="Dark / Light" onclick="toggleTheme()">${document.documentElement.getAttribute("data-theme") === "dark" ? "☀️" : "🌙"}</button>
       <button class="icon-top" title="Skrini nzima" onclick="toggleFull()">⛶</button><b>${isOwner() ? "👑" : "🧑‍💼"} ${esc(U.user.name)}</b><button onclick="logout()">⏻ Toka</button></div></div>
@@ -564,7 +582,7 @@ async function checkout() {
     return { itemId: it.id, name: it.name, category: it.category, qty: l.qty, price, listPrice: priceFor(it, U.mode), buy: it.buy, lineTotal: price * l.qty };
   });
   const sale = clean({
-    id, no, createdAt: now, date: dayStr(now), store: curStore(), mode: U.mode, pay: U.pay,
+    id, no, createdAt: ssNow(D.settings), date: dayStr(now), store: curStore(), mode: U.mode, pay: U.pay,
     customer: U.customer.trim(), phone: U.phone.trim(),
     userId: U.user.id, userName: U.user.name,
     items, total, paid: U.pay === "Cash" ? (Number(U.paid) || total) : total,

@@ -35,7 +35,11 @@
       get: async () => { log.push("get " + path); if (denied(path)) throw err(); return snapDoc(path); },
       set: async (data, opt) => { log.push("set " + path); if (denied(path, true)) throw err(); const cur = store[path] || {};
         const fix = (v, old) => v && v.__inc != null ? (Number(old) || 0) + v.__inc : v && v.__union ? (old || []).concat(v.__union) : v;
-        if (opt && opt.merge) { const m = { ...cur }; Object.entries(data).forEach(([k, v]) => { if (v === undefined) delete m[k]; else m[k] = fix(v, cur[k]); }); store[path] = m; } else store[path] = data; notify(); },
+        // kama Firestore halisi: merge inaunganisha ramani za ndani (si juu tu), na FieldValue.delete() inafuta popote
+        const isMap = (v) => v && typeof v === "object" && !Array.isArray(v) && v.__inc == null && !v.__union;
+        const deep = (c, d) => { const m = { ...(c || {}) }; Object.entries(d).forEach(([k, v]) => { if (v === undefined) delete m[k]; else if (isMap(v)) m[k] = deep(isMap(c && c[k]) ? c[k] : {}, v); else m[k] = fix(v, c && c[k]); }); return m; };
+        const strip = (d) => (isMap(d) ? Object.fromEntries(Object.entries(d).filter(([, v]) => v !== undefined).map(([k, v]) => [k, strip(v)])) : d);
+        if (opt && opt.merge) store[path] = deep(cur, data); else store[path] = strip(JSON.parse(JSON.stringify(data))); notify(); },
       update: async (data) => { log.push("update " + path); if (denied(path, true)) throw err(); const cur = { ...(store[path] || {}) }; Object.entries(data).forEach(([k, v]) => { const ks = k.split("."); let o = cur; ks.slice(0, -1).forEach((x) => { o[x] = o[x] && typeof o[x] === "object" ? { ...o[x] } : {}; o = o[x]; }); const key = ks[ks.length - 1]; o[key] = v && v.__inc != null ? (Number(o[key]) || 0) + v.__inc : v && v.__union ? (o[key] || []).concat(v.__union.filter((y) => !(o[key] || []).some((z) => JSON.stringify(z) === JSON.stringify(y)))) : v; }); store[path] = cur; notify(); },
       delete: async () => { if (denied(path, "delete")) throw err(); delete store[path]; notify(); },
       onSnapshot: (opt, next, error) => { if (typeof opt === "function") { error = next; next = opt; } const f = () => { if (denied(path)) return error && error(err()); next(snapDoc(path)); }; setTimeout(f, 0); subs.push(f); return () => {}; },
