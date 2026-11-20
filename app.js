@@ -308,6 +308,24 @@ function oneTimeProductImport() {
   BULK_PRODUCTS.forEach((it) => { if (!have.has(it.name.toLowerCase())) { STATE.products.push({ id: uid(), name: it.name, price: it.price, buyPrice: it.buyPrice }); have.add(it.name.toLowerCase()); } });
   Promise.resolve(saveProducts()).then(() => { STATE.settings.productImportId = PRODUCT_IMPORT_ID; saveSettings(); oneTimeProductImport.busy = false; });
 }
+/* ---------- MARA MOJA: futa stock yote ya DUKANI ya Shemdar (ombi la mmiliki, 2026-11-20) ----------
+   Bidhaa za stock za Dukani na historia yake ya kuingia/kutoka zinaondolewa. Godown, Products, mauzo, madeni
+   na settings hazibadiliki. Alama kwenye settings inazuia isijirudie. */
+const DUKANI_RESET_ID = "2026-11-20-dukani";
+function oneTimeDukaniReset() {
+  if (!(SHOP && /shemdar/i.test(SHOP.name || ""))) return;   // duka la Shemdar tu (mmiliki Emmanuel)
+  if (!STATE.settings || STATE.settings.dukaniResetId === DUKANI_RESET_ID || oneTimeDukaniReset.busy) return;
+  if (Date.now() > Date.parse("2026-12-10")) return;          // usalama: wakati wa marekebisho haya tu
+  oneTimeDukaniReset.busy = true;
+  const gone = new Set(STATE.stockItems.filter((it) => (it.store || "dukani") === "dukani").map((it) => it.id));
+  STATE.stockItems = STATE.stockItems.filter((it) => !gone.has(it.id));
+  STATE.stockMovements = STATE.stockMovements.filter((m) => !gone.has(m.itemId));
+  invalidateStock();
+  // orodha zote mbili na alama kwenye batch MOJA — listener isirudishe orodha ya zamani katikati
+  STATE.settings = { ...STATE.settings, dukaniResetId: DUKANI_RESET_ID };
+  saveFieldsTogether(["stockItems", "stockMovements"], true)
+    .then(() => { oneTimeDukaniReset.busy = false; rerender(); }, () => { oneTimeDukaniReset.busy = false; });
+}
 /* ---------- MARA MOJA: marekebisho ya Godown (ombi la mmiliki, 2026-11-17) ----------
    1) "SIDE COVER HLX 150 RED" iliyopokelewa Godown → jina sahihi "SIDE COVER HLX 150 BLACK" (idadi na bei hazibadiliki).
    2) "COWLING HLX BLACK" ya Godown → "COWLING HLX BLACK NEW" (kama ilivyo kwenye Products), na buying price 3,900
@@ -504,6 +522,7 @@ function cloudMaintenance() {
   oneTimeStockReset();
   oneTimeProductImport();
   oneTimeHlxFix();
+  oneTimeDukaniReset();
   maybeCompact();
 }
 /* Unganisha hati ndogo (hadi 400) kwenye msingi NDANI ya transaction: inathibitisha kwanza kwamba hakuna kifaa
